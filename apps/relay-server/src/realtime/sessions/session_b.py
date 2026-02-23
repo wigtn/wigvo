@@ -207,10 +207,12 @@ class SessionBHandler:
         speech_duration = time.time() - self._speech_started_at
         if speech_duration < self._min_speech_s:
             logger.info(
-                "[SessionB] Local VAD speech stopped — too short (%.0fms < %.0fms), ignoring as noise",
+                "[SessionB] Local VAD speech stopped — too short (%.0fms < %.0fms), ignoring as noise — clearing buffer",
                 speech_duration * 1000,
                 self._min_speech_s * 1000,
             )
+            # SPEAKING 중 전송된 노이즈 오디오를 제거하여 다음 commit 시 할루시네이션 방지
+            await self.session.clear_input_buffer()
             return
 
         logger.info("[SessionB] Local VAD speech stopped (%.0fms)", speech_duration * 1000)

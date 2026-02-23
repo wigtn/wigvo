@@ -156,6 +156,8 @@ class VoiceToVoicePipeline(BasePipeline):
         # TTS 전송 중 + 동적 cooldown 구간에서 Twilio 오디오를 무음으로 대체
         self._in_echo_window = False
         self._echo_cooldown_task: asyncio.Task | None = None
+        # Post-echo AGC settling: echo window 종료 후 전화 AGC 안정화까지 VAD 억제
+        self._echo_post_cooldown_until: float = 0.0
 
         # 동적 cooldown: TTS 길이에 비례하는 cooldown 계산용
         self._tts_first_chunk_at: float = 0.0
@@ -314,11 +316,13 @@ class VoiceToVoicePipeline(BasePipeline):
         # Local VAD 경로: VAD 상태에 따라 실제 오디오 또는 무음을 Session B에 전송
         # SPEAKING 상태: 실제 오디오 전송 (Whisper STT 정확도 유지)
         # SILENCE 상태: 무음 프레임 전송 (노이즈가 Whisper에 축적되어 할루시네이션 유발 방지)
-        # Echo window 중에는 VAD 처리를 스킵하여 에코가 speech로 오감지되는 것을 방지
+        # Echo window 중 + post-echo settling 중에는 VAD 처리를 스킵
+        # (에코/AGC 노이즈가 speech로 오감지되는 것을 방지)
         if self.local_vad is not None:
-            if not self._in_echo_window:
+            vad_suppressed = self._in_echo_window or time.time() < self._echo_post_cooldown_until
+            if not vad_suppressed:
                 await self.local_vad.process(effective_audio)
-            if self.local_vad.is_speaking and not self._in_echo_window:
+            if self.local_vad.is_speaking and not vad_suppressed:
                 audio_to_send = effective_audio
             else:
                 audio_to_send = bytes([0xFF] * len(effective_audio))
@@ -531,11 +535,10 @@ class VoiceToVoicePipeline(BasePipeline):
         )
 
     async def _echo_cooldown_timer(self, first_chunk_at: float, total_bytes: int) -> None:
-        """동적 cooldown: TTS 길이에 비례하는 대기 시간.
+        """동적 cooldown: TTS 길이에 비례하는 대기 시간 + AGC settling.
 
-        cooldown = 남은 재생 시간 + 에코 왕복 마진(0.5s)
-        - "네" (0.5s TTS, 0.2s 생성) → cooldown ≈ 0.8s
-        - "안녕하세요, 예약 문의 드립니다" (3s TTS, 0.5s 생성) → cooldown ≈ 3.0s
+        Phase 1 (cooldown): 남은 재생 시간 + 에코 왕복 마진(0.3s)
+        Phase 2 (settling): 전화 AGC 안정화 대기 — 에코 후 이득 복원으로 인한 노이즈 스파이크 방지
         """
         try:
             audio_duration_s = total_bytes / 8000  # g711_ulaw @ 8kHz
@@ -545,11 +548,16 @@ class VoiceToVoicePipeline(BasePipeline):
 
             await asyncio.sleep(cooldown)
             self._in_echo_window = False
-            # 에코 윈도우 종료 시 잔여 에코 제거 — Whisper 할루시네이션 방지
+            # 에코 윈도우 종료 시 잔여 에코 제거
             await self.session_b.clear_input_buffer()
+            # LocalVAD 상태 리셋 → echo 중 carry-over 방지
+            if self.local_vad is not None:
+                self.local_vad.reset_state()
+            # Post-echo settling: AGC 안정화까지 VAD 억제 유지
+            self._echo_post_cooldown_until = time.time() + settings.echo_post_settling_s
             logger.info(
-                "Echo window closed after %.1fs cooldown (audio=%.1fs, remaining=%.1fs, margin=%.1fs) — buffer cleared",
-                cooldown, audio_duration_s, remaining_playback, self._echo_margin_s,
+                "Echo window closed after %.1fs cooldown (audio=%.1fs, remaining=%.1fs, margin=%.1fs) — buffer cleared, settling %.1fs",
+                cooldown, audio_duration_s, remaining_playback, self._echo_margin_s, settings.echo_post_settling_s,
             )
         except asyncio.CancelledError:
             pass

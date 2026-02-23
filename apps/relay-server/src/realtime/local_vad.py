@@ -219,6 +219,17 @@ class LocalVAD:
             except Exception:
                 logger.exception("[LocalVAD] on_speech_end callback error")
 
+    def reset_state(self) -> None:
+        """VAD 상태만 초기화한다 (echo window 종료 시).
+
+        Silero 모델은 리셋하지 않아 warm 상태 유지.
+        """
+        self._state = _VadState.SILENCE
+        self._speech_count = 0
+        self._silence_count = 0
+        self._frame_buffer = np.empty(0, dtype=np.float32)
+        logger.debug("[LocalVAD] State reset (model preserved)")
+
     def reset(self) -> None:
         """상태를 초기화한다 (통화 종료 시)."""
         self._state = _VadState.SILENCE
