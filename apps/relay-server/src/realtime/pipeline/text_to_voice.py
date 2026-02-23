@@ -459,7 +459,8 @@ class TextToVoicePipeline(BasePipeline):
 
     async def _on_local_vad_speech_end(self) -> None:
         """Local VAD가 수신자 발화 종료를 감지."""
-        await self.session_b.notify_speech_stopped()
+        peak_rms = self.local_vad.peak_rms if self.local_vad else 0.0
+        await self.session_b.notify_speech_stopped(peak_rms=peak_rms)
 
     # --- Echo Window (Dynamic Energy Threshold) ---
 
