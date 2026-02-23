@@ -63,33 +63,10 @@ export default function ChatContainer() {
   const isCallEnded = callStatus === 'ended';
   const isCallActive = isCalling && !isCallEnded;
   const isTextMode = callingCommunicationMode === 'text_to_voice';
-  const isCallTerminal = call?.status === 'COMPLETED' || call?.status === 'FAILED';
-
-  // 통화 상태 추적 (연결 중/연결됨/종료 상태 메시지용)
-  const prevCallStatusRef = useRef(callStatus);
-  const shownStatusesRef = useRef<Set<string>>(new Set());
-
-  // callId 변경 시 상태 리셋
+  // callStatus가 ended로 바뀌면 즉시 서버 데이터 새로고침
   useEffect(() => {
-    shownStatusesRef.current = new Set();
-    prevCallStatusRef.current = 'idle';
-  }, [callingCallId]);
-
-  // callStatus 변화 추적
-  useEffect(() => {
-    if (callStatus !== prevCallStatusRef.current) {
-      if (callStatus === 'connecting' || callStatus === 'waiting') {
-        shownStatusesRef.current.add('connecting');
-      }
-      if (callStatus === 'connected') {
-        shownStatusesRef.current.add('connected');
-      }
-      if (callStatus === 'ended') {
-        shownStatusesRef.current.add('ended');
-        // Immediately refetch call data so ResultCard shows up-to-date info
-        refetch();
-      }
-      prevCallStatusRef.current = callStatus;
+    if (callStatus === 'ended') {
+      refetch();
     }
   }, [callStatus, refetch]);
 
@@ -128,11 +105,13 @@ export default function ChatContainer() {
   // 시나리오 선택 화면
   if (!scenarioSelected) {
     return (
-      <div className="flex flex-col h-full bg-white">
-        <ScenarioSelector
-          onSelect={handleScenarioSelect}
-          disabled={isLoading}
-        />
+      <div className="flex flex-col h-full bg-transparent">
+        <div className="flex-1 overflow-y-auto styled-scrollbar">
+          <ScenarioSelector
+            onSelect={handleScenarioSelect}
+            disabled={isLoading}
+          />
+        </div>
         {error && (
           <div className="mx-4 mb-4 text-center">
             <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">
@@ -150,7 +129,7 @@ export default function ChatContainer() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-transparent">
       {/* 채팅 헤더 - 새 대화 버튼 */}
       <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-[#E2E8F0]">
         <div className="flex items-center gap-2">
@@ -196,7 +175,7 @@ export default function ChatContainer() {
         {isCalling && (
           <>
             {/* 통화 시작 상태 메시지 */}
-            {shownStatusesRef.current.has('connecting') && (
+            {(callStatus === 'connecting' || callStatus === 'waiting') && (
               <CallStatusMessage
                 type="connecting"
                 targetName={call?.targetName}
@@ -205,7 +184,7 @@ export default function ChatContainer() {
             )}
 
             {/* 연결됨 상태 메시지 */}
-            {shownStatusesRef.current.has('connected') && (
+            {callStatus === 'connected' && (
               <CallStatusMessage type="connected" />
             )}
 

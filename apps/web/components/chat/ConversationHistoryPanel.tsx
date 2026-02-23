@@ -275,17 +275,17 @@ export default function ConversationHistoryPanel() {
   // Render
   // ────────────────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col lg:flex-row bg-[#F8FAFC]">
+    <div className="h-full flex flex-col lg:flex-row bg-[#EEF3F9]">
       {/* ───── 좌측: 대화 리스트 ───── */}
       <div
         className={cn(
-          'lg:w-80 lg:border-r lg:border-[#E2E8F0] flex flex-col bg-white',
+          'lg:w-[330px] lg:border-r lg:border-white/70 flex flex-col bg-white/60 backdrop-blur-xl',
           // 모바일: list일 때만 보임
           mobileView === 'list' ? 'flex-1 lg:flex-none' : 'hidden lg:flex',
         )}
       >
         {/* 리스트 헤더 */}
-        <div className="shrink-0 px-5 py-4 border-b border-[#E2E8F0]">
+        <div className="shrink-0 px-5 py-4 border-b border-white/70">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-[#F1F5F9] flex items-center justify-center">
@@ -347,13 +347,13 @@ export default function ConversationHistoryPanel() {
               </div>
             </div>
           ) : (
-            <div className="px-2 py-2 space-y-0.5">
+            <div className="px-1.5 py-2 space-y-0.5">
               {conversations.map((conv) => (
                 <button
                   key={conv.id}
                   onClick={() => handleSelect(conv.id)}
                   className={cn(
-                    'w-full text-left px-3 py-3 rounded-xl transition-all',
+                    'w-full text-left px-2.5 py-3 rounded-xl transition-all',
                     'hover:bg-[#F8FAFC]',
                     selectedId === conv.id && 'bg-[#F1F5F9]',
                   )}
@@ -384,7 +384,7 @@ export default function ConversationHistoryPanel() {
       {/* ───── 우측: 대화 상세 ───── */}
       <div
         className={cn(
-          'flex-1 flex flex-col bg-[#F8FAFC]',
+          'flex-1 flex flex-col bg-white/28 backdrop-blur-sm',
           // 모바일: detail일 때만 보임
           mobileView === 'detail' ? 'flex' : 'hidden lg:flex',
         )}
@@ -423,7 +423,7 @@ export default function ConversationHistoryPanel() {
           /* 대화 상세 */
           <>
             {/* 상세 헤더 */}
-            <div className="shrink-0 px-5 py-4 bg-white border-b border-[#E2E8F0]">
+            <div className="shrink-0 px-5 py-4 bg-white/58 backdrop-blur-xl border-b border-white/70">
               <div className="flex items-center gap-3">
                 {/* 모바일 뒤로가기 */}
                 <button
@@ -456,7 +456,7 @@ export default function ConversationHistoryPanel() {
 
             {/* 콘텐츠 영역 — 3섹션: Summary → AI 대화 → 통화 내용 */}
             <div className="flex-1 overflow-y-auto styled-scrollbar">
-              <div className="max-w-2xl mx-auto px-4 py-5 space-y-6">
+              <div className="w-full px-3 md:px-4 lg:px-5 py-5 space-y-6">
 
                 {/* ── Section 1: Summary ── */}
                 {((detail.collectedData && hasCollectedData(detail.collectedData)) || callResult) && (

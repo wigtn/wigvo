@@ -10,18 +10,18 @@ export default function LoginPage() {
   const t = useTranslations("login");
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-5 bg-[#F8FAFC]">
+    <div className="page-shell page-center">
       {/* Language Switcher - 우상단 고정 */}
       <div className="absolute top-5 right-5 z-10">
         <LanguageSwitcher direction="down" />
       </div>
 
-      <div className="w-full max-w-sm space-y-8">
+      <div className="page-card max-w-md px-6 py-8 space-y-8">
         {/* 히어로 */}
         <div className="text-center space-y-5">
           <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#F1F5F9] glow-accent">
-              <Zap className="size-7 text-[#0F172A]" />
+            <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-[#0F172A]">
+              <Zap className="size-7 text-white" />
             </div>
           </div>
 
@@ -43,7 +43,7 @@ export default function LoginPage() {
             <div className="w-full border-t border-[#E2E8F0]" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-3 bg-[#F8FAFC] text-[#94A3B8]">{t("or")}</span>
+            <span className="px-3 bg-white text-[#94A3B8]">{t("or")}</span>
           </div>
         </div>
 

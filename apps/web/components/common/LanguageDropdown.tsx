@@ -44,7 +44,7 @@ export default function LanguageDropdown({ value, onChange, disabled = false }: 
         type="button"
         onClick={() => !disabled && setIsOpen((o) => !o)}
         disabled={disabled}
-        className="w-full flex items-center justify-between px-3 py-2 text-sm rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] transition-colors hover:border-[#CBD5E1] focus:outline-none focus:border-[#CBD5E1] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full h-11 flex items-center justify-between px-3 text-sm rounded-xl border border-white/80 bg-white/65 backdrop-blur-md text-[#0F172A] transition-colors hover:bg-white/80 focus:outline-none focus:border-[#CBD5E1] disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <span className="flex items-center gap-2">
           <span>{selected?.flag}</span>
@@ -54,7 +54,7 @@ export default function LanguageDropdown({ value, onChange, disabled = false }: 
       </button>
 
       <div
-        className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-[#E2E8F0] bg-white shadow-lg overflow-hidden transition-all duration-200 origin-top ${
+        className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-white/80 bg-white/92 shadow-lg overflow-hidden transition-all duration-200 origin-top backdrop-blur-md ${
           isOpen ? 'opacity-100 scale-y-100 translate-y-0' : 'opacity-0 scale-y-95 -translate-y-1 pointer-events-none'
         }`}
       >

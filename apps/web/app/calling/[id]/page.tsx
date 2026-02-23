@@ -53,8 +53,8 @@ export default function CallingPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center gap-5 px-5 text-center">
+      <div className="page-center">
+        <div className="page-card mx-auto flex w-full max-w-md flex-col items-center gap-5 px-5 py-10 text-center">
           <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
             <AlertTriangle className="size-6 text-red-500" />
           </div>
@@ -84,10 +84,10 @@ export default function CallingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
-      <div className="mx-auto w-full max-w-md px-5">
+    <div className="page-center">
+      <div className="mx-auto w-full max-w-md">
         {loading && !call ? (
-          <div className="flex flex-col items-center gap-4 py-16">
+          <div className="page-card flex flex-col items-center gap-4 py-16">
             <Loader2 className="size-8 text-[#0F172A] animate-spin" />
             <p className="text-sm text-[#94A3B8]">통화 정보를 불러오는 중...</p>
           </div>

@@ -45,8 +45,8 @@ export default function HistoryPage() {
   }, [router]);
 
   return (
-    <div className="flex h-full flex-col bg-[#F8FAFC]">
-      <div className="mx-auto w-full max-w-2xl px-5 py-6">
+    <div className="page-shell">
+      <div className="mx-auto w-full max-w-3xl px-5 py-8">
         {/* 헤더 */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -66,12 +66,12 @@ export default function HistoryPage() {
 
         {/* 콘텐츠 */}
         {loading ? (
-          <div className="flex flex-col items-center gap-4 py-20">
+          <div className="page-card flex flex-col items-center gap-4 py-20">
             <Loader2 className="size-6 text-[#0F172A] animate-spin" />
             <p className="text-sm text-[#94A3B8]">기록을 불러오는 중...</p>
           </div>
         ) : error ? (
-          <div className="flex flex-col items-center gap-4 py-20">
+          <div className="page-card flex flex-col items-center gap-4 py-20">
             <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
               <AlertTriangle className="size-6 text-red-500" />
             </div>
@@ -88,7 +88,9 @@ export default function HistoryPage() {
             </button>
           </div>
         ) : (
-          <HistoryList calls={calls} />
+          <div className="page-card p-4">
+            <HistoryList calls={calls} />
+          </div>
         )}
       </div>
     </div>

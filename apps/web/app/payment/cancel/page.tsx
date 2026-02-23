@@ -9,8 +9,8 @@ export default function PaymentCancelPage() {
   const t = useTranslations("payment");
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#F8FAFC]">
-      <div className="max-w-md w-full text-center space-y-6">
+    <div className="page-center">
+      <div className="page-card max-w-md px-6 py-8 text-center space-y-6">
         <div className="flex justify-center">
           <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
             <XCircle className="w-12 h-12 text-red-500" />

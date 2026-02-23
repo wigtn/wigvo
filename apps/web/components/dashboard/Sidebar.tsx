@@ -55,7 +55,7 @@ export default function Sidebar({
   return (
     <aside
       className={cn(
-        "relative h-full bg-white border-r border-[#E2E8F0] transition-all duration-300 flex flex-col",
+        "relative h-full bg-white/46 backdrop-blur-xl border-r border-white/72 shadow-[0_18px_36px_rgba(9,15,26,0.16)] transition-all duration-300 flex flex-col",
         isSidebarCollapsed ? "w-16" : "w-60",
       )}
     >
@@ -64,15 +64,15 @@ export default function Sidebar({
         type="button"
         onClick={() => setActiveMenu("chat")}
         className={cn(
-          "h-14 flex items-center border-b border-[#E2E8F0] px-4 w-full hover:bg-[#F8FAFC] transition-colors",
+          "h-14 flex items-center border-b border-white/75 px-4 w-full hover:bg-white/42 transition-colors",
           isSidebarCollapsed && "justify-center px-2",
         )}
       >
-        <div className="w-8 h-8 rounded-xl bg-[#F1F5F9] flex items-center justify-center shrink-0 glow-accent">
-          <Zap className="size-4 text-[#0F172A]" />
+        <div className="w-8 h-8 rounded-xl bg-[#0B1324] flex items-center justify-center shrink-0 shadow-[0_8px_18px_rgba(8,23,55,0.26)]">
+          <Zap className="size-4 text-white" />
         </div>
         {!isSidebarCollapsed && (
-          <span className="ml-2.5 text-[15px] font-bold tracking-tight text-[#0F172A]">
+          <span className="ml-2.5 text-[15px] font-bold tracking-tight text-[#0B1324]">
             WIGVO
           </span>
         )}
@@ -81,19 +81,19 @@ export default function Sidebar({
       {/* 접기/펼치기 */}
       <button
         onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
-        className="absolute -right-3 top-16 z-10 bg-white border border-[#E2E8F0] rounded-full p-1 shadow-sm hover:bg-[#F8FAFC] transition-colors"
+        className="absolute -right-3 top-16 z-10 bg-white/85 border border-white rounded-full p-1 shadow-[0_4px_10px_rgba(9,15,26,0.12)] hover:bg-white transition-colors"
       >
         {isSidebarCollapsed ? (
-          <ChevronRight className="size-3.5 text-[#94A3B8]" />
+          <ChevronRight className="size-3.5 text-[#7A8AA0]" />
         ) : (
-          <ChevronLeft className="size-3.5 text-[#94A3B8]" />
+          <ChevronLeft className="size-3.5 text-[#7A8AA0]" />
         )}
       </button>
 
       {/* 메뉴 */}
       <nav className="px-2 pt-4">
         {!isSidebarCollapsed && (
-          <p className="px-3 mb-2 text-[10px] font-semibold text-[#94A3B8] uppercase tracking-[0.08em]">
+          <p className="px-3 mb-2 text-[10px] font-semibold text-[#7890A8] uppercase tracking-[0.08em]">
             {t("menu")}
           </p>
         )}
@@ -124,7 +124,7 @@ export default function Sidebar({
 
       {/* 구분선 */}
       {!isSidebarCollapsed && (
-        <div className="mx-3 mt-3 border-t border-[#E2E8F0]" />
+        <div className="mx-3 mt-3 border-t border-white/70" />
       )}
 
       <div className="flex-1" />
@@ -134,11 +134,11 @@ export default function Sidebar({
         <div className={cn("mb-3", isSidebarCollapsed ? "flex justify-center" : "px-1")}>
           <LanguageSwitcher isCollapsed={isSidebarCollapsed} />
         </div>
-        <div className="mx-1 mb-3 border-t border-[#E2E8F0]" />
+        <div className="mx-1 mb-3 border-t border-white/70" />
         <button
           onClick={handleSignOut}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[#94A3B8] hover:text-red-500 hover:bg-red-50/50 transition-all",
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] text-[#7890A8] hover:text-red-500 hover:bg-red-50/55 transition-all",
             isSidebarCollapsed && "justify-center px-2",
           )}
         >

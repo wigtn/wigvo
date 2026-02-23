@@ -32,11 +32,16 @@ export default function DashboardLayout() {
     "chat",
   );
   const isCalling = !!callingCallId;
+  const mobileHeaderClass =
+    "lg:hidden flex items-center px-4 py-2.5 glass-surface border-b border-white/70";
+  const panelClass =
+    "h-full dashboard-panel lg:rounded-3xl overflow-hidden";
 
   // calling 시작 시 모바일에서 자동 탭 전환
   useEffect(() => {
     if (isCalling) {
-      setMobileTab("calling");
+      const id = window.setTimeout(() => setMobileTab("calling"), 0);
+      return () => window.clearTimeout(id);
     }
   }, [isCalling]);
 
@@ -54,9 +59,9 @@ export default function DashboardLayout() {
   );
 
   return (
-    <div className="flex h-full bg-[#F8FAFC]">
+    <div className="relative isolate flex h-full dashboard-shell overflow-hidden">
       {/* 데스크톱 사이드바 */}
-      <div className="hidden lg:block">
+      <div className="relative z-10 hidden lg:block">
         <Sidebar
           onNewConversation={onNewConversation}
           onSelectConversation={onSelectConversation}
@@ -72,68 +77,68 @@ export default function DashboardLayout() {
       {/* 메인 콘텐츠 */}
       {activeMenu === "pricing" ? (
         /* 요금제 전체 영역 */
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="relative z-10 flex-1 flex flex-col overflow-hidden p-0 lg:p-4">
           {/* 모바일 헤더 (메뉴 버튼만) */}
-          <div className="lg:hidden flex items-center px-4 py-2 bg-white border-b border-[#E2E8F0]">
+          <div className={mobileHeaderClass}>
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+              className="p-2 hover:bg-white/55 rounded-lg transition-colors"
             >
-              <Menu className="size-5 text-[#64748B]" />
+              <Menu className="size-5 text-[#4A5D76]" />
             </button>
           </div>
 
           {/* 요금제 패널 */}
-          <div className="flex-1 overflow-hidden lg:p-4">
-            <div className="h-full lg:bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="flex-1 overflow-hidden p-0 lg:p-5">
+            <div className={panelClass}>
               <PricingPanel />
             </div>
           </div>
         </div>
       ) : activeMenu === "conversations" ? (
         /* 대화 기록 전체 영역 */
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="relative z-10 flex-1 flex flex-col overflow-hidden p-0 lg:p-4">
           {/* 모바일 헤더 (메뉴 버튼만) */}
-          <div className="lg:hidden flex items-center px-4 py-2 bg-white border-b border-[#E2E8F0]">
+          <div className={mobileHeaderClass}>
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+              className="p-2 hover:bg-white/55 rounded-lg transition-colors"
             >
-              <Menu className="size-5 text-[#64748B]" />
+              <Menu className="size-5 text-[#4A5D76]" />
             </button>
           </div>
 
           {/* 대화 기록 패널 */}
-          <div className="flex-1 overflow-hidden lg:p-4">
-            <div className="h-full lg:bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="flex-1 overflow-hidden p-0 lg:p-5">
+            <div className={panelClass}>
               <ConversationHistoryPanel />
             </div>
           </div>
         </div>
       ) : (
         /* 채팅 + 통화 2-column 레이아웃 */
-        <div className="flex-1 flex flex-col lg:flex-row gap-0 lg:gap-4 p-0 lg:p-4 overflow-hidden">
+        <div className="relative z-10 flex-1 flex flex-col lg:flex-row gap-0 lg:gap-5 p-0 lg:p-8 overflow-hidden">
           {/* 모바일 헤더 (시나리오 선택 전: 메뉴만 / 선택 후: 메뉴+탭 전환) */}
           <div className={cn(
-            "lg:hidden flex items-center px-4 py-2 bg-white border-b border-[#E2E8F0]",
+            mobileHeaderClass,
             scenarioSelected ? "justify-between" : "justify-start",
           )}>
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-[#F1F5F9] rounded-lg transition-colors"
+              className="p-2 hover:bg-white/55 rounded-lg transition-colors"
             >
-              <Menu className="size-5 text-[#64748B]" />
+              <Menu className="size-5 text-[#4A5D76]" />
             </button>
 
             {scenarioSelected && isCalling && (
-              <div className="flex bg-[#F1F5F9] rounded-xl p-1">
+              <div className="flex bg-white/45 rounded-xl p-1 border border-white/70">
                 <button
                   onClick={() => setMobileTab("chat")}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                     mobileTab === "chat"
-                      ? "bg-white text-[#0F172A] shadow-sm"
-                      : "text-[#94A3B8]",
+                      ? "bg-[#0B1324] text-white shadow-[0_4px_12px_rgba(8,23,55,0.3)]"
+                      : "text-[#6B7E95]",
                   )}
                 >
                   <MessageSquare className="size-4" />
@@ -144,8 +149,8 @@ export default function DashboardLayout() {
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
                     mobileTab === "calling"
-                      ? "bg-white text-[#0F172A] shadow-sm"
-                      : "text-[#94A3B8]",
+                      ? "bg-[#0B1324] text-white shadow-[0_4px_12px_rgba(8,23,55,0.3)]"
+                      : "text-[#6B7E95]",
                   )}
                 >
                   <Phone className="size-4" />
@@ -163,7 +168,7 @@ export default function DashboardLayout() {
               mobileTab === "chat" ? "flex-1" : "hidden lg:block",
             )}
           >
-            <div className="h-full bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className={cn(panelClass, "lg:rounded-3xl")}>
               <ChatContainer />
             </div>
           </div>
@@ -186,7 +191,7 @@ export default function DashboardLayout() {
                 callingCallId={callingCallId}
                 communicationMode={callingCommunicationMode ?? 'voice_to_voice'}
               >
-                <div className="h-full bg-white lg:rounded-2xl lg:border lg:border-[#E2E8F0] lg:shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className={cn(panelClass, "lg:rounded-3xl")}>
                   <CallEffectPanel />
                 </div>
               </RelayCallProvider>

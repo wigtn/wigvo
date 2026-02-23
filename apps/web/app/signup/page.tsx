@@ -70,22 +70,22 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-gradient-to-b from-gray-900 to-gray-800">
-        <div className="w-full max-w-sm space-y-6 text-center">
+      <div className="page-shell page-center">
+        <div className="page-card max-w-md px-6 py-8 space-y-6 text-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Mail className="size-8 text-green-400" />
+            <div className="w-16 h-16 rounded-full bg-green-50 border border-green-200 flex items-center justify-center">
+              <Mail className="size-8 text-green-600" />
             </div>
-            <h2 className="text-xl font-bold text-white">{t('success.title')}</h2>
-            <p className="text-gray-400 text-sm">
-              <span className="text-cyan-400">{email}</span>
+            <h2 className="text-xl font-bold text-[#0F172A]">{t('success.title')}</h2>
+            <p className="text-[#64748B] text-sm">
+              <span className="text-[#0F172A] font-medium">{email} </span>
               {t('success.message')}
             </p>
           </div>
           <Link href="/login">
             <Button
               variant="outline"
-              className="w-full h-12 border-gray-700 text-gray-300 hover:bg-gray-800"
+              className="w-full h-12 border-[#E2E8F0] text-[#334155] hover:bg-[#F8FAFC]"
             >
               {t('success.backToLogin')}
             </Button>
@@ -96,17 +96,17 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-gradient-to-b from-gray-900 to-gray-800">
+    <div className="page-shell page-center">
       {/* Language Switcher - 우상단 고정 */}
       <div className="absolute top-4 right-4">
         <LanguageSwitcher direction="down" />
       </div>
 
-      <div className="w-full max-w-sm space-y-6">
+      <div className="page-card max-w-md px-6 py-8 space-y-6">
         {/* 뒤로가기 */}
         <Link
           href="/login"
-          className="inline-flex items-center gap-1 text-gray-400 hover:text-gray-300 text-sm"
+          className="inline-flex items-center gap-1 text-[#64748B] hover:text-[#334155] text-sm"
         >
           <ArrowLeft className="size-4" />
           {t('backToLogin')}
@@ -120,9 +120,9 @@ export default function SignupPage() {
               alt="WIGVO Logo"
               width={60}
               height={60}
-              className="rounded-full shadow-lg shadow-cyan-500/20"
+              className="rounded-full border border-[#E2E8F0]"
             />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold text-[#0F172A]">
               {t('title')}
             </h1>
           </div>
@@ -139,7 +139,7 @@ export default function SignupPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="pl-10 h-12 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-cyan-500 focus:ring-cyan-500"
+              className="pl-10 h-12 bg-white border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#94A3B8] focus:ring-[#F1F5F9]"
             />
           </div>
 
@@ -152,7 +152,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="pl-10 h-12 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-cyan-500 focus:ring-cyan-500"
+              className="pl-10 h-12 bg-white border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#94A3B8] focus:ring-[#F1F5F9]"
             />
           </div>
 
@@ -166,7 +166,7 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              className="pl-10 h-12 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-cyan-500 focus:ring-cyan-500"
+              className="pl-10 h-12 bg-white border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#94A3B8] focus:ring-[#F1F5F9]"
             />
           </div>
 
@@ -179,13 +179,13 @@ export default function SignupPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              className="pl-10 h-12 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-cyan-500 focus:ring-cyan-500"
+              className="pl-10 h-12 bg-white border-[#E2E8F0] text-[#0F172A] placeholder:text-[#94A3B8] focus:border-[#94A3B8] focus:ring-[#F1F5F9]"
             />
           </div>
 
           {/* 에러 메시지 */}
           {error && (
-            <p className="text-sm text-red-400 text-center bg-red-900/20 py-2 px-3 rounded-lg">
+            <p className="text-sm text-red-600 text-center bg-red-50 border border-red-200 py-2 px-3 rounded-lg">
               {error}
             </p>
           )}
@@ -194,7 +194,7 @@ export default function SignupPage() {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium rounded-xl"
+            className="w-full h-12 bg-[#0F172A] hover:bg-[#1E293B] text-white font-medium rounded-xl"
           >
             {isLoading ? (
               <>
@@ -208,7 +208,7 @@ export default function SignupPage() {
         </form>
 
         {/* 이용약관 안내 */}
-        <p className="text-center text-xs text-gray-500 px-4">
+        <p className="text-center text-xs text-[#94A3B8] px-4">
           {t('terms')}
         </p>
       </div>

@@ -5,6 +5,7 @@ import { useCallPolling } from '@/hooks/useCallPolling';
 import { useRelayCall } from '@/hooks/useRelayCall';
 import { useRelayCallStore } from '@/hooks/useRelayCallStore';
 import type { CallMode, CommunicationMode } from '@/shared/call-types';
+import { isDemoMode, MOCK_WS_URL_PREFIX } from '@/lib/demo';
 
 interface RelayCallProviderProps {
   callingCallId: string;
@@ -42,7 +43,18 @@ export default function RelayCallProvider({
 
   // relayWsUrl 확보 시 startCall
   useEffect(() => {
-    if (!call?.relayWsUrl || !call.callMode || startedRef.current) return;
+    if (startedRef.current) return;
+
+    // Demo preview path: force-start mock realtime call even before polling settles.
+    if (isDemoMode()) {
+      startedRef.current = true;
+      const demoWsUrl = call?.relayWsUrl ?? `${MOCK_WS_URL_PREFIX}${callingCallId}`;
+      const demoMode = (call?.callMode as CallMode | undefined) ?? 'relay';
+      relay.startCall(callingCallId, demoWsUrl, demoMode);
+      return;
+    }
+
+    if (!call?.relayWsUrl || !call.callMode) return;
     startedRef.current = true;
     relay.startCall(callingCallId, call.relayWsUrl, call.callMode as CallMode);
   }, [call?.relayWsUrl, call?.callMode, callingCallId, relay]);

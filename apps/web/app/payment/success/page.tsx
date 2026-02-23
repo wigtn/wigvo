@@ -18,8 +18,8 @@ function PaymentSuccessContent() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#F8FAFC]">
-      <div className="max-w-md w-full text-center space-y-6">
+    <div className="page-center">
+      <div className="page-card max-w-md px-6 py-8 text-center space-y-6">
         <div className="flex justify-center">
           <div className="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center">
             <CheckCircle className="w-12 h-12 text-teal-500" />
@@ -52,7 +52,7 @@ export default function PaymentSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="page-center">
           <div className="text-[#94A3B8]">Loading...</div>
         </div>
       }

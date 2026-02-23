@@ -79,7 +79,6 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
 
   // AI Auto free text
   const [freeText, setFreeText] = useState('');
-
   const handleSwapLanguages = () => {
     setSourceLang(targetLang);
     setTargetLang(sourceLang);
@@ -141,42 +140,37 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
 
   // ── Language pair section ───────────────────────────────────
   const renderLanguagePair = () => (
-    <div className="mb-5 max-w-xs mx-auto w-full">
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white">
-        {/* My language */}
-        <div className="px-4 py-3">
+    <div className="mb-8 max-w-2xl mx-auto w-full">
+      <div className="glass-surface rounded-3xl px-4 py-4 md:px-5 md:py-5">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3 md:gap-4">
           <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">
             {tLang('myLang')}
           </p>
-          <LanguageDropdown value={sourceLang} onChange={setSourceLang} disabled={disabled} />
-        </div>
+          <div />
+          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5 text-left">
+            {tLang('theirLang')}
+          </p>
 
-        {/* Divider with swap button */}
-        <div className="relative flex items-center px-4">
-          <div className="flex-1 h-px bg-[#E2E8F0]" />
+          <div>
+            <LanguageDropdown value={sourceLang} onChange={setSourceLang} disabled={disabled} />
+          </div>
           <button
             type="button"
             onClick={handleSwapLanguages}
             disabled={disabled}
-            className="mx-3 shrink-0 w-8 h-8 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] flex items-center justify-center text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#0F172A] transition-colors disabled:opacity-50"
+            className="self-center justify-self-center shrink-0 w-10 h-10 rounded-full bg-white/75 border border-white/80 flex items-center justify-center text-[#64748B] hover:bg-white hover:text-[#0F172A] transition-colors disabled:opacity-50"
             aria-label="Swap languages"
           >
-            <ArrowDownUp className="size-3.5" />
+            <ArrowDownUp className="size-4" />
           </button>
-          <div className="flex-1 h-px bg-[#E2E8F0]" />
-        </div>
-
-        {/* Their language */}
-        <div className="px-4 py-3">
-          <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1.5">
-            {tLang('theirLang')}
-          </p>
-          <LanguageDropdown value={targetLang} onChange={setTargetLang} disabled={disabled} />
+          <div>
+            <LanguageDropdown value={targetLang} onChange={setTargetLang} disabled={disabled} />
+          </div>
         </div>
       </div>
 
       {/* Translation flow preview */}
-      <div className="mt-2.5 px-1 space-y-0.5">
+      <div className="mt-3 px-1 space-y-1">
         <p className="text-[10px] text-[#94A3B8] flex items-center gap-1">
           <span>{sourceLangObj?.flag}</span>
           <span>{tLang('flowSend', { source: sourceLangObj?.label ?? '', target: targetLangObj?.label ?? '' })}</span>
@@ -193,21 +187,21 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
   const renderCategoryContent = () => (
     <>
       {/* Header */}
-      <div className="text-center mb-8">
-        <h2 className="text-xl font-bold text-[#0F172A] tracking-tight mb-1">
+      <div className="text-center mb-8 max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight mb-1.5">
           {t.rich('title', { accent: (chunks) => <span className="text-gradient">{chunks}</span> })}
         </h2>
         <p className="text-sm text-[#94A3B8]">{t('subtitle')}</p>
       </div>
 
       {/* Category cards */}
-      <div className="flex flex-col gap-3 max-w-xs mx-auto w-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto w-full">
         {/* Direct Call */}
         <button
           type="button"
           disabled={disabled}
           onClick={() => handleCategorySelect('direct')}
-          className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+          className="glass-surface group flex items-center gap-4 p-5 rounded-3xl hover:border-white/90 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)] active:scale-[0.99] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed text-left"
         >
           <div className="shrink-0 w-12 h-12 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0] flex items-center justify-center">
             <Phone className="size-5 text-[#0F172A]" />
@@ -224,7 +218,7 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
           type="button"
           disabled={disabled}
           onClick={() => handleCategorySelect('ai_auto')}
-          className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-[0_2px_12px_rgba(0,0,0,0.06)] active:scale-[0.98] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed text-left"
+          className="glass-surface group flex items-center gap-4 p-5 rounded-3xl hover:border-white/90 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)] active:scale-[0.99] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed text-left"
         >
           <div className="shrink-0 w-12 h-12 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0] flex items-center justify-center">
             <Bot className="size-5 text-[#0F172A]" />
@@ -242,28 +236,28 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
   const renderDirectContent = () => (
     <>
       {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-lg font-bold text-[#0F172A] tracking-tight mb-1">
+      <div className="text-center mb-6 max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight mb-1.5">
           {tDirect('title')}
         </h2>
         <p className="text-sm text-[#94A3B8]">{tDirect('subtitle')}</p>
       </div>
 
-      <div className="max-w-xs mx-auto w-full space-y-5">
+      <div className="max-w-2xl mx-auto w-full space-y-5">
         {/* Input method */}
         <div>
           <p className="text-xs font-semibold text-[#64748B] mb-2 uppercase tracking-wider">
             {tDirect('inputLabel')}
           </p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 items-stretch">
             <button
               type="button"
               disabled={disabled}
               onClick={() => setInputMethod('voice')}
-              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
+              className={`glass-surface box-border min-h-[158px] flex flex-col items-center justify-center gap-2 p-5 rounded-3xl transition-[background-color,border-color,box-shadow,color] ${
                 inputMethod === 'voice'
-                  ? 'border-[#0F172A] bg-[#F8FAFC] ring-1 ring-[#0F172A]'
-                  : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                  ? 'glass-surface-selected'
+                  : 'hover:border-white/90 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)]'
               } disabled:opacity-50`}
             >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -278,10 +272,10 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
               type="button"
               disabled={disabled}
               onClick={() => setInputMethod('text')}
-              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
+              className={`glass-surface box-border min-h-[158px] flex flex-col items-center justify-center gap-2 p-5 rounded-3xl transition-[background-color,border-color,box-shadow,color] ${
                 inputMethod === 'text'
-                  ? 'border-[#0F172A] bg-[#F8FAFC] ring-1 ring-[#0F172A]'
-                  : 'border-[#E2E8F0] bg-white hover:border-[#CBD5E1] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                  ? 'glass-surface-selected'
+                  : 'hover:border-white/90 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)]'
               } disabled:opacity-50`}
             >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -296,15 +290,17 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
         </div>
 
         {/* Start call button */}
-        <button
-          type="button"
-          onClick={handleDirectStart}
-          disabled={disabled}
-          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F172A] text-white px-4 py-3 text-sm font-medium transition-colors hover:bg-[#1E293B] disabled:opacity-40"
-        >
-          <Phone className="size-4" />
-          {tDirect('startCall')}
-        </button>
+        <div className="min-h-[52px] flex items-center md:justify-end">
+          <button
+            type="button"
+            onClick={handleDirectStart}
+            disabled={disabled}
+            className="w-full md:w-auto md:min-w-[220px] flex items-center justify-center gap-2 rounded-2xl bg-[#0F172A] text-white px-5 py-3 text-sm font-medium transition-colors hover:bg-[#1E293B] disabled:opacity-40"
+          >
+            <Phone className="size-4" />
+            {tDirect('startCall')}
+          </button>
+        </div>
       </div>
     </>
   );
@@ -312,15 +308,15 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
   const renderAiAutoContent = () => (
     <>
       {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-lg font-bold text-[#0F172A] tracking-tight mb-1">
+      <div className="text-center mb-6 max-w-2xl mx-auto">
+        <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight mb-1.5">
           {tAiAuto.rich('title', { accent: (chunks) => <span className="text-gradient">{chunks}</span> })}
         </h2>
         <p className="text-sm text-[#94A3B8]">{tAiAuto('subtitle')}</p>
       </div>
 
       {/* Quick action grid */}
-      <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto w-full mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 max-w-2xl mx-auto w-full mb-6">
         {QUICK_ACTIONS.map((action) => {
           const Icon = action.icon;
           return (
@@ -329,7 +325,7 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
               type="button"
               disabled={disabled}
               onClick={() => handleQuickAction(action)}
-              className="group flex flex-col items-center gap-2 p-3 rounded-2xl bg-white border border-[#E2E8F0] hover:border-[#CBD5E1] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-[0.97] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="glass-surface group flex flex-col items-center gap-2 p-4 rounded-2xl hover:border-white/90 hover:shadow-[0_14px_28px_rgba(15,23,42,0.12)] active:scale-[0.99] transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="w-10 h-10 rounded-xl bg-[#F1F5F9] flex items-center justify-center group-hover:bg-[#E2E8F0] transition-colors">
                 <Icon className="size-5 text-[#0F172A]" />
@@ -346,7 +342,7 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
       </div>
 
       {/* Divider + free text */}
-      <div className="max-w-xs mx-auto w-full">
+      <div className="max-w-2xl mx-auto w-full">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex-1 h-px bg-[#E2E8F0]" />
           <span className="text-[10px] text-[#CBD5E1] font-medium uppercase tracking-wider">
@@ -382,22 +378,24 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
   // Single unified return — fixed slot layout prevents Y-jump
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-transparent">
       <div className="flex-1 overflow-y-auto styled-scrollbar">
-        <div className="px-5 pt-6 pb-6 flex flex-col items-center">
-          {/* Back button slot — always h-7 to prevent layout shift */}
-          <div className="w-full max-w-xs h-7 mb-1">
-            {step !== 'category' && (
-              <button
-                type="button"
-                onClick={handleBack}
-                disabled={disabled}
-                className="flex items-center gap-1 text-xs text-[#94A3B8] hover:text-[#64748B] transition-colors"
-              >
-                <ChevronLeft className="size-3.5" />
-                {step === 'direct' ? tCat('directTitle') : tCat('aiAutoTitle')}
-              </button>
-            )}
+        <div className="px-4 md:px-8 pt-7 pb-8 flex flex-col items-center">
+          {/* Back row */}
+          <div className="w-full mb-3 min-h-6">
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={disabled || step === 'category'}
+              className={`flex items-center gap-1 text-xs transition-colors ${
+                step === 'category'
+                  ? 'opacity-0 pointer-events-none'
+                  : 'text-[#64748B] hover:text-[#334155]'
+              }`}
+            >
+              <ChevronLeft className="size-3.5" />
+              {step === 'direct' ? tCat('directTitle') : tCat('aiAutoTitle')}
+            </button>
           </div>
 
           {/* Language pair — same Y position on all steps */}

@@ -39,7 +39,7 @@ export default function CallStatusBar({
   const isActive = callStatus === 'connected' || callStatus === 'waiting';
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-[#E2E8F0] bg-white">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-[#E2E8F0]/80 bg-white/12">
       <div className="flex items-center gap-3">
         <div
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${

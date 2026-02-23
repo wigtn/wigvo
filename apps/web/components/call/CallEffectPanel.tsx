@@ -21,7 +21,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import type { CommunicationMode } from '@/shared/call-types';
-import { getCallCategory } from '@/shared/call-types';
+import { isDemoMode } from '@/lib/demo';
 
 const Orb = dynamic(() => import('@/components/ui/Orb'), { ssr: false });
 
@@ -92,8 +92,10 @@ export default function CallEffectPanel() {
   }, [resetDashboard]);
 
   // Relay/Agent 모드 판별
-  const isRealtimeMode = call?.callMode === 'agent' || call?.callMode === 'relay';
-  const hasRelayWsUrl = !!call?.relayWsUrl;
+  // Demo preview에서는 polling 타이밍과 무관하게 realtime UI(orb)를 강제 노출.
+  const demoModeActive = isDemoMode();
+  const isRealtimeMode = demoModeActive || call?.callMode === 'agent' || call?.callMode === 'relay';
+  const hasRelayWsUrl = demoModeActive || !!call?.relayWsUrl;
 
   // Legacy 폴백: isRealtimeMode가 false면 기존 CallingStatus
   if (!isRealtimeMode || !hasRelayWsUrl) {
@@ -129,9 +131,10 @@ export default function CallEffectPanel() {
     );
   }
 
-  const isTerminal = call?.status === 'COMPLETED' || call?.status === 'FAILED';
-  const isActive = callStatus !== 'ended' && !isTerminal;
-  const isEnded = callStatus === 'ended' || isTerminal;
+  const isTerminal = !demoModeActive && (call?.status === 'COMPLETED' || call?.status === 'FAILED');
+  const endedAtBootstrap = demoModeActive && callStatus === 'ended' && callDuration === 0;
+  const isActive = (callStatus !== 'ended' || endedAtBootstrap) && !isTerminal;
+  const isEnded = !endedAtBootstrap && (callStatus === 'ended' || isTerminal);
 
   const handleEndCall = () => {
     endCall?.();
@@ -142,7 +145,7 @@ export default function CallEffectPanel() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
+    <div className="flex flex-col h-full bg-transparent overflow-hidden">
       {/* Status Bar */}
       <CallStatusBar
         callStatus={callStatus}
@@ -152,7 +155,7 @@ export default function CallEffectPanel() {
       />
 
       {/* Mode Badge */}
-      <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-[#E2E8F0] bg-[#F8FAFC]">
+      <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-[#E2E8F0]/80 bg-white/14">
         <BadgeIcon className="size-3 text-[#64748B]" />
         <span className="text-[10px] font-medium text-[#64748B]">{badgeLabel}</span>
       </div>

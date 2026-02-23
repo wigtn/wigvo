@@ -45,7 +45,7 @@ export default function OAuthButtons() {
         {/* Google */}
         <button
           onClick={handleGoogleLogin}
-          className="w-14 h-14 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center transition-all shadow-lg hover:shadow-xl hover:scale-105"
+          className="w-14 h-14 rounded-full bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] flex items-center justify-center transition-all"
           title={t('google')}
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -72,7 +72,7 @@ export default function OAuthButtons() {
         <div className="relative">
           <button
             onClick={handleKakaoLogin}
-            className="w-14 h-14 rounded-full bg-[#FEE500] hover:bg-[#FDD835] flex items-center justify-center transition-all shadow-lg hover:shadow-xl hover:scale-105 opacity-75"
+            className="w-14 h-14 rounded-full bg-[#FEE500] hover:bg-[#FDD835] border border-[#E7D66D] flex items-center justify-center transition-all opacity-75"
             title={t('kakao')}
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -91,7 +91,7 @@ export default function OAuthButtons() {
         <div className="relative">
           <button
             onClick={handleAppleLogin}
-            className="w-14 h-14 rounded-full bg-black hover:bg-gray-900 flex items-center justify-center transition-all shadow-lg hover:shadow-xl hover:scale-105 border border-gray-700 opacity-75"
+            className="w-14 h-14 rounded-full bg-black hover:bg-gray-900 flex items-center justify-center transition-all border border-gray-700 opacity-75"
             title={t('apple')}
           >
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="white">

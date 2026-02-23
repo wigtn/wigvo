@@ -46,8 +46,8 @@ export default function CallPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F8FAFC]">
-        <div className="flex flex-col items-center gap-3">
+      <div className="page-center">
+        <div className="page-card max-w-md flex flex-col items-center gap-3 py-14">
           <Loader2 className="size-6 text-[#0F172A] animate-spin" />
           <p className="text-sm text-[#94A3B8]">{'\uD1B5\uD654 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911...'}</p>
         </div>
@@ -57,8 +57,8 @@ export default function CallPage() {
 
   if (error || !call) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F8FAFC]">
-        <div className="text-center px-6">
+      <div className="page-center">
+        <div className="page-card max-w-md text-center px-6 py-12">
           <p className="text-sm text-red-500 mb-2">{error ?? '\uD1B5\uD654\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4'}</p>
           <button
             onClick={() => router.push('/')}
@@ -75,8 +75,8 @@ export default function CallPage() {
   const isTerminal = call.status === 'COMPLETED' || call.status === 'FAILED';
   if (isTerminal || callEnded) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F8FAFC]">
-        <div className="w-full max-w-md px-4 py-8">
+      <div className="page-center">
+        <div className="w-full max-w-md">
           <ResultCard call={call} />
         </div>
       </div>
@@ -86,8 +86,8 @@ export default function CallPage() {
   // Active call with relay WS URL
   if (!call.relayWsUrl) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F8FAFC]">
-        <div className="text-center px-6">
+      <div className="page-center">
+        <div className="page-card max-w-md text-center px-6 py-12">
           <p className="text-sm text-[#94A3B8]">{'\uD1B5\uD654 \uC5F0\uACB0 \uC815\uBCF4\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4'}</p>
           <button
             onClick={() => router.push('/')}
@@ -101,8 +101,8 @@ export default function CallPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#F8FAFC] p-4">
-      <div className="w-full max-w-md h-[80vh]">
+    <div className="page-center">
+      <div className="page-card w-full max-w-md h-[80vh] p-3">
         <RealtimeCallView
           callId={callId}
           relayWsUrl={call.relayWsUrl}

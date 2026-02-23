@@ -244,16 +244,19 @@ export default function MetricsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3">
+      <div className="page-center">
+        <div className="page-card max-w-md flex flex-col items-center gap-3 py-16">
         <Loader2 className="size-6 text-[#0F172A] animate-spin" />
         <p className="text-sm text-[#94A3B8]">Loading metrics...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
+      <div className="page-center">
+        <div className="page-card max-w-md flex flex-col items-center gap-4 py-16">
         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
           <AlertTriangle className="size-6 text-red-500" />
         </div>
@@ -265,12 +268,13 @@ export default function MetricsPage() {
           <RefreshCw className="size-3.5" />
           Retry
         </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F8FAFC]">
+    <div className="h-full overflow-y-auto page-shell">
       <div className="mx-auto max-w-4xl px-6 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">

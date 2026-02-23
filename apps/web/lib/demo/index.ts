@@ -6,11 +6,11 @@
 // =============================================================================
 
 export function isDemoMode(): boolean {
+  // Demo mode is controlled only by env flag.
+  // Runtime localStorage toggles are disabled to avoid leaking demo behavior into normal flows.
   if (typeof window !== 'undefined') {
-    // Client-side: check window or env
-    return process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+    window.localStorage.removeItem('wigvo_demo_mode');
   }
-  // Server-side
   return process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 }
 

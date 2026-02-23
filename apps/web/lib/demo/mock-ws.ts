@@ -62,6 +62,14 @@ export class MockWebSocket {
       const timer = setTimeout(() => {
         if (this.readyState !== 1) return; // Only emit if still open
 
+        // Keep demo call in-progress until user explicitly ends it.
+        if (
+          event.type === 'call_status'
+          && (event.data.status === 'ended' || event.data.status === 'completed' || event.data.status === 'failed')
+        ) {
+          return;
+        }
+
         const message = {
           type: event.type,
           data: event.data,

@@ -25,9 +25,9 @@ export default function SidebarMenu({
       onClick={onClick}
       className={cn(
         'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200',
-        'hover:bg-[#F8FAFC]',
-        isActive && 'bg-[#F1F5F9] text-[#0F172A] hover:bg-[#F1F5F9]',
-        !isActive && 'text-[#64748B]',
+        'hover:bg-white/45',
+        isActive && 'bg-white/65 text-[#0B1324] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.88)]',
+        !isActive && 'text-[#44546A]',
         isCollapsed && 'justify-center px-2'
       )}
     >
@@ -38,7 +38,7 @@ export default function SidebarMenu({
             {label}
           </span>
           {badge !== undefined && badge > 0 && (
-            <span className="shrink-0 bg-[#0F172A] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
+            <span className="shrink-0 bg-[#0B1324] text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
               {badge > 99 ? '99+' : badge}
             </span>
           )}
