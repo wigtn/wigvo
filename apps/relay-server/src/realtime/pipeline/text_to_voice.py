@@ -330,10 +330,14 @@ class TextToVoicePipeline(BasePipeline):
         else:
             effective_audio = audio_bytes
 
-        # Local VAD 경로: 모든 오디오를 Session B에 전송 (RMS 드롭 없음)
+        # Local VAD 경로: VAD 상태에 따라 실제 오디오 또는 무음을 Session B에 전송
         if self.local_vad is not None:
             await self.local_vad.process(effective_audio)
-            audio_b64 = base64.b64encode(audio_bytes).decode("ascii")
+            if self.local_vad.is_speaking:
+                audio_to_send = effective_audio
+            else:
+                audio_to_send = bytes([0xFF] * len(effective_audio))
+            audio_b64 = base64.b64encode(audio_to_send).decode("ascii")
             await self.session_b.send_recipient_audio(audio_b64)
             self.ring_buffer_b.mark_sent(seq)
             return
