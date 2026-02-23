@@ -319,11 +319,17 @@ class DualSessionManager:
         else:
             session_b_vad_mode = VadMode.SERVER
 
-        # Session B modalities: 항상 ['text', 'audio'] 유지
-        # modalities=['text']로 설정하면 server VAD가 비활성화될 수 있어
-        # 수신자 발화 감지(speech_started/stopped)가 불가능해진다.
-        # audio output 토큰 비용보다 양방향 통신 안정성이 우선.
-        session_b_modalities = ["text", "audio"]
+        # Session B modalities: communication_mode에 따라 분기
+        # - VOICE_TO_VOICE / VOICE_TO_TEXT: ["text", "audio"] — 수신자 번역 TTS를 App에 재생
+        # - TEXT_TO_VOICE / FULL_AGENT: ["text"] — Session B는 텍스트 번역만 (TTS 불필요, 토큰 절약)
+        #   Local VAD 모드에서는 turn_detection=null이므로 server VAD 비활성화 무관
+        if communication_mode in (
+            CommunicationMode.TEXT_TO_VOICE,
+            CommunicationMode.FULL_AGENT,
+        ):
+            session_b_modalities = ["text"]
+        else:
+            session_b_modalities = ["text", "audio"]
 
         # Session A: User → 수신자 (PRD 3.2 / M-4)
         # Client VAD 시 turn_detection=null (서버가 아닌 클라이언트가 발화 종료 판단)

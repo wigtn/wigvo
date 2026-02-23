@@ -122,6 +122,16 @@ class SessionAHandler:
     def is_generating(self) -> bool:
         return self._is_generating
 
+    def mark_generating(self) -> None:
+        """create_response() 직후 호출하여 즉시 generating 상태로 전환.
+
+        OpenAI response.audio.delta가 ~180ms 후 도착하기 전에 is_generating=True로 설정하여
+        후속 create_response() 호출이 wait_for_done()을 정상 대기하도록 한다.
+        (conversation_already_has_active_response race condition 방지)
+        """
+        self._is_generating = True
+        self._done_event.clear()
+
     # --- User 음성/텍스트 입력 ---
 
     async def send_user_audio(self, audio_b64: str) -> None:

@@ -67,3 +67,5 @@ class FullAgentPipeline(TextToVoicePipeline):
             await self.session_a.wait_for_done(timeout=5.0)
         logger.info("Agent Mode: forwarding recipient translation to Session A: %s", text[:80])
         await self.session_a.send_user_text(f"[Recipient says]: {text}")
+        # send_user_text 내부에서 response.create가 호출되므로 즉시 generating 상태 전환
+        self.session_a.mark_generating()

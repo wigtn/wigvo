@@ -294,6 +294,62 @@ class TestTextToVoiceSessionACallbacks:
         router.twilio_handler.send_audio.assert_called_once()
 
 
+class TestTextToVoiceRaceCondition:
+    """create_response() 직후 mark_generating() race condition 방지 검증."""
+
+    @pytest.mark.asyncio
+    async def test_mark_generating_sets_state_after_typing_filler(self):
+        """handle_typing_started() 후 is_generating=True, done_event 미설정."""
+        router = _make_router()
+        # SessionAHandler의 실제 상태 머신을 사용 (mock 대신)
+        router.session_a._is_generating = False
+        router.session_a._done_event = asyncio.Event()
+        router.session_a._done_event.set()
+        router.session_a.mark_generating = router._pipeline.session_a.mark_generating
+        # wait_for_done이 즉시 반환되도록 (이미 완료 상태)
+        router.session_a.wait_for_done = AsyncMock(return_value=True)
+
+        await router.handle_typing_started()
+
+        assert router.session_a._is_generating is True
+        assert not router.session_a._done_event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_mark_generating_sets_state_after_user_text(self):
+        """handle_user_text() 후 (Relay mode) is_generating=True."""
+        router = _make_router(mode=CallMode.RELAY)
+        router.session_a._is_generating = False
+        router.session_a._done_event = asyncio.Event()
+        router.session_a._done_event.set()
+        router.session_a.mark_generating = router._pipeline.session_a.mark_generating
+        router.session_a.wait_for_done = AsyncMock(return_value=True)
+        router.context_manager = MagicMock()
+        router.context_manager.inject_context = AsyncMock()
+
+        await router.handle_user_text("테스트")
+
+        assert router.session_a._is_generating is True
+        assert not router.session_a._done_event.is_set()
+
+    @pytest.mark.asyncio
+    async def test_user_text_waits_when_filler_generating(self):
+        """typing filler 생성 중 handle_user_text()가 wait_for_done()을 호출한다."""
+        router = _make_router(mode=CallMode.RELAY)
+        # filler가 generating 중인 상태 시뮬레이션
+        router.session_a._is_generating = True
+        router.session_a._done_event = asyncio.Event()
+        # done_event을 설정하지 않아서 wait_for_done이 대기하게 됨
+        router.session_a.wait_for_done = AsyncMock(return_value=True)
+        router.session_a.mark_generating = router._pipeline.session_a.mark_generating
+        router.context_manager = MagicMock()
+        router.context_manager.inject_context = AsyncMock()
+
+        await router.handle_user_text("테스트")
+
+        # wait_for_done이 호출되었는지 확인 (filler 완료 대기)
+        router.session_a.wait_for_done.assert_called_once_with(timeout=5.0)
+
+
 class TestTextToVoiceFirstMessage:
     """First Message exact utterance 패턴 검증."""
 
