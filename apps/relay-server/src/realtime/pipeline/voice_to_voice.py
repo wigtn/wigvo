@@ -545,8 +545,10 @@ class VoiceToVoicePipeline(BasePipeline):
 
             await asyncio.sleep(cooldown)
             self._in_echo_window = False
+            # 에코 윈도우 종료 시 잔여 에코 제거 — Whisper 할루시네이션 방지
+            await self.session_b.clear_input_buffer()
             logger.info(
-                "Echo window closed after %.1fs cooldown (audio=%.1fs, remaining=%.1fs, margin=%.1fs)",
+                "Echo window closed after %.1fs cooldown (audio=%.1fs, remaining=%.1fs, margin=%.1fs) — buffer cleared",
                 cooldown, audio_duration_s, remaining_playback, self._echo_margin_s,
             )
         except asyncio.CancelledError:
