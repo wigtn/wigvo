@@ -264,12 +264,12 @@ Ultimately, OpenAI Server VAD **cannot handle PSTN audio**. Replaced it entirely
 
 ```
 Stage 1: RMS Energy Gate
-  RMS < 150  →  Definite silence, skip Silero (save CPU)
-  RMS ≥ 150  →  Proceed to Stage 2
+  RMS < 200  →  Definite silence, skip Silero (save CPU)
+  RMS ≥ 200  →  Proceed to Stage 2
 
 Stage 2: Silero VAD Neural Network (16kHz)
   Hysteresis State Machine:
-    SILENCE → SPEAKING:  probability > 0.5 for 2 consecutive frames (64ms)
+    SILENCE → SPEAKING:  probability > 0.5 for 3 consecutive frames (96ms)
     SPEAKING → SILENCE:  probability < 0.35 for 15 consecutive frames (480ms)
 ```
 

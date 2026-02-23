@@ -92,7 +92,7 @@ Each pipeline shares the same underlying AudioRouter and DualSessionManager but 
 >
 > Topics to cover:
 > - Why OpenAI Server VAD fails on PSTN (constant background noise, stuck "speaking" state)
-> - 2-stage Local VAD: RMS Energy Gate (150 RMS threshold) → Silero RNN (8kHz→16kHz frame adapter)
+> - 2-stage Local VAD: RMS Energy Gate (200 RMS threshold) → Silero RNN (8kHz→16kHz frame adapter)
 > - Hysteresis state machine: SILENCE→SPEAKING (3×32ms=96ms), SPEAKING→SILENCE (15×32ms=480ms)
 > - STT hallucination blocklist (Whisper outputs "MBC 뉴스 이덕영입니다" on low-energy input)
 > - 3-level interrupt priority: Recipient > User > AI

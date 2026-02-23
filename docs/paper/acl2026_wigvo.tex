@@ -28,7 +28,7 @@
 \maketitle
 
 \begin{abstract}
-Real-time speech translation with large language models (LLMs) has become feasible in controlled settings such as mobile apps and web browsers, where developers assume wideband audio and client-side echo cancellation. Recent end-to-end full-duplex models further push latency below 200\,ms but remain confined to broadband environments. However, deploying such systems over the Public Switched Telephone Network (PSTN) remains challenging due to narrowband G.711 audio, unpredictable round-trip delays, and absence of client-side signal processing. We present \textbf{WIGVO}, a server-side relay system that enables bidirectional LLM-based speech translation over ordinary telephone calls without requiring app installation or carrier integration. A central contribution is addressing what we term \emph{echo-induced self-reinforcing translation loops}: synthesized speech echoing back through the PSTN gets re-ingested and repeatedly translated. WIGVO solves this through a dual-session architecture with deterministic silence injection and energy-based voice activity detection (VAD) gating. We evaluate WIGVO on 97 completed PSTN calls (38 fully instrumented) across three communication modes---voice-to-voice (V2V), text-to-voice (T2V), and full-agent---observing 564\,ms median Session~A latency ($N{=}148$ turns), zero echo-induced translation loops, and USD\,0.42 per minute cost. WIGVO additionally implements a voice-to-text (VTT) accessibility mode for users with hearing impairments. The system is deployed at \url{https://wigvo.run} with a live demo and video walkthrough.
+Real-time speech translation with large language models (LLMs) has become feasible in controlled settings such as mobile apps and web browsers, where developers assume wideband audio and client-side echo cancellation. Recent end-to-end full-duplex models further push latency below 200\,ms but remain confined to broadband environments. However, deploying such systems over the Public Switched Telephone Network (PSTN) remains challenging due to narrowband G.711 audio, unpredictable round-trip delays, and absence of client-side signal processing. We present \textbf{WIGVO}, a server-side relay system that enables bidirectional LLM-based speech translation over ordinary telephone calls without requiring app installation or carrier integration. A central contribution is addressing what we term \emph{echo-induced self-reinforcing translation loops}: synthesized speech echoing back through the PSTN gets re-ingested and repeatedly translated. WIGVO solves this through a dual-session architecture with deterministic silence injection and energy-based voice activity detection (VAD) gating. We evaluate WIGVO on 96 completed PSTN calls (37 fully instrumented) across three communication modes---voice-to-voice (V2V), text-to-voice (T2V), and full-agent---observing 562\,ms median Session~A latency ($N{=}141$ turns), zero echo-induced translation loops, and USD\,0.42 per minute cost. WIGVO additionally implements a voice-to-text (VTT) accessibility mode for users with hearing impairments. The system is deployed at \url{https://wigvo.run} with a live demo and video walkthrough.
 \end{abstract}
 
 \section{Introduction}
@@ -41,7 +41,7 @@ We present \textbf{WIGVO}, a server-side relay that bridges a web client and a s
 
 A key challenge is what we call an \textbf{echo-induced self-reinforcing translation loop}: TTS audio played to the callee echoes back through the PSTN, is re-recognized as new speech, and gets translated again---creating a runaway feedback cycle. This problem is specific to full-duplex telephony channels and cannot be solved by VAD threshold tuning alone. Our solution operates at the architectural level: (i)~strict directional separation via two independent Realtime sessions, (ii)~deterministic silence injection during TTS playback windows, and (iii)~energy-based gating calibrated for $\mu$-law dynamics.
 
-We evaluate WIGVO on 97 completed PSTN calls and report latency, echo suppression, and cost metrics. Our contributions are:
+We evaluate WIGVO on 96 completed PSTN calls and report latency, echo suppression, and cost metrics. Our contributions are:
 \begin{itemize}
     \item We formalize the \emph{echo-induced translation loop} problem in streaming speech translation over telephony.
     \item We propose a \emph{dual-session gated architecture} combining directional separation, silence injection, and energy-based gating for PSTN environments.
@@ -121,12 +121,12 @@ Our production solution, \textbf{Echo Gate v2}, operates deterministically:
 \begin{enumerate}
     \item When Session~A begins streaming TTS to the PSTN, an \emph{echo window} is activated. Duration is estimated from byte length and sample rate, capped at 1.2\,s.
     \item During this window, incoming PSTN audio is replaced with $\mu$-law silence (0xFF) before forwarding to Session~B. This blocks echo at the server while allowing the Realtime API's VAD to naturally detect end-of-speech.
-    \item A dynamic cooldown of 0.3\,s accounts for PSTN jitter before resuming normal forwarding.
+    \item A dynamic cooldown of 0.3\,s (0.5\,s for T2V mode) accounts for PSTN jitter before resuming normal forwarding.
 \end{enumerate}
 
 While comfort noise generation (RFC~3389; \citealt{rfc3389_cn_2002}) addresses perceptual continuity for human listeners in VoIP, we identify a distinct failure mode: echo-suppression-induced audio gaps cause streaming VAD state machine deadlock in neural speech APIs. Specifically, if the relay simply \emph{drops} audio during echo windows rather than injecting silence, the Realtime API's server-side VAD never observes a silence-to-speech transition and remains stuck in a ``speaking'' state indefinitely. To our knowledge, this failure mode and its mitigation via silence injection have not been reported in the context of neural streaming S2ST pipelines.
 
-Across 97 completed calls, Echo Gate v2 produced zero echo-induced translation loops. Echo gate activated 136 times total (3.6/call on average), with 0 breakthrough incidents, confirming that silence injection effectively prevents self-reinforcing translation cycles.
+Across 96 completed calls, Echo Gate v2 produced zero echo-induced translation loops. Echo gate activated 127 times total (3.4/call on average), with 0 breakthrough incidents, confirming that silence injection effectively prevents self-reinforcing translation cycles.
 
 \subsection{Energy-Based Gating}
 
@@ -150,7 +150,7 @@ OpenAI's Realtime API provides a server-side VAD that works well for wideband We
 To address these failures, WIGVO implements a two-stage local VAD on the relay server, applied to incoming PSTN audio before it reaches the Realtime API:
 
 \paragraph{Stage 1: RMS Energy Gate.}
-A fast energy check filters sub-speech signals. We set the threshold at 150~RMS based on empirical $\mu$-law noise distributions: background noise typically falls in the 50--200~RMS range, while speech aligns around 500--2{,}000+ RMS. Frames below 150~RMS are classified as noise and replaced with silence, preventing them from reaching Stage~2.
+A fast energy check filters sub-speech signals. We set the threshold at 200~RMS based on empirical $\mu$-law noise distributions: background noise typically falls in the 50--200~RMS range, while speech aligns around 500--2{,}000+ RMS. Frames below 200~RMS are classified as noise and replaced with silence, preventing them from reaching Stage~2.
 
 \paragraph{Stage 2: Silero VAD.}
 Frames passing the energy gate are processed by Silero VAD \citep{silero_vad_2021}, a lightweight neural voice activity detector. Since Silero expects 16\,kHz input but PSTN audio arrives at 8\,kHz, we apply zero-order hold (ZOH) upsampling before inference. Each frame is 32\,ms (512 samples at 16\,kHz).
@@ -159,7 +159,7 @@ Frames passing the energy gate are processed by Silero VAD \citep{silero_vad_202
 To avoid rapid state oscillation, we apply asymmetric hysteresis thresholds:
 
 \begin{itemize}
-    \item \textbf{SILENCE$\to$SPEAKING}: probability $\geq 0.5$ for 2 consecutive frames (64\,ms). Fast onset preserves responsiveness.
+    \item \textbf{SILENCE$\to$SPEAKING}: probability $\geq 0.5$ for 3 consecutive frames (96\,ms). Fast onset preserves responsiveness.
     \item \textbf{SPEAKING$\to$SILENCE}: probability $< 0.35$ for 15 consecutive frames (480\,ms). Slow offset avoids premature cutoff during natural pauses.
 \end{itemize}
 
@@ -171,16 +171,16 @@ As noted in Section~4.2, the echo gate replaces PSTN audio with $\mu$-law silenc
 
 \subsection{STT Hallucination Blocklist}
 
-A 15-pattern blocklist intercepts Korean broadcast-style hallucinations from Whisper on low-energy input; 5 outputs were blocked across 38 instrumented calls.
+A 15-pattern blocklist intercepts Korean broadcast-style hallucinations from Whisper on low-energy input; 5 outputs were blocked across 37 instrumented calls.
 
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluated WIGVO on 97 PSTN calls (38 fully instrumented) for Korean$\leftrightarrow$English translation.
+We evaluated WIGVO on 96 PSTN calls (37 fully instrumented) for Korean$\leftrightarrow$English translation.
 
 \subsection{Latency}
 
-Table~\ref{tab:latency} reports latency statistics across the 38 instrumented calls.
+Table~\ref{tab:latency} reports latency statistics across the 37 instrumented calls.
 
 \begin{table}[t]
   \centering
@@ -189,25 +189,25 @@ Table~\ref{tab:latency} reports latency statistics across the 38 instrumented ca
     \toprule
     \textbf{Stage} & \textbf{Avg} & \textbf{P50} & \textbf{P95} & \textbf{Max} & \textbf{$N$} \\
     \midrule
-    Session A (ms) & 618 & 564 & 1{,}023 & 2{,}256 & 148 \\
-    Session B E2E (ms) & 2{,}270 & 2{,}023 & 5{,}378 & 10{,}503 & 214 \\
-    \quad STT (ms) & 2{,}263 & 1{,}979 & 5{,}065 & --- & 196 \\
-    \quad Translation (ms) & 757 & 464 & 2{,}209 & --- & 103 \\
+    Session A (ms) & 617 & 562 & 1{,}023 & 2{,}256 & 141 \\
+    Session B E2E (ms) & 2{,}249 & 1{,}994 & 5{,}390 & 10{,}503 & 207 \\
+    \quad STT (ms) & 2{,}243 & 1{,}969 & 5{,}116 & --- & 189 \\
+    \quad Translation (ms) & 763 & 457 & 2{,}255 & --- & 103 \\
     First message (ms) & 2{,}585 & 1{,}550 & 7{,}460 & 11{,}308 & 31 \\
     \bottomrule
   \end{tabular}
-  \caption{Translation latency across 38 instrumented calls. Session~A: caller$\to$callee (ASR+translate+TTS). Session~B: callee$\to$caller, decomposed into STT (Whisper) and translation (GPT-4o) components. $N$: number of measured turns.}
+  \caption{Translation latency across 37 instrumented calls. Session~A: caller$\to$callee (ASR+translate+TTS). Session~B: callee$\to$caller, decomposed into STT (Whisper) and translation (GPT-4o) components. $N$: number of measured turns.}
   \label{tab:latency}
 \end{table}
 
-Session~A achieves 564\,ms median latency, within the range for interactive communication. Session~B, which depends on PSTN audio quality and streaming ASR, shows 2{,}023\,ms median. STT (Whisper) accounts for 74.7\% of Session~B mean latency across 103 paired turns, with translation contributing the remainder. Figure~\ref{fig:latency} shows the end-to-end latency distributions for Session~A and Session~B. Figure~\ref{fig:scatter} shows the correlation between utterance length and Session~B latency ($r=0.529$, $p<0.001$), STT accounts for 74.7\% of Session~B mean latency.
+Session~A achieves 562\,ms median latency, within the range for interactive communication. Session~B, which depends on PSTN audio quality and streaming ASR, shows 1{,}994\,ms median. STT (Whisper) accounts for 74.7\% of Session~B mean latency across 103 paired turns, with translation contributing the remainder. Figure~\ref{fig:latency} shows the end-to-end latency distributions for Session~A and Session~B. Figure~\ref{fig:scatter} shows the correlation between utterance length and Session~B latency ($r=0.529$, $p<0.001$), STT accounts for 74.7\% of Session~B mean latency.
 
 T2V mode shows lower Session~A latency (no caller-side ASR), while Agent mode shows higher Session~B latency due to function-calling overhead.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{figures/figure2_latency_histogram}
-  \caption{End-to-end latency distributions for Session~A (caller$\to$callee, $N{=}148$ turns) and Session~B (callee$\to$caller, $N{=}214$ turns) over live PSTN calls.}
+  \caption{End-to-end latency distributions for Session~A (caller$\to$callee, $N{=}141$ turns) and Session~B (callee$\to$caller, $N{=}207$ turns) over live PSTN calls.}
   \label{fig:latency}
 \end{figure}
 
@@ -221,7 +221,7 @@ T2V mode shows lower Session~A latency (no caller-side ASR), while Agent mode sh
 
 \subsection{Echo and Safety}
 
-Table~\ref{tab:safety} reports echo suppression, VAD, and guardrail statistics across the 38 instrumented calls.
+Table~\ref{tab:safety} reports echo suppression, VAD, and guardrail statistics across the 37 instrumented calls.
 
 \begin{table}[t]
   \centering
@@ -230,22 +230,22 @@ Table~\ref{tab:safety} reports echo suppression, VAD, and guardrail statistics a
     \toprule
     \textbf{Metric} & \textbf{Total} & \textbf{Per-call avg} \\
     \midrule
-    Echo gate activations & 136 & 3.6 \\
+    Echo gate activations & 127 & 3.4 \\
     Echo-induced loops & 0 & 0.0 \\
-    VAD false triggers & 62 & 1.6 \\
+    VAD false triggers & 59 & 1.6 \\
     Hallucinations blocked & 5 & 0.13 \\
     \bottomrule
   \end{tabular}
-  \caption{Echo, VAD, and guardrail statistics over 38 instrumented calls. Zero echo loops were observed.}
+  \caption{Echo, VAD, and guardrail statistics over 37 instrumented calls. Zero echo loops were observed.}
   \label{tab:safety}
 \end{table}
 
-The echo gate activated 3.6 times per call on average, corresponding to TTS playback events. Critically, \textbf{zero echo-induced translation loops} were observed, whereas early prototypes without gating reliably produced such loops. VAD false triggers (1.6/call) were mitigated by a minimum speech duration filter (480\,ms hysteresis). The guardrail module blocked 5 hallucinated outputs (broadcast-style phrases from Whisper on low-energy input).
+The echo gate activated 3.4 times per call on average, corresponding to TTS playback events. Critically, \textbf{zero echo-induced translation loops} were observed, whereas early prototypes without gating reliably produced such loops. VAD false triggers (1.6/call) were mitigated by a minimum speech duration filter (480\,ms hysteresis). The guardrail module blocked 5 hallucinated outputs (broadcast-style phrases from Whisper on low-energy input).
 
 
 \subsection{Cost}
 
-Across the 38 instrumented calls (45.5 minutes total), WIGVO consumed 638{,}035 tokens at a total cost of USD\,19.05, yielding \textbf{USD\,0.42/min} (USD\,0.50/call). These costs reflect dual-session Realtime API pricing and remain an order of magnitude cheaper than human relay services (USD\,1--3/min).
+Across the 37 instrumented calls (45.5 minutes total), WIGVO consumed 638{,}035 tokens at a total cost of USD\,19.05, yielding \textbf{USD\,0.42/min} (USD\,0.50/call). These costs reflect dual-session Realtime API pricing and remain an order of magnitude cheaper than human relay services (USD\,1--3/min).
 
 \section{Demonstration}
 
@@ -261,7 +261,7 @@ WIGVO is deployed at \url{https://wigvo.run} with a live demo accessible to revi
 We demonstrate two scenarios:
 
 \paragraph{Restaurant reservation (V2V).}
-An English-speaking user calls a Korean restaurant. Session~A translates caller utterances into Korean TTS for the callee; Session~B returns Korean responses as English audio and captions. Across 38 instrumented calls, Session~A achieved 564\,ms median latency (P95: 1{,}023\,ms) and Session~B 2{,}023\,ms median (P95: 5{,}378\,ms; $r{=}0.529$ with utterance length, $p{<}0.001$).
+An English-speaking user calls a Korean restaurant. Session~A translates caller utterances into Korean TTS for the callee; Session~B returns Korean responses as English audio and captions. Across 37 instrumented calls, Session~A achieved 562\,ms median latency (P95: 1{,}023\,ms) and Session~B 1{,}994\,ms median (P95: 5{,}390\,ms; $r{=}0.529$ with utterance length, $p{<}0.001$).
 
 \paragraph{Medical appointment (T2V).}
 A Korean user with speech anxiety types messages that WIGVO speaks to a clinic via TTS; the clinic's spoken responses appear as real-time captions. A typing indicator is relayed to the callee during text composition.
