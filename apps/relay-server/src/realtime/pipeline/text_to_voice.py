@@ -231,15 +231,8 @@ class TextToVoicePipeline(BasePipeline):
         logger.debug("TextToVoice: ignoring audio commit (text-only mode)")
 
     async def handle_typing_started(self) -> None:
-        """사용자 타이핑 시작 → 수신자에게 '잠시만 기다려주세요' TTS 전송.
-
-        첫 턴(아직 사용자 텍스트가 없을 때)에는 greeting이 방금 재생되었으므로
-        typing filler를 생략한다.
-        """
+        """사용자 타이핑 시작 → 수신자에게 '잠시만 기다려주세요' TTS 전송."""
         if self._typing_filler_sent:
-            return
-        # 첫 턴: greeting 직후이므로 filler 불필요 (이슈 3)
-        if not self.call.transcript_history:
             return
         self._typing_filler_sent = True
 
@@ -331,9 +324,11 @@ class TextToVoicePipeline(BasePipeline):
             effective_audio = audio_bytes
 
         # Local VAD 경로: VAD 상태에 따라 실제 오디오 또는 무음을 Session B에 전송
+        # Echo window 중에는 VAD 처리를 스킵하여 에코가 speech로 오감지되는 것을 방지
         if self.local_vad is not None:
-            await self.local_vad.process(effective_audio)
-            if self.local_vad.is_speaking:
+            if not self._in_echo_window:
+                await self.local_vad.process(effective_audio)
+            if self.local_vad.is_speaking and not self._in_echo_window:
                 audio_to_send = effective_audio
             else:
                 audio_to_send = bytes([0xFF] * len(effective_audio))

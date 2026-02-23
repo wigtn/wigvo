@@ -314,9 +314,11 @@ class VoiceToVoicePipeline(BasePipeline):
         # Local VAD 경로: VAD 상태에 따라 실제 오디오 또는 무음을 Session B에 전송
         # SPEAKING 상태: 실제 오디오 전송 (Whisper STT 정확도 유지)
         # SILENCE 상태: 무음 프레임 전송 (노이즈가 Whisper에 축적되어 할루시네이션 유발 방지)
+        # Echo window 중에는 VAD 처리를 스킵하여 에코가 speech로 오감지되는 것을 방지
         if self.local_vad is not None:
-            await self.local_vad.process(effective_audio)
-            if self.local_vad.is_speaking:
+            if not self._in_echo_window:
+                await self.local_vad.process(effective_audio)
+            if self.local_vad.is_speaking and not self._in_echo_window:
                 audio_to_send = effective_audio
             else:
                 audio_to_send = bytes([0xFF] * len(effective_audio))
