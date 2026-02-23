@@ -87,6 +87,9 @@ class LocalVAD:
         # _MIN_RMS_SILENCE_FOR_RESET 이상 연속 silence여야 리셋
         self._rms_silence_frames = 0
 
+        # Speech quality tracking: speech 중 최대 RMS (노이즈 vs 실제 발화 구분용)
+        self._peak_rms: float = 0.0
+
         # Silero VAD model (lazy init)
         self._model = None
         self._init_model()
@@ -108,6 +111,11 @@ class LocalVAD:
     def is_speaking(self) -> bool:
         return self._state == _VadState.SPEAKING
 
+    @property
+    def peak_rms(self) -> float:
+        """현재/마지막 speech 구간의 최대 RMS."""
+        return self._peak_rms
+
     async def process(self, audio: bytes) -> None:
         """20ms g711_ulaw 오디오 프레임을 처리한다.
 
@@ -122,6 +130,10 @@ class LocalVAD:
 
         # Stage 1: RMS Energy Gate
         rms = ulaw_rms(audio)
+
+        # Peak RMS tracking (SPEAKING 상태에서만)
+        if self._state == _VadState.SPEAKING and rms > self._peak_rms:
+            self._peak_rms = rms
 
         # 디버그: 500ms마다 RMS 로그
         self._debug_frame_count = getattr(self, "_debug_frame_count", 0) + 1
@@ -200,6 +212,7 @@ class LocalVAD:
         self._state = _VadState.SPEAKING
         self._speech_count = 0
         self._silence_count = 0
+        self._peak_rms = 0.0  # 새 speech 구간 시작
         logger.info("[LocalVAD] Speech started")
         if self._on_speech_start:
             try:

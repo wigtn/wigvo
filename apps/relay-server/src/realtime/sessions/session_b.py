@@ -193,12 +193,15 @@ class SessionBHandler:
         if self._on_recipient_speech_started:
             await self._on_recipient_speech_started()
 
-    async def notify_speech_stopped(self) -> None:
+    async def notify_speech_stopped(self, peak_rms: float = 0.0) -> None:
         """Local VAD가 수신자 발화 종료를 감지했을 때 호출한다.
 
         Server VAD의 _handle_speech_stopped와 동일한 로직을 수행하되,
         commit_audio_only() 후 create_response()를 호출한다.
         (Server VAD는 자동 commit하지만, Local VAD(turn_detection=null)에서는 수동 commit 필요)
+
+        Args:
+            peak_rms: speech 구간의 최대 RMS (0이면 체크 스킵)
         """
         self._is_recipient_speaking = False
         self._cancel_silence_timeout()
@@ -215,7 +218,19 @@ class SessionBHandler:
             await self.session.clear_input_buffer()
             return
 
-        logger.info("[SessionB] Local VAD speech stopped (%.0fms)", speech_duration * 1000)
+        # Peak RMS 품질 필터: 에너지가 약한 speech는 노이즈/잔향으로 간주
+        # 실제 발화: peak RMS 500-2000+, 노이즈/잔향: peak RMS 150-400
+        if peak_rms > 0 and peak_rms < settings.echo_energy_threshold_rms:
+            logger.info(
+                "[SessionB] Local VAD speech stopped — weak energy (%.0fms, peak RMS=%.0f < %.0f), ignoring as noise — clearing buffer",
+                speech_duration * 1000,
+                peak_rms,
+                settings.echo_energy_threshold_rms,
+            )
+            await self.session.clear_input_buffer()
+            return
+
+        logger.info("[SessionB] Local VAD speech stopped (%.0fms, peak RMS=%.0f)", speech_duration * 1000, peak_rms)
 
         # Timeout이 이미 response를 강제 생성했으면 중복 방지
         if self._timeout_forced:
