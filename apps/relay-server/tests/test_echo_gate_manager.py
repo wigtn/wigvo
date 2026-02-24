@@ -4,8 +4,8 @@ EchoGateManager의 독립 동작을 검증한다:
   - Echo window 활성화/비활성화
   - filter_audio: 에너지 기반 필터링 + gate break
   - 동적 cooldown: max cap 적용/미적용
-  - Post-echo settling 제거 확인 (즉시 VAD 활성화)
-  - on_recipient_speech: 즉시 해제
+  - Post-echo settling: AGC 안정화 대기
+  - on_recipient_speech: 즉시 해제 (settling 포함)
   - stop: cooldown task 취소
 """
 
@@ -29,6 +29,7 @@ def _make_call_metrics():
 def _make_echo_gate(
     echo_margin_s: float = 0.3,
     max_echo_window_s: float | None = 1.2,
+    settling_s: float = 2.0,
 ) -> tuple[EchoGateManager, MagicMock, MagicMock]:
     """EchoGateManager + mock session_b + mock call_metrics를 생성한다."""
     session_b = MagicMock()
@@ -40,6 +41,7 @@ def _make_echo_gate(
         call_metrics=call_metrics,
         echo_margin_s=echo_margin_s,
         max_echo_window_s=max_echo_window_s,
+        settling_s=settling_s,
     )
     return gate, session_b, call_metrics
 
@@ -205,9 +207,9 @@ class TestCooldown:
         local_vad.reset_state.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_no_settling_after_cooldown(self):
-        """[신규] Echo window 종료 후 settling 없이 즉시 VAD 활성화."""
-        gate, _, _ = _make_echo_gate(echo_margin_s=0.1, max_echo_window_s=0.5)
+    async def test_settling_after_cooldown(self):
+        """Echo window 종료 후 settling 기간 동안 is_suppressing = True."""
+        gate, _, _ = _make_echo_gate(echo_margin_s=0.1, max_echo_window_s=0.5, settling_s=2.0)
         gate._tts_first_chunk_at = time.time()
         gate._tts_total_bytes = 100
         gate._activate()
@@ -215,9 +217,42 @@ class TestCooldown:
         gate.on_tts_done()
         await asyncio.sleep(0.8)
 
-        # Echo window 종료 즉시 is_suppressing = False (settling 없음)
+        # Echo window는 닫혔지만 settling 중이므로 is_suppressing = True
         assert gate.in_echo_window is False
+        assert gate.is_suppressing is True
+
+    @pytest.mark.asyncio
+    async def test_settling_expires(self):
+        """Settling 만료 후 is_suppressing = False."""
+        gate, _, _ = _make_echo_gate(echo_margin_s=0.1, max_echo_window_s=0.3, settling_s=0.5)
+        gate._tts_first_chunk_at = time.time()
+        gate._tts_total_bytes = 100
+        gate._activate()
+
+        gate.on_tts_done()
+        await asyncio.sleep(0.5)  # cooldown 완료
+        assert gate.in_echo_window is False
+        assert gate.is_suppressing is True  # settling 중
+
+        await asyncio.sleep(0.7)  # settling 만료
         assert gate.is_suppressing is False
+
+    @pytest.mark.asyncio
+    async def test_recipient_speech_clears_settling(self):
+        """수신자 발화 → settling 즉시 해제."""
+        gate, _, _ = _make_echo_gate(echo_margin_s=0.1, max_echo_window_s=0.3, settling_s=2.0)
+        gate._tts_first_chunk_at = time.time()
+        gate._tts_total_bytes = 100
+        gate._activate()
+
+        gate.on_tts_done()
+        await asyncio.sleep(0.5)  # cooldown 완료, settling 중
+        assert gate.in_echo_window is False
+        assert gate.is_suppressing is True
+
+        gate.on_recipient_speech()
+        assert gate.is_suppressing is False
+        assert gate._settling_until == 0.0
 
 
 class TestRecipientSpeech:

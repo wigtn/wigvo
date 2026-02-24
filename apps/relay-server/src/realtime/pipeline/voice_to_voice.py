@@ -155,6 +155,7 @@ class VoiceToVoicePipeline(BasePipeline):
             call_metrics=self.call.call_metrics,
             echo_margin_s=0.3,
             max_echo_window_s=1.2,
+            settling_s=settings.echo_post_settling_s,
         )
 
         # Interrupt debounce: 노이즈에 의한 즉시 TTS 취소 방지 (400ms 대기 후 확인)

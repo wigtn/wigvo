@@ -43,14 +43,17 @@ class EchoGateManager:
         call_metrics: CallMetrics,
         echo_margin_s: float = 0.3,
         max_echo_window_s: float | None = 1.2,
+        settling_s: float = 2.0,
     ):
         self._session_b = session_b
         self._local_vad = local_vad
         self._call_metrics = call_metrics
         self._echo_margin_s = echo_margin_s
         self._max_echo_window_s = max_echo_window_s
+        self._settling_s = settling_s
 
         self._in_echo_window = False
+        self._settling_until: float = 0.0
         self._echo_cooldown_task: asyncio.Task | None = None
         self._tts_first_chunk_at: float = 0.0
         self._tts_total_bytes: int = 0
@@ -68,8 +71,8 @@ class EchoGateManager:
 
     @property
     def is_suppressing(self) -> bool:
-        """VAD를 억제해야 하는지. echo window 중이면 True."""
-        return self._in_echo_window
+        """VAD를 억제해야 하는지. echo window 중 또는 settling 중이면 True."""
+        return self._in_echo_window or time.time() < self._settling_until
 
     # --- Public methods ---
 
@@ -140,6 +143,7 @@ class EchoGateManager:
     def _deactivate(self) -> None:
         """Echo window를 즉시 해제한다."""
         self._in_echo_window = False
+        self._settling_until = 0.0
         if self._echo_cooldown_task and not self._echo_cooldown_task.done():
             self._echo_cooldown_task.cancel()
             self._echo_cooldown_task = None
@@ -175,13 +179,15 @@ class EchoGateManager:
 
             await asyncio.sleep(cooldown)
             self._in_echo_window = False
+            self._settling_until = time.time() + self._settling_s
             await self._session_b.clear_input_buffer()
             if self._local_vad is not None:
                 self._local_vad.reset_state()
             logger.info(
-                "Echo window closed after %.1fs cooldown "
+                "Echo window closed after %.1fs cooldown — settling %.1fs "
                 "(audio=%.1fs, remaining=%.1fs, margin=%.1fs)",
                 cooldown,
+                self._settling_s,
                 audio_duration_s,
                 remaining_playback,
                 self._echo_margin_s,
