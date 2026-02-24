@@ -12,9 +12,6 @@
 \usepackage{multirow}
 \usepackage{xcolor}
 \usepackage{amssymb}
-\usepackage{tikz}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc}
-
 % ACL 2026 System Demos uses single-blind review: author names are visible,
 % line numbers are retained. The [review] option above enables line numbering
 % but also sets \acl@anonymize to true (double-blind). We override this because
@@ -113,12 +110,12 @@ Vapi / Bland & \checkmark & $\times$ & $\times$ & N/D & $\times$ \\
 
 Figure~\ref{fig:architecture} shows the high-level architecture. A browser-based client connects to the relay server via WebSocket, sending 16\,kHz PCM audio and receiving translated audio, captions, and status events. The relay manages two independent Realtime LLM sessions and a telephony gateway connection.
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
-  \resizebox{\columnwidth}{!}{\input{figures/architecture.tikz}}
-  \caption{WIGVO architecture. The relay server manages Session~A (caller$\to$callee) and Session~B (callee$\to$caller) as independent Realtime API connections, with a telephony gateway for PSTN audio. The dashed line shows the echo path that Echo Gate suppresses via silence injection.}
+  \includegraphics[width=\textwidth]{figures/figure1_architecture}
+  \caption{WIGVO system architecture. Session~A (blue) translates user speech and outputs G.711 directly to Twilio; Session~B (red) receives PSTN audio through a 3-stage filter pipeline (Echo Gate $\to$ Energy Gate $\to$ Silero VAD). The Echo Gate (dashed) prevents feedback loops by injecting $\mu$-law silence during TTS playback.}
   \label{fig:architecture}
-\end{figure}
+\end{figure*}
 
 \paragraph{AudioRouter and pipelines.}
 An \texttt{AudioRouter} implements the Strategy pattern to dispatch events to one of three pipeline implementations: V2V, T2V, or Full-Agent. Each pipeline manages the lifecycle of two Realtime sessions and cross-cutting components (guardrails, context window, metrics).
@@ -160,7 +157,14 @@ RMS energy monitoring provides a secondary gate. During echo windows, only high-
 
 \section{PSTN-Aware VAD and Robustness}
 
-The echo gate described in Section~4 suppresses self-translation loops but does not address a second class of failures: the Realtime API's server-side VAD itself malfunctions on narrowband PSTN audio. This section describes these failures and the two-stage local VAD that mitigates them. Together, the echo gate (Section~4) and local VAD form a unified inbound audio pipeline: PSTN audio first passes through echo gating and energy-based filtering, then through neural VAD, before reaching Session~B.
+The echo gate described in Section~4 suppresses self-translation loops but does not address a second class of failures: the Realtime API's server-side VAD itself malfunctions on narrowband PSTN audio. This section describes these failures and the two-stage local VAD that mitigates them. Together, the echo gate (Section~4) and local VAD form a unified inbound audio pipeline: PSTN audio first passes through echo gating and energy-based filtering, then through neural VAD, before reaching Session~B. Figure~\ref{fig:pipeline} illustrates this pipeline and its temporal behavior.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/figure2_pipeline}
+  \caption{PSTN audio processing pipeline. (a)~Three-stage filter between Twilio input and Session~B. (b)~Temporal behavior: during TTS playback, the Echo Gate replaces audio with $\mu$-law silence while Stages~1--2 are suppressed; after settling, Stage~0 becomes transparent and Stages~1--2 filter PSTN noise.}
+  \label{fig:pipeline}
+\end{figure}
 
 \subsection{Server VAD Failure Modes on PSTN}
 
@@ -229,14 +233,14 @@ T2V mode shows lower Session~A latency (no caller-side ASR), while Agent mode sh
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/figure2_latency_histogram}
+  \includegraphics[width=\columnwidth]{figures/figure3_latency_histogram}
   \caption{End-to-end latency distributions for Session~A (caller$\to$callee, $N{=}141$ turns) and Session~B (callee$\to$caller, $N{=}207$ turns) over live PSTN calls.}
   \label{fig:latency}
 \end{figure}
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/figure3_utterance_scatter}
+  \includegraphics[width=\columnwidth]{figures/figure4_utterance_scatter}
   \caption{Utterance length (characters) vs.\ Session~B E2E latency. Pearson $r=0.529$ ($p<0.001$), indicating that longer recipient utterances incur higher ASR-dominated latency.}
   \label{fig:scatter}
 \end{figure}
@@ -276,7 +280,7 @@ WIGVO is deployed at \url{https://wigvo.run} with a live demo accessible to revi
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/screenshot_call}
+  \includegraphics[width=\columnwidth]{figures/figure5_screenshot_call}
   \caption{WIGVO web interface during a V2V call. Left: chat and caption view with bidirectional translations. Right: call status, duration, and mode indicator.}
   \label{fig:screenshot}
 \end{figure}
