@@ -349,7 +349,7 @@ class DualSessionManager:
                 input_audio_format="pcm16",
                 output_audio_format="g711_ulaw",  # Twilio로 출력
                 vad_mode=vad_mode,
-                input_audio_transcription={"model": "whisper-1", "language": source_language},
+                input_audio_transcription={"model": settings.stt_model, "language": source_language},
             ),
         )
 
@@ -365,7 +365,7 @@ class DualSessionManager:
                 output_audio_format="pcm16",  # App으로 출력
                 vad_mode=session_b_vad_mode,
                 modalities=session_b_modalities,
-                input_audio_transcription={"model": "whisper-1", "language": target_language},  # 2단계 자막: 원문 STT + 언어 힌트 (PRD 5.4)
+                input_audio_transcription={"model": settings.stt_model, "language": target_language},  # 2단계 자막: 원문 STT + 언어 힌트 (PRD 5.4)
             ),
         )
 

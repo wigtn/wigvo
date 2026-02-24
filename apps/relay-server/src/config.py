@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str = ""
-    openai_realtime_model: str = "gpt-4o-realtime-preview"
+    openai_realtime_model: str = "gpt-realtime"
     openai_ws_connect_timeout_s: float = 30.0  # WebSocket handshake timeout (기본 10s → 30s)
     openai_ws_connect_retries: int = 2  # 연결 실패 시 재시도 횟수
 
