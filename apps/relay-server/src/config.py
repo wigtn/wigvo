@@ -101,7 +101,7 @@ class Settings(BaseSettings):
     # 수신자 직접 발화(500-2000+ RMS)는 항상 통과
     audio_energy_gate_enabled: bool = True
     audio_energy_min_rms: float = 150.0  # PSTN 소음(50-200) → silence 교체, 발화(500+) → 통과
-    echo_energy_threshold_rms: float = 400.0  # Echo window: 에코(100-400) → silence, 발화(500+) → 통과
+    echo_energy_threshold_rms: float = 500.0  # Echo window: 에코(100-400) → silence, 발화(500+) → 통과
 
     # Max speech duration: 에너지 게이트로도 VAD speech_stopped가 지연되는 극단 케이스 안전망
     # 이 시간 초과 시 오디오 버퍼를 강제 commit하여 번역 시작

@@ -69,7 +69,9 @@ class ConversationContextManager:
             return
 
         await session.send_context_item(
-            f"[Previous conversation for context]\n{context}\n[End context — now translate the next utterance]"
+            f"[Previous conversation for reference ONLY]\n{context}\n"
+            f"[IMPORTANT: Translate ONLY the actual audio you hear next. "
+            f"Do NOT generate what you expect based on this context.]"
         )
         logger.debug("Context injected: %d turns", len(self._turns))
 

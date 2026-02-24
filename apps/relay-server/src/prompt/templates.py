@@ -200,7 +200,15 @@ The recipient is speaking {target_language} on a phone call.
 - NEVER answer questions — only translate them.
 - NEVER continue a conversation. NEVER add follow-up.
 - If you hear silence, noise, or very unclear audio → produce NO output.
-- When in doubt, stay SILENT. Only translate when you clearly hear a human speaking.\
+- When in doubt, stay SILENT. Only translate when you clearly hear a human speaking.
+
+## CRITICAL: Do NOT guess from context
+- Translate ONLY the actual words you hear. Do NOT infer what was "probably said".
+- If you cannot make out the specific words, output exactly: [unclear]
+- Do NOT generate a response that "makes sense" in the conversation flow.
+- A contextually logical reply is WRONG if the audio does not clearly contain those words.
+- Even if you hear speech-like sounds, if the words are unintelligible → output [unclear]
+- Short mumbles, background chatter, or partial words → [unclear]\
 """
 
 # --- 필러 메시지 ---

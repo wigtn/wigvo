@@ -232,6 +232,26 @@ class LocalVAD:
             except Exception:
                 logger.exception("[LocalVAD] on_speech_end callback error")
 
+    def force_speaking_state(self) -> None:
+        """VAD를 SPEAKING 상태로 강제 전환한다 (콜백 미호출).
+
+        Post-echo settling 중 RMS로 수신자 발화를 감지했을 때 사용.
+        외부에서 이미 notify_speech_started()를 호출한 상태이므로
+        콜백 없이 상태만 동기화한다.
+        """
+        self._state = _VadState.SPEAKING
+        self._speech_count = 0
+        self._silence_count = 0
+        self._peak_rms = 0.0
+        self._frame_buffer = np.empty(0, dtype=np.float32)
+        self._rms_silence_frames = 0
+        if self._model is not None:
+            try:
+                self._model.reset()
+            except Exception:
+                pass
+        logger.info("[LocalVAD] Forced to SPEAKING state (settling breakthrough)")
+
     def reset_state(self) -> None:
         """VAD 상태만 초기화한다 (echo window 종료 시).
 

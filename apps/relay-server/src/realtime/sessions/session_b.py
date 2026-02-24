@@ -111,6 +111,10 @@ class SessionBHandler:
         # speech_stopped가 지연되는 문제를 방지. 타이머 초과 시 강제 commit.
         self._max_speech_timer: asyncio.Task | None = None
 
+        # 대화 아이템 트래킹: 컨텍스트 누적에 의한 할루시네이션 방지
+        # 매 턴 시작 전 이전 턴의 아이템을 삭제하여 GPT-4o가 오디오에만 집중하도록 함
+        self._conversation_item_ids: list[str] = []
+
         self._register_handlers()
 
     def _register_handlers(self) -> None:
@@ -121,6 +125,8 @@ class SessionBHandler:
         self.session.on("response.text.delta", self._handle_text_delta)
         self.session.on("response.text.done", self._handle_text_done)
         self.session.on("response.done", self._handle_response_done)
+        # 대화 아이템 트래킹 (프루닝용)
+        self.session.on("conversation.item.created", self._handle_item_created)
         # Local VAD 모드에서는 Server VAD 이벤트를 등록하지 않음
         # (turn_detection=null이므로 이 이벤트가 발생하지 않지만, 명시적 비등록)
         if not self._use_local_vad:
@@ -158,6 +164,41 @@ class SessionBHandler:
     def is_recipient_speaking(self) -> bool:
         return self._is_recipient_speaking
 
+    # --- 대화 아이템 트래킹 + 프루닝 ---
+
+    async def _handle_item_created(self, event: dict[str, Any]) -> None:
+        """대화 아이템 생성 이벤트 → ID 추적."""
+        item = event.get("item", {})
+        item_id = item.get("id", "")
+        if item_id:
+            self._conversation_item_ids.append(item_id)
+
+    async def _prune_conversation_items(self, keep_last: int = 1) -> None:
+        """이전 턴의 대화 아이템을 삭제하여 컨텍스트 기반 할루시네이션을 방지한다.
+
+        GPT-4o Realtime은 세션 내 대화 아이템이 누적되면 오디오 대신
+        대화 흐름에서 "논리적으로 맞는" 번역을 생성하는 문제가 있다.
+        매 턴 시작 전 이전 아이템을 삭제하여 모델이 현재 오디오에만 집중하도록 한다.
+        (대화 컨텍스트는 ConversationContextManager가 요약본으로 별도 주입)
+
+        Args:
+            keep_last: 유지할 최근 아이템 수 (1 = 최신 컨텍스트 주입 아이템만 유지)
+        """
+        if len(self._conversation_item_ids) <= keep_last:
+            return
+        if keep_last > 0:
+            to_delete = self._conversation_item_ids[:-keep_last]
+            self._conversation_item_ids = self._conversation_item_ids[-keep_last:]
+        else:
+            to_delete = self._conversation_item_ids[:]
+            self._conversation_item_ids = []
+        for item_id in to_delete:
+            try:
+                await self.session.delete_item(item_id)
+            except Exception:
+                logger.debug("[SessionB] Failed to delete item %s", item_id)
+        logger.info("[SessionB] Pruned %d old conversation items (kept %d)", len(to_delete), keep_last)
+
     # --- 수신자 오디오 입력 (Twilio → Session B) ---
 
     async def send_recipient_audio(self, audio_b64: str) -> None:
@@ -166,14 +207,20 @@ class SessionBHandler:
 
     # --- Local VAD 콜백 (외부에서 호출) ---
 
-    async def notify_speech_started(self) -> None:
+    async def notify_speech_started(self, skip_clear: bool = False) -> None:
         """Local VAD가 수신자 발화 시작을 감지했을 때 호출한다.
 
         Server VAD의 _handle_speech_started와 동일한 로직을 수행하되,
         발화 시작 전 축적된 무음 오디오를 제거하여 Whisper 할루시네이션을 방지한다.
+
+        Args:
+            skip_clear: True면 입력 버퍼 클리어를 건너뛴다.
+                post-echo settling breakthrough 시 이미 버퍼를 클리어하고
+                큐잉된 오디오를 flush한 뒤 호출하므로 재클리어 방지.
         """
         # 축적된 무음/노이즈 제거 → Whisper 할루시네이션 방지
-        await self.session.clear_input_buffer()
+        if not skip_clear:
+            await self.session.clear_input_buffer()
 
         self._speech_started_count += 1
         self._is_recipient_speaking = True
@@ -332,6 +379,13 @@ class SessionBHandler:
 
     async def _save_transcript_and_notify(self, transcript: str) -> None:
         """번역 완료 텍스트를 저장하고 컨텍스트 콜백을 호출한다."""
+        # Anti-hallucination: 모델이 오디오를 알아듣지 못했을 때 출력하는 [unclear] 마커 필터링
+        if "[unclear]" in transcript.lower():
+            logger.info("[SessionB] Unclear audio marker filtered: %s", transcript[:80])
+            if self._call:
+                self._call.call_metrics.hallucinations_blocked += 1
+            return
+
         self._transcript_completed_count += 1
         if self._call:
             self._call.call_metrics.vad_false_triggers = max(0, self._speech_started_count - self._transcript_completed_count)
@@ -478,6 +532,10 @@ class SessionBHandler:
                 except asyncio.TimeoutError:
                     logger.warning("[SessionB] Previous response wait timeout (5s) — proceeding anyway")
 
+            # 이전 턴의 대화 아이템 삭제 → GPT-4o가 현재 오디오에만 집중
+            # keep_last=1: 최신 컨텍스트 주입 아이템만 유지
+            await self._prune_conversation_items(keep_last=1)
+
             if self._use_local_vad:
                 logger.info(
                     "[SessionB] Debounce complete (%.0fms) — committing audio + creating response (local VAD)",
@@ -529,6 +587,9 @@ class SessionBHandler:
                     await asyncio.wait_for(self._response_done_event.wait(), timeout=5.0)
                 except asyncio.TimeoutError:
                     logger.warning("[SessionB] Timeout: previous response wait timeout (5s) — proceeding anyway")
+
+            # 이전 턴 아이템 삭제 (debounced_create_response와 동일)
+            await self._prune_conversation_items(keep_last=1)
 
             if self._use_local_vad:
                 await self.session.commit_audio_only()

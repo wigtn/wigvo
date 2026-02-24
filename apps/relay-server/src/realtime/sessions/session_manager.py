@@ -200,6 +200,13 @@ class RealtimeSession:
         await self._send({"type": "response.cancel"})
         logger.info("[%s] Response cancelled (interrupt)", self.label)
 
+    async def delete_item(self, item_id: str) -> None:
+        """대화 아이템을 삭제한다 (컨텍스트 누적 방지)."""
+        await self._send({
+            "type": "conversation.item.delete",
+            "item_id": item_id,
+        })
+
     async def send_context_item(self, text: str) -> None:
         """대화 컨텍스트 아이템을 세션에 추가한다."""
         await self._send({
