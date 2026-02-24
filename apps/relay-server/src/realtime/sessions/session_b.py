@@ -266,13 +266,13 @@ class SessionBHandler:
             return
 
         # Peak RMS 품질 필터: 에너지가 약한 speech는 노이즈/잔향으로 간주
-        # 실제 발화: peak RMS 500-2000+, 노이즈/잔향: peak RMS 150-400
-        if peak_rms > 0 and peak_rms < settings.echo_energy_threshold_rms:
+        # 실제 발화: peak RMS 300-2000+ (조용한 PSTN 포함), 노이즈/잔향: peak RMS 100-200
+        if peak_rms > 0 and peak_rms < settings.session_b_min_peak_rms:
             logger.info(
                 "[SessionB] Local VAD speech stopped — weak energy (%.0fms, peak RMS=%.0f < %.0f), ignoring as noise — clearing buffer",
                 speech_duration * 1000,
                 peak_rms,
-                settings.echo_energy_threshold_rms,
+                settings.session_b_min_peak_rms,
             )
             await self.session.clear_input_buffer()
             return

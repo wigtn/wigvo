@@ -131,8 +131,10 @@ class LocalVAD:
         # Stage 1: RMS Energy Gate
         rms = ulaw_rms(audio)
 
-        # Peak RMS tracking (SPEAKING 상태에서만)
-        if self._state == _VadState.SPEAKING and rms > self._peak_rms:
+        # Peak RMS tracking (SPEAKING 상태 + speech candidate 중)
+        # SPEAKING 전환 전 candidate 프레임의 높은 RMS를 캡처하기 위해
+        # _speech_count > 0 (Silero가 speech 감지 시작) 조건 추가
+        if (self._state == _VadState.SPEAKING or self._speech_count > 0) and rms > self._peak_rms:
             self._peak_rms = rms
 
         # 디버그: 500ms마다 RMS 로그
@@ -192,6 +194,8 @@ class LocalVAD:
         """Silero VAD 확률로 상태 머신을 업데이트한다 (hysteresis)."""
         if self._state == _VadState.SILENCE:
             if prob >= self._speech_threshold:
+                if self._speech_count == 0:
+                    self._peak_rms = 0.0  # 새 speech candidate 시작 — peak 리셋
                 self._speech_count += 1
                 self._silence_count = 0
                 if self._speech_count >= self._min_speech_frames:
@@ -212,8 +216,8 @@ class LocalVAD:
         self._state = _VadState.SPEAKING
         self._speech_count = 0
         self._silence_count = 0
-        self._peak_rms = 0.0  # 새 speech 구간 시작
-        logger.info("[LocalVAD] Speech started")
+        # peak_rms는 candidate 단계에서 이미 추적 중 — 여기서 리셋하면 pre-transition 값 손실
+        logger.info("[LocalVAD] Speech started (peak_rms=%.0f)", self._peak_rms)
         if self._on_speech_start:
             try:
                 await self._on_speech_start()
