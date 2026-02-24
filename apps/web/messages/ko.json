@@ -293,7 +293,6 @@
     "menu": "메뉴",
     "newChat": "새 대화",
     "history": "통화 기록",
-    "pricing": "요금제",
     "recentChats": "최근 대화",
     "viewAllReservations": "전체 예약 기록 보기"
   },
@@ -343,5 +342,12 @@
   "language": {
     "ko": "한국어",
     "en": "English"
+  },
+  "langNames": {
+    "ko": "한국어",
+    "en": "영어",
+    "ja": "일본어",
+    "zh": "중국어",
+    "vi": "베트남어"
   }
 }

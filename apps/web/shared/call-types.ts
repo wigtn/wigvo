@@ -34,15 +34,18 @@ export interface SupportedLanguage {
   code: string;
   label: string;
   flag: string;
+  active: boolean;
 }
 
 export const SUPPORTED_LANGUAGES: readonly SupportedLanguage[] = [
-  { code: 'ko', label: '\uD55C\uAD6D\uC5B4', flag: '\uD83C\uDDF0\uD83C\uDDF7' },
-  { code: 'en', label: 'English', flag: '\uD83C\uDDFA\uD83C\uDDF8' },
-  { code: 'ja', label: '\u65E5\u672C\u8A9E', flag: '\uD83C\uDDEF\uD83C\uDDF5' },
-  { code: 'zh', label: '\u4E2D\u6587', flag: '\uD83C\uDDE8\uD83C\uDDF3' },
-  { code: 'vi', label: 'Ti\u1EBFng Vi\u1EC7t', flag: '\uD83C\uDDFB\uD83C\uDDF3' },
+  { code: 'ko', label: '한국어', flag: '🇰🇷', active: true },
+  { code: 'en', label: 'English', flag: '🇺🇸', active: true },
+  { code: 'ja', label: '日本語', flag: '🇯🇵', active: false },
+  { code: 'zh', label: '中文', flag: '🇨🇳', active: false },
+  { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳', active: false },
 ] as const;
+
+export const ACTIVE_LANGUAGES = SUPPORTED_LANGUAGES.filter((l) => l.active);
 
 export interface LanguagePair {
   source: SupportedLanguage;

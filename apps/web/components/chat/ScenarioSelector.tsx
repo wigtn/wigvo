@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import {
-  ArrowDownUp,
+  ArrowLeftRight,
   Phone,
   Mic,
   MessageSquare,
@@ -161,7 +161,7 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
             className="self-center justify-self-center shrink-0 w-10 h-10 rounded-full bg-white/75 border border-white/80 flex items-center justify-center text-[#64748B] hover:bg-white hover:text-[#0F172A] transition-colors disabled:opacity-50"
             aria-label="Swap languages"
           >
-            <ArrowDownUp className="size-4" />
+            <ArrowLeftRight className="size-4" />
           </button>
           <div>
             <LanguageDropdown value={targetLang} onChange={setTargetLang} disabled={disabled} />

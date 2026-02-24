@@ -293,7 +293,6 @@
     "menu": "Menu",
     "newChat": "New Chat",
     "history": "Call History",
-    "pricing": "Pricing",
     "recentChats": "Recent Chats",
     "viewAllReservations": "View All Reservations"
   },
@@ -343,5 +342,12 @@
   "language": {
     "ko": "한국어",
     "en": "English"
+  },
+  "langNames": {
+    "ko": "Korean",
+    "en": "English",
+    "ja": "Japanese",
+    "zh": "Chinese",
+    "vi": "Vietnamese"
   }
 }

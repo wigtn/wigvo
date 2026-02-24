@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
-import { SUPPORTED_LANGUAGES } from '@/shared/call-types';
+import { useTranslations } from 'next-intl';
+import { ACTIVE_LANGUAGES } from '@/shared/call-types';
 
 interface LanguageDropdownProps {
   value: string;
@@ -13,8 +14,9 @@ interface LanguageDropdownProps {
 export default function LanguageDropdown({ value, onChange, disabled = false }: LanguageDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tLang = useTranslations('langNames');
 
-  const selected = SUPPORTED_LANGUAGES.find((l) => l.code === value);
+  const selected = ACTIVE_LANGUAGES.find((l) => l.code === value);
 
   // Close on outside click
   useEffect(() => {
@@ -38,6 +40,14 @@ export default function LanguageDropdown({ value, onChange, disabled = false }: 
     }
   }, [isOpen]);
 
+  const getLabel = (code: string, fallback: string) => {
+    try {
+      return tLang(code);
+    } catch {
+      return fallback;
+    }
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
@@ -48,7 +58,7 @@ export default function LanguageDropdown({ value, onChange, disabled = false }: 
       >
         <span className="flex items-center gap-2">
           <span>{selected?.flag}</span>
-          <span>{selected?.label}</span>
+          <span>{getLabel(selected?.code ?? '', selected?.label ?? '')}</span>
         </span>
         <ChevronDown className={`size-4 text-[#94A3B8] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -58,7 +68,7 @@ export default function LanguageDropdown({ value, onChange, disabled = false }: 
           isOpen ? 'opacity-100 scale-y-100 translate-y-0' : 'opacity-0 scale-y-95 -translate-y-1 pointer-events-none'
         }`}
       >
-        {SUPPORTED_LANGUAGES.map((lang) => {
+        {ACTIVE_LANGUAGES.map((lang) => {
           const isSelected = lang.code === value;
           return (
             <button
@@ -76,7 +86,7 @@ export default function LanguageDropdown({ value, onChange, disabled = false }: 
             >
               <span className="flex items-center gap-2">
                 <span>{lang.flag}</span>
-                <span>{lang.label}</span>
+                <span>{getLabel(lang.code, lang.label)}</span>
               </span>
               {isSelected && <Check className="size-4 text-[#0F172A]" />}
             </button>

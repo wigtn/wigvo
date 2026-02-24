@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquarePlus,
   History,
-  CreditCard,
   ChevronLeft,
   ChevronRight,
   Zap,
@@ -35,7 +34,7 @@ export default function Sidebar({
     setActiveMenu,
   } = useDashboard();
 
-  const handleMenuClick = (menu: "chat" | "conversations" | "pricing") => {
+  const handleMenuClick = (menu: "chat" | "conversations") => {
     if (menu === "chat") {
       onNewConversation();
     }
@@ -111,13 +110,6 @@ export default function Sidebar({
             isCollapsed={isSidebarCollapsed}
             isActive={activeMenu === "conversations"}
             onClick={() => handleMenuClick("conversations")}
-          />
-          <SidebarMenu
-            icon={<CreditCard className="size-[18px]" />}
-            label={t("pricing")}
-            isCollapsed={isSidebarCollapsed}
-            isActive={activeMenu === "pricing"}
-            onClick={() => handleMenuClick("pricing")}
           />
         </div>
       </nav>
