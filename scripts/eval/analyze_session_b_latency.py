@@ -130,31 +130,53 @@ def analyze_distribution(calls: list[dict]) -> dict:
 
 # ── 분석 2: upstream vs TTS 분리 ─────────────────────────────
 
-def analyze_latency_breakdown(calls: list[dict]) -> dict:
-    """Session B STT(upstream) vs 번역(translation) 시간 분리."""
+def analyze_latency_breakdown(calls: list[dict], mode_filter: str | None = None) -> dict:
+    """Session B STT(upstream) vs 번역(translation) 시간 분리.
+
+    Args:
+        calls: Supabase에서 가져온 통화 목록
+        mode_filter: communication_mode 필터 (e.g. "voice_to_voice", "text_to_voice")
+    """
     stt_only: list[float] = []
     translation_only: list[float] = []
     e2e_paired: list[float] = []
+    skipped_inverted = 0
 
     for call in calls:
+        if mode_filter and call.get("communication_mode") != mode_filter:
+            continue
         metrics = (call.get("call_result_data") or {}).get("metrics")
         if not metrics:
             continue
         e2e_list = metrics.get("session_b_e2e_latencies_ms", [])
         stt_list = metrics.get("session_b_stt_latencies_ms", [])
 
-        # 같은 통화 내에서 paired: min(len)만큼 매칭
+        # 새 필드가 있으면 직접 사용 (E2E - STT 역산 대신)
+        proc_list = metrics.get("session_b_processing_latencies_ms", [])
+        if proc_list:
+            for proc_ms in proc_list:
+                translation_only.append(proc_ms)
+            # STT도 수집
+            stt_only.extend(stt_list)
+            e2e_paired.extend(e2e_list[:len(stt_list)])
+            continue
+
+        # 기존 방식: E2E - STT 역산 (레거시 데이터)
         paired = min(len(e2e_list), len(stt_list))
         for i in range(paired):
             stt_ms = stt_list[i]
             e2e_ms = e2e_list[i]
-            trans_ms = e2e_ms - stt_ms  # 번역 시간 = E2E - STT
+            trans_ms = e2e_ms - stt_ms
             if trans_ms >= 0:
                 stt_only.append(stt_ms)
                 translation_only.append(trans_ms)
                 e2e_paired.append(e2e_ms)
+            else:
+                skipped_inverted += 1
 
-    result = {"paired_n": len(stt_only)}
+    result = {"paired_n": len(stt_only), "skipped_inverted": skipped_inverted}
+    if mode_filter:
+        result["mode_filter"] = mode_filter
     for name, vals in [("stt_upstream", stt_only), ("translation", translation_only)]:
         if not vals:
             result[name] = {"n": 0}
@@ -344,6 +366,10 @@ def print_report(
         pct_stt = breakdown.get("stt_pct", 0)
         pct_trans = breakdown.get("translation_pct", 0)
         print(f"    Ratio: STT {pct_stt:.1f}% / Translation {pct_trans:.1f}%")
+        if breakdown.get("skipped_inverted", 0) > 0:
+            print(f"    ⚠ Skipped {breakdown['skipped_inverted']} inverted samples (STT > E2E)")
+        if breakdown.get("mode_filter"):
+            print(f"    Mode: {breakdown['mode_filter']}")
     else:
         print("    (STT latency data not available — only E2E total)")
 
@@ -413,14 +439,37 @@ def main() -> None:
         logger.info("Sample call keys: %s", list(sample.keys()) if sample else "empty")
         sys.exit(1)
 
-    # 분석 실행
+    # 모드별 분리 분석
+    mode_labels = {
+        "voice_to_voice": "V2V (Voice-to-Voice)",
+        "text_to_voice": "T2V (Text-to-Voice)",
+    }
+    for mode_key, mode_label in mode_labels.items():
+        mode_calls = [c for c in calls if c.get("communication_mode") == mode_key]
+        mode_with_metrics = [c for c in mode_calls if (c.get("call_result_data") or {}).get("metrics")]
+        if not mode_with_metrics:
+            continue
+        print(f"\n{'#' * 72}")
+        print(f"  {mode_label}  ({len(mode_with_metrics)} calls with metrics)")
+        print(f"{'#' * 72}")
+
+        dist = analyze_distribution(mode_calls)
+        breakdown = analyze_latency_breakdown(mode_calls, mode_filter=mode_key)
+        correlation = analyze_length_correlation(mode_calls)
+        outliers = analyze_outliers(mode_calls, dist)
+        by_status = analyze_by_status(mode_calls)
+        print_report(dist, breakdown, correlation, outliers, by_status)
+
+    # 전체 통합 분석
+    print(f"\n{'#' * 72}")
+    print(f"  All Modes  ({len(calls_with_metrics)} calls with metrics)")
+    print(f"{'#' * 72}")
+
     dist = analyze_distribution(calls)
     breakdown = analyze_latency_breakdown(calls)
     correlation = analyze_length_correlation(calls)
     outliers = analyze_outliers(calls, dist)
     by_status = analyze_by_status(calls)
-
-    # 출력
     print_report(dist, breakdown, correlation, outliers, by_status)
 
     # JSON 저장

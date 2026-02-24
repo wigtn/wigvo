@@ -273,6 +273,30 @@ def extract_all(calls: list[dict]) -> dict:
         },
     }
 
+    # ── 2b. Session B — Mode Breakdown ────────────────────────
+    mode_breakdown = {}
+    for mode_key in ["voice_to_voice", "text_to_voice", "voice_to_text"]:
+        mode_metrics = [(c, m) for c, m in calls_with_metrics
+                        if c.get("communication_mode") == mode_key]
+        if not mode_metrics:
+            continue
+        mode_e2e: list[float] = []
+        mode_stt: list[float] = []
+        mode_proc: list[float] = []
+        mode_stt_after: list[float] = []
+        for c, m in mode_metrics:
+            mode_e2e.extend(m.get("session_b_e2e_latencies_ms", []))
+            mode_stt.extend(m.get("session_b_stt_latencies_ms", []))
+            mode_proc.extend(m.get("session_b_processing_latencies_ms", []))
+            mode_stt_after.extend(m.get("session_b_stt_after_stop_ms", []))
+        mode_breakdown[mode_key] = {
+            "calls": len(mode_metrics),
+            "e2e_latency_ms": stats(mode_e2e),
+            "stt_latency_ms": stats(mode_stt),
+            "processing_latency_ms": stats(mode_proc),
+            "stt_after_stop_ms": stats(mode_stt_after),
+        }
+
     # ── 3. 통화 결과 분포 ──────────────────────────────────
     status_counter = Counter(c.get("status", "UNKNOWN") for c in calls)
     mode_counter = Counter(c.get("communication_mode", "unknown") for c in calls)
@@ -315,6 +339,7 @@ def extract_all(calls: list[dict]) -> dict:
         },
         "session_a": session_a,
         "session_b": session_b,
+        "session_b_by_mode": mode_breakdown,
         "call_results": call_results,
         "vad": vad_metrics,
         "outliers": {
@@ -440,6 +465,19 @@ def print_tables(data: dict) -> None:
         b = lb[rng]
         print(f"  {rng:>8}  {b['n']:4d}  {b['mean']:6.0f}ms  {b['p50']:6.0f}ms  {b['p95']:6.0f}ms")
     print(f"\n  Pearson r (char_len vs latency): {sb['length_vs_latency']['pearson_r_char_len']:.3f}")
+
+    # Mode breakdown
+    sb_mode = data.get("session_b_by_mode", {})
+    if sb_mode:
+        print(f"\n  Session B by Communication Mode:")
+        print(f"  {'Mode':<20} {'Calls':>5} {'E2E P50':>8} {'E2E P95':>8} {'STT P50':>8} {'Proc P50':>8}")
+        print(f"  {'─'*20} {'─'*5} {'─'*8} {'─'*8} {'─'*8} {'─'*8}")
+        for mode, ms in sb_mode.items():
+            e = ms["e2e_latency_ms"]
+            st = ms["stt_latency_ms"]
+            pr = ms["processing_latency_ms"]
+            print(f"  {mode:<20} {ms['calls']:5d} {e['p50']:7.0f}ms {e['p95']:7.0f}ms "
+                  f"{st['p50']:7.0f}ms {pr['p50']:7.0f}ms")
 
     # ── 3. Call Results ──
     print(f"\n{'─'*76}")

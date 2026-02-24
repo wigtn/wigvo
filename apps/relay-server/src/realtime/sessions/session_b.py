@@ -87,6 +87,7 @@ class SessionBHandler:
         self._output_suppressed = False
         self._pending_output: list[tuple[str, Any]] = []
         self._speech_started_at: float = 0.0  # 파이프라인 지연 계측용
+        self._speech_stopped_at: float = 0.0  # processing latency 계측용
         self._use_local_vad = use_local_vad
 
         # Response 생성 상태 추적: conversation_already_has_active_response 방지
@@ -96,6 +97,8 @@ class SessionBHandler:
 
         # 번역 품질 평가용: Recipient STT 원문 임시 저장
         self._last_recipient_stt: str = ""
+        # STT latency 임시 저장: E2E와 동시에 기록하여 리스트 정합성 보장
+        self._pending_stt_ms: float = 0.0
 
         # Debounced response creation (create_response=False 모드)
         # VAD speech_stopped 후 일정 시간 대기, 새 speech_started가 없으면 수동 response.create
@@ -255,6 +258,7 @@ class SessionBHandler:
             peak_rms: speech 구간의 최대 RMS (0이면 체크 스킵)
         """
         self._is_recipient_speaking = False
+        self._speech_stopped_at = time.time()
         self._cancel_silence_timeout()
 
         # 최소 발화 길이 필터
@@ -280,6 +284,10 @@ class SessionBHandler:
             )
             await self.session.clear_input_buffer()
             return
+
+        # speech_duration 기록 (노이즈 필터 통과 후)
+        if self._call and self._speech_started_at > 0:
+            self._call.call_metrics.session_b_speech_durations_ms.append(speech_duration * 1000)
 
         logger.info("[SessionB] Local VAD speech stopped (%.0fms, peak RMS=%.0f)", speech_duration * 1000, peak_rms)
 
@@ -386,6 +394,7 @@ class SessionBHandler:
         # Anti-hallucination: 모델이 오디오를 알아듣지 못했을 때 출력하는 [unclear] 마커 필터링
         if "[unclear]" in transcript.lower():
             logger.info("[SessionB] Unclear audio marker filtered: %s", transcript[:80])
+            self._pending_stt_ms = 0.0  # 필터된 턴의 STT latency 폐기
             if self._call:
                 self._call.call_metrics.hallucinations_blocked += 1
             return
@@ -402,7 +411,16 @@ class SessionBHandler:
             )
             if self._call:
                 self._call.call_metrics.session_b_e2e_latencies_ms.append(e2e_ms)
+                # STT latency를 E2E와 동시에 기록 — 리스트 인덱스 정합성 보장
+                self._call.call_metrics.session_b_stt_latencies_ms.append(
+                    self._pending_stt_ms if self._pending_stt_ms > 0 else e2e_ms
+                )
+                self._pending_stt_ms = 0.0
                 self._call.call_metrics.turn_count += 1
+                # processing latency: speech_stopped → 번역 완료 (STT와 독립적)
+                if self._speech_stopped_at > 0:
+                    proc_ms = (time.time() - self._speech_stopped_at) * 1000
+                    self._call.call_metrics.session_b_processing_latencies_ms.append(proc_ms)
         else:
             logger.info("[SessionB] Translation complete: %s", transcript[:80])
 
@@ -427,6 +445,11 @@ class SessionBHandler:
         # 번역 완료 알림 (클라이언트 streamingRef 리셋용)
         if self._on_caption_done:
             await self._on_caption_done()
+
+        # 타임스탬프 리셋
+        self._speech_started_at = 0.0
+        self._speech_stopped_at = 0.0
+        self._pending_stt_ms = 0.0
 
     async def _handle_response_done(self, event: dict[str, Any]) -> None:
         """Session B 응답 완료 + cost token 추적."""
@@ -486,6 +509,7 @@ class SessionBHandler:
         create_response=False 모드: debounce 후 수동 response.create 호출.
         """
         self._is_recipient_speaking = False
+        self._speech_stopped_at = time.time()
         self._cancel_silence_timeout()
 
         # 최소 발화 길이 필터: 너무 짧은 segment는 노이즈로 간주
@@ -497,6 +521,10 @@ class SessionBHandler:
                 self._min_speech_s * 1000,
             )
             return
+
+        # speech_duration 기록 (노이즈 필터 통과 후)
+        if self._call and self._speech_started_at > 0:
+            self._call.call_metrics.session_b_speech_durations_ms.append(speech_duration * 1000)
 
         logger.info("[SessionB] Recipient speech stopped (%.0fms)", speech_duration * 1000)
 
@@ -635,8 +663,12 @@ class SessionBHandler:
         if self._speech_started_at > 0:
             stt_ms = (time.time() - self._speech_started_at) * 1000
             logger.info("[SessionB] Original STT (Stage 1, stt=%.0fms): %s", stt_ms, transcript[:80])
-            if self._call:
-                self._call.call_metrics.session_b_stt_latencies_ms.append(stt_ms)
+            # STT latency를 임시 저장 — E2E 기록 시 함께 append하여 리스트 정합성 보장
+            self._pending_stt_ms = stt_ms
+            if self._call and self._speech_stopped_at > 0:
+                after_stop_ms = (time.time() - self._speech_stopped_at) * 1000
+                if after_stop_ms > 0:
+                    self._call.call_metrics.session_b_stt_after_stop_ms.append(after_stop_ms)
         else:
             logger.info("[SessionB] Original STT (Stage 1): %s", transcript[:80])
         if self._on_original_caption:

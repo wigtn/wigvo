@@ -338,6 +338,13 @@ class DualSessionManager:
         else:
             session_b_modalities = ["text", "audio"]
 
+        # STT 모델 선택: V2V는 whisper-1 (할루시네이션 블록리스트 호환), T2V/Agent는 gpt-4o-transcribe
+        stt_model = (
+            settings.stt_model
+            if communication_mode in (CommunicationMode.TEXT_TO_VOICE, CommunicationMode.FULL_AGENT)
+            else "whisper-1"
+        )
+
         # Session A: User → 수신자 (PRD 3.2 / M-4)
         # Client VAD 시 turn_detection=null (서버가 아닌 클라이언트가 발화 종료 판단)
         self.session_a = RealtimeSession(
@@ -349,7 +356,7 @@ class DualSessionManager:
                 input_audio_format="pcm16",
                 output_audio_format="g711_ulaw",  # Twilio로 출력
                 vad_mode=vad_mode,
-                input_audio_transcription={"model": settings.stt_model, "language": source_language},
+                input_audio_transcription={"model": stt_model, "language": source_language},
             ),
         )
 
@@ -365,7 +372,7 @@ class DualSessionManager:
                 output_audio_format="pcm16",  # App으로 출력
                 vad_mode=session_b_vad_mode,
                 modalities=session_b_modalities,
-                input_audio_transcription={"model": settings.stt_model, "language": target_language},  # 2단계 자막: 원문 STT + 언어 힌트 (PRD 5.4)
+                input_audio_transcription={"model": stt_model, "language": target_language},  # 2단계 자막: 원문 STT + 언어 힌트 (PRD 5.4)
             ),
         )
 

@@ -255,6 +255,12 @@ class CallMetrics(BaseModel):
     guardrail_level2_count: int = 0
     # Guardrail 동기 차단 횟수 (Level 3)
     guardrail_level3_count: int = 0
+    # Session B: 수신자 발화 구간 (speech_started → speech_stopped)
+    session_b_speech_durations_ms: list[float] = Field(default_factory=list)
+    # Session B: 처리 지연 (speech_stopped → 번역 완료), STT와 독립적
+    session_b_processing_latencies_ms: list[float] = Field(default_factory=list)
+    # Session B: STT 완료가 speech_stopped 이후에 발생한 지연
+    session_b_stt_after_stop_ms: list[float] = Field(default_factory=list)
 
 
 class ActiveCall(BaseModel):

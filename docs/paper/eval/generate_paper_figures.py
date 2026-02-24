@@ -133,9 +133,17 @@ def figure2() -> None:
     ax2.set_ylabel("Count")
     ax2.set_title(f'Session B: Recipient \u2192 User (N={sb["n"]} turns)')
     ax2.legend(loc="upper right", framealpha=0.9)
+    # Compute STT % from V2V data only (T2V has STT > E2E inversion)
+    sb_stt_stats = data["session_b"].get("stt_latency_ms", {})
+    sb_e2e_stats = data["session_b"].get("e2e_latency_ms", {})
+    if sb_stt_stats.get("mean", 0) > 0 and sb_e2e_stats.get("mean", 0) > 0:
+        stt_pct = sb_stt_stats["mean"] / sb_e2e_stats["mean"] * 100
+        stt_label = f"\nSTT: {stt_pct:.1f}% of latency"
+    else:
+        stt_label = ""
     ax2.text(
         0.97, 0.72,
-        f'Mean={_comma(sb["mean"])}ms\nStd={_comma(sb["std"])}ms\nSTT: 74.7% of latency',
+        f'Mean={_comma(sb["mean"])}ms\nStd={_comma(sb["std"])}ms{stt_label}',
         transform=ax2.transAxes, ha="right", va="top",
         fontsize=9, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#cccccc", alpha=0.9),
     )
@@ -305,10 +313,11 @@ def figure4() -> None:
     ax.legend(loc="upper left", framealpha=0.9)
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda v, _: f"{int(v):,}"))
 
-    # 우상단 텍스트
+    # 우상단 텍스트 — compute from data
+    stt_mean_pct = sb_stt["mean"] / sb_e2e["mean"] * 100 if sb_e2e["mean"] > 0 else 0
     ax.text(
         0.97, 0.95,
-        "STT accounts for\n74.7% of mean latency",
+        f"STT accounts for\n{stt_mean_pct:.1f}% of mean latency",
         transform=ax.transAxes, ha="right", va="top",
         fontsize=9, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#cccccc", alpha=0.9),
     )
