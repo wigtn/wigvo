@@ -163,7 +163,6 @@ class TextToVoicePipeline(BasePipeline):
         )
 
         # Interrupt debounce: 노이즈에 의한 즉시 TTS 취소 방지 (400ms 대기 후 확인)
-        self._interrupt_debounce_task: asyncio.Task | None = None
 
         # Ring Buffer: Session B만 (User audio 없으므로 A 불필요)
         self.ring_buffer_b = AudioRingBuffer(
@@ -205,13 +204,6 @@ class TextToVoicePipeline(BasePipeline):
                 pass
 
         await self.echo_gate.stop()
-
-        if self._interrupt_debounce_task and not self._interrupt_debounce_task.done():
-            self._interrupt_debounce_task.cancel()
-            try:
-                await self._interrupt_debounce_task
-            except asyncio.CancelledError:
-                pass
 
         self._cancel_db_save_task()
 
@@ -432,29 +424,11 @@ class TextToVoicePipeline(BasePipeline):
         if not self.call.first_message_sent:
             await self.first_message.on_recipient_speech_detected()
         else:
-            # Debounce: 400ms 대기 후 여전히 발화 중이면 interrupt 실행
-            # 노이즈(<400ms)는 speech_stopped로 is_recipient_speaking=False → 스킵
-            if self._interrupt_debounce_task and not self._interrupt_debounce_task.done():
-                self._interrupt_debounce_task.cancel()
-            self._interrupt_debounce_task = asyncio.create_task(self._debounced_interrupt())
-
-    async def _debounced_interrupt(self) -> None:
-        """400ms debounce 후 수신자가 여전히 발화 중이면 interrupt 실행."""
-        try:
-            await asyncio.sleep(0.4)  # session_b_min_speech_ms와 동일
-            if self.session_b.is_recipient_speaking:
-                logger.info("Interrupt debounce: recipient still speaking after 400ms — interrupting")
-                await self.interrupt.on_recipient_speech_started()
-            else:
-                logger.info("Interrupt debounce: recipient stopped within 400ms — noise, skipping interrupt")
-        except asyncio.CancelledError:
-            pass
+            # 즉시 interrupt: LocalVAD 필터(RMS gate + Silero 3프레임)를 통과한 speech는
+            # 충분히 신뢰할 수 있으므로 debounce 없이 즉시 TTS 중단
+            await self.interrupt.on_recipient_speech_started()
 
     async def _on_recipient_stopped(self) -> None:
-        # Debounce task 취소 (노이즈로 판정 — interrupt 불필요)
-        if self._interrupt_debounce_task and not self._interrupt_debounce_task.done():
-            self._interrupt_debounce_task.cancel()
-            self._interrupt_debounce_task = None
         await self.context_manager.inject_context(self.dual_session.session_b)
         await self.interrupt.on_recipient_speech_stopped()
 

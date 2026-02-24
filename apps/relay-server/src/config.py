@@ -85,7 +85,7 @@ class Settings(BaseSettings):
     session_b_vad_threshold: float = 0.8  # 0.0~1.0, 높을수록 큰 소리만 감지 (전화 오디오 권장 0.8~0.85)
     session_b_vad_silence_ms: int = 500  # 발화 종료 판정까지 필요한 무음 시간 (기본 200ms → 500ms)
     session_b_vad_prefix_padding_ms: int = 300  # 발화 시작 전 포함할 오디오 (기본 300ms)
-    session_b_min_speech_ms: int = 400  # 최소 발화 길이 — 이보다 짧은 segment는 노이즈로 간주 (250→400: 할루시네이션 방지)
+    session_b_min_speech_ms: int = 250  # 최소 발화 길이 — 한국어 단어("여보세요?" 290ms) 통과, 순수 노이즈(<200ms) 차단
 
     # Local VAD (Silero VAD + RMS Energy Gate)
     local_vad_enabled: bool = True
