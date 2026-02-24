@@ -158,7 +158,7 @@ class TextToVoicePipeline(BasePipeline):
             session_b=self.session_b,
             local_vad=self.local_vad,
             call_metrics=self.call.call_metrics,
-            echo_margin_s=0.5,
+            echo_margin_s=0.3,
             max_echo_window_s=None,
             settling_s=settings.echo_post_settling_s,
             break_on_high_energy=False,  # T2V: 사용자 메시지 완전 전달 우선
