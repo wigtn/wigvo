@@ -10,7 +10,7 @@ Bidirectional real-time translation call server based on OpenAI Realtime API + T
 uv sync                              # Install dependencies
 cp .env.example .env                  # Configure environment variables
 uv run uvicorn src.main:app --reload  # Development server
-uv run pytest -v                      # Tests (147 tests)
+uv run pytest -v                      # Tests (184 tests)
 ```
 
 ## Directory Structure
@@ -37,9 +37,10 @@ src/
 │   ├── pipeline/            # Strategy pattern pipelines (independent per-mode processing)
 │   │   ├── __init__.py      # Pipeline module documentation + mode mapping
 │   │   ├── base.py          # BasePipeline ABC (common interface)
-│   │   ├── voice_to_voice.py # VoiceToVoicePipeline (EchoDetector + full audio)
-│   │   ├── text_to_voice.py  # TextToVoicePipeline (per-response instruction + text-only B)
-│   │   └── full_agent.py     # FullAgentPipeline (Function Calling + autonomous AI)
+│   │   ├── voice_to_voice.py # VoiceToVoicePipeline (Echo Gate + full audio)
+│   │   ├── text_to_voice.py  # TextToVoicePipeline (Echo Gate + per-response instruction + text-only B)
+│   │   ├── full_agent.py     # FullAgentPipeline (Function Calling + autonomous AI)
+│   │   └── echo_gate.py      # EchoGateManager (V2V/T2V shared echo prevention)
 │   │
 │   ├── audio_router.py      # AudioRouter — thin delegator (Pipeline selection + common lifecycle)
 │   ├── echo_detector.py     # EchoDetector — Pearson correlation-based echo detection (legacy)
@@ -127,8 +128,8 @@ class BasePipeline(ABC):
 | **Session A turn_detection** | client/server VAD | client/server VAD | `null` (manual) | `null` (manual) |
 | **Session B modalities** | `['text', 'audio']` | `['text', 'audio']` | **`['text']`** | **`['text']`** |
 | **Session B -> App audio** | Sent | **Suppressed** | N/A (text only) | N/A (text only) |
-| **Silence Injection** | **Active** | **Active** | Not needed | Not needed |
-| **Echo Gate** | Active | Active | Not needed | Not needed |
+| **Silence Injection** | **Active** | **Active** | **Active** | Not needed |
+| **Echo Gate** | Active | Active | **Active** | Not needed |
 | **Energy Gate** | Active | Active | Active | Active |
 | **Local VAD** | Active | Active | Active | Active |
 | **Interrupt Handler** | Active | Active | Active | Active |
@@ -285,7 +286,7 @@ Session A TTS chunk sent to Twilio
        v
   Twilio audio arrives during echo window
        │
-       ├─ RMS < ECHO_ENERGY_THRESHOLD_RMS (400) -> replace with silence (\xff)
+       ├─ RMS < ECHO_ENERGY_THRESHOLD_RMS (500) -> replace with silence (\xff)
        └─ RMS >= ECHO_ENERGY_THRESHOLD_RMS      -> genuine speech (pass through)
        │
        v
@@ -331,7 +332,7 @@ Output-side protection that works alongside Silence Injection:
 
 Key point: **INPUT is never blocked** -> recipient speech can always be detected. Only OUTPUT is suppressed and stored in a pending queue for later flush.
 
-> In TextToVoice/FullAgent pipelines, Echo Gate and Silence Injection are disabled. Since user input is text, a TTS echo loop is impossible.
+> In TextToVoice pipeline, Echo Gate and Silence Injection are **active** to prevent TTS echo from being detected as recipient speech. However, interrupt is suppressed during TTS generation (`is_generating` guard) to ensure complete message delivery. In FullAgent pipeline, Echo Gate is disabled since text-only modality eliminates TTS echo.
 
 #### Per-Response Instruction (TextToVoice Only)
 
@@ -368,7 +369,8 @@ Priority: Recipient speech > User speech > AI generation
 
 | Case | Handling |
 |---|---|
-| Recipient interrupts during Session A TTS | `response.cancel` + Twilio buffer `clear` |
+| Recipient interrupts during Session A TTS (V2V) | `response.cancel` + Twilio buffer `clear` |
+| Recipient interrupts during Session A TTS (T2V) | **Interrupt suppressed** (`is_generating` guard) — TTS complete delivery priority |
 | Recipient interrupts during User speech | Notify App, User audio remains buffered |
 | Session A/B simultaneous output | Independent paths, parallel allowed |
 
@@ -468,17 +470,20 @@ Call sites: App WS disconnect, Twilio disconnect, status-callback, manual end, s
 | `TWILIO_AUTH_TOKEN` | | Twilio Auth Token |
 | `TWILIO_PHONE_NUMBER` | | Twilio outbound phone number |
 | `OPENAI_API_KEY` | | OpenAI API key |
-| `OPENAI_REALTIME_MODEL` | `gpt-4o-realtime-preview` | Realtime model |
+| `OPENAI_REALTIME_MODEL` | `gpt-realtime` | Realtime model |
 | `SUPABASE_URL` | | Supabase URL |
 | `SUPABASE_SERVICE_KEY` | | Supabase service key |
 | `RELAY_SERVER_URL` | `http://localhost:8000` | Server URL (for Twilio webhooks) |
 | `GUARDRAIL_ENABLED` | `true` | Enable Guardrail |
 | `HEARTBEAT_TIMEOUT_S` | `120` | Heartbeat timeout (seconds) |
+| **STT Model** | | |
+| `STT_MODEL` | `gpt-4o-transcribe` | STT model for T2V/Agent modes |
+| _(V2V hardcoded)_ | `whisper-1` | V2V uses whisper-1 (hallucination blocklist compatible) |
 | **Echo Prevention** | | |
 | `ECHO_GATE_COOLDOWN_S` | `2.5` | Legacy Echo Gate cooldown (seconds, for fallback) |
 | `AUDIO_ENERGY_GATE_ENABLED` | `true` | Enable PSTN noise energy gate |
 | `AUDIO_ENERGY_MIN_RMS` | `150.0` | PSTN noise filter threshold (RMS) |
-| `ECHO_ENERGY_THRESHOLD_RMS` | `400.0` | Echo window energy threshold (RMS) |
+| `ECHO_ENERGY_THRESHOLD_RMS` | `500.0` | Echo window energy threshold (RMS) |
 | `ECHO_DETECTOR_ENABLED` | `false` | Enable legacy EchoDetector (Pearson correlation) |
 | `ECHO_DETECTOR_THRESHOLD` | `0.6` | Pearson correlation threshold |
 | `ECHO_DETECTOR_SAFETY_COOLDOWN_S` | `0.15` | Safety margin after TTS ends (seconds) |
@@ -507,7 +512,7 @@ OpenAI Realtime API + Twilio Media Streams 기반 양방향 실시간 번역 통
 uv sync                              # 의존성 설치
 cp .env.example .env                  # 환경변수 설정
 uv run uvicorn src.main:app --reload  # 개발 서버
-uv run pytest -v                      # 테스트 (147개)
+uv run pytest -v                      # 테스트 (184개)
 ```
 
 ## 디렉토리 구조
@@ -534,9 +539,10 @@ src/
 │   ├── pipeline/            # Strategy 패턴 파이프라인 (모드별 독립 처리)
 │   │   ├── __init__.py      # Pipeline 모듈 문서화 + 모드 매핑
 │   │   ├── base.py          # BasePipeline ABC (공통 인터페이스)
-│   │   ├── voice_to_voice.py # VoiceToVoicePipeline (EchoDetector + 전체 오디오)
-│   │   ├── text_to_voice.py  # TextToVoicePipeline (per-response instruction + 텍스트 전용 B)
-│   │   └── full_agent.py     # FullAgentPipeline (Function Calling + 자율 AI)
+│   │   ├── voice_to_voice.py # VoiceToVoicePipeline (Echo Gate + 전체 오디오)
+│   │   ├── text_to_voice.py  # TextToVoicePipeline (Echo Gate + per-response instruction + 텍스트 전용 B)
+│   │   ├── full_agent.py     # FullAgentPipeline (Function Calling + 자율 AI)
+│   │   └── echo_gate.py      # EchoGateManager (V2V/T2V 공유 에코 방지)
 │   │
 │   ├── audio_router.py      # AudioRouter — 얇은 위임자 (Pipeline 선택 + 공통 생명주기)
 │   ├── echo_detector.py     # EchoDetector — Pearson 상관계수 기반 에코 감지 (레거시)
@@ -624,8 +630,8 @@ class BasePipeline(ABC):
 | **Session A turn_detection** | client/server VAD | client/server VAD | `null` (manual) | `null` (manual) |
 | **Session B modalities** | `['text', 'audio']` | `['text', 'audio']` | **`['text']`** | **`['text']`** |
 | **Session B → App 오디오** | 전송 | **생략** | N/A (텍스트만) | N/A (텍스트만) |
-| **Silence Injection** | **활성** | **활성** | 불필요 | 불필요 |
-| **Echo Gate** | 활성 | 활성 | 불필요 | 불필요 |
+| **Silence Injection** | **활성** | **활성** | **활성** | 불필요 |
+| **Echo Gate** | 활성 | 활성 | **활성** | 불필요 |
 | **Energy Gate** | 활성 | 활성 | 활성 | 활성 |
 | **Local VAD** | 활성 | 활성 | 활성 | 활성 |
 | **Interrupt Handler** | 활성 | 활성 | 활성 | 활성 |
@@ -782,7 +788,7 @@ Session A TTS 청크를 Twilio로 전송
        ▼
   Echo window 동안 Twilio 오디오 도착
        │
-       ├─ RMS < ECHO_ENERGY_THRESHOLD_RMS (400) → silence로 교체 (\xff)
+       ├─ RMS < ECHO_ENERGY_THRESHOLD_RMS (500) → silence로 교체 (\xff)
        └─ RMS >= ECHO_ENERGY_THRESHOLD_RMS      → 실제 발화 (통과)
        │
        ▼
@@ -828,7 +834,7 @@ Silence Injection과 함께 동작하는 출력측 보호:
 
 핵심: **INPUT은 차단하지 않음** → 수신자 발화를 항상 감지할 수 있다. OUTPUT만 억제하고 pending 큐에 저장 후 나중에 배출.
 
-> TextToVoice/FullAgent 파이프라인에서는 Echo Gate/Silence Injection 모두 비활성. 사용자 입력이 텍스트이므로 TTS echo loop 자체가 불가능.
+> TextToVoice 파이프라인에서는 Echo Gate/Silence Injection **활성**. TTS 에코가 수신자 발화로 오감지되는 것을 방지한다. 단, TTS 생성 중에는 interrupt를 차단(`is_generating` 가드)하여 메시지 완전 전달을 보장한다. FullAgent 파이프라인에서는 text-only modality로 TTS 에코가 없으므로 비활성.
 
 #### Per-Response Instruction (TextToVoice 전용)
 
@@ -865,7 +871,8 @@ TextToVoice/FullAgent에서 Session B는 `modalities=['text']`로 설정되어:
 
 | 케이스 | 처리 |
 |---|---|
-| Session A TTS 중 수신자 끼어듦 | `response.cancel` + Twilio 버퍼 `clear` |
+| Session A TTS 중 수신자 끼어듦 (V2V) | `response.cancel` + Twilio 버퍼 `clear` |
+| Session A TTS 중 수신자 끼어듦 (T2V) | **Interrupt 차단** (`is_generating` 가드) — TTS 완전 전달 우선 |
 | User 발화 중 수신자 끼어듦 | App에 알림, User 오디오는 버퍼링 유지 |
 | Session A/B 동시 출력 | 독립 경로이므로 병렬 허용 |
 
@@ -965,17 +972,20 @@ _listen_tasks: dict[str, asyncio.Task]         # 세션 리스닝 태스크
 | `TWILIO_AUTH_TOKEN` | | Twilio 인증 토큰 |
 | `TWILIO_PHONE_NUMBER` | | Twilio 발신 번호 |
 | `OPENAI_API_KEY` | | OpenAI API 키 |
-| `OPENAI_REALTIME_MODEL` | `gpt-4o-realtime-preview` | Realtime 모델 |
+| `OPENAI_REALTIME_MODEL` | `gpt-realtime` | Realtime 모델 |
 | `SUPABASE_URL` | | Supabase URL |
 | `SUPABASE_SERVICE_KEY` | | Supabase 서비스 키 |
 | `RELAY_SERVER_URL` | `http://localhost:8000` | 서버 URL (Twilio webhook용) |
 | `GUARDRAIL_ENABLED` | `true` | Guardrail 활성화 |
 | `HEARTBEAT_TIMEOUT_S` | `120` | Heartbeat 타임아웃 (초) |
+| **STT 모델** | | |
+| `STT_MODEL` | `gpt-4o-transcribe` | T2V/Agent 모드 STT 모델 |
+| _(V2V 하드코딩)_ | `whisper-1` | V2V는 whisper-1 사용 (할루시네이션 블록리스트 호환) |
 | **에코 방지** | | |
 | `ECHO_GATE_COOLDOWN_S` | `2.5` | Legacy Echo Gate 쿨다운 (초, 폴백용) |
 | `AUDIO_ENERGY_GATE_ENABLED` | `true` | PSTN 소음 에너지 게이트 활성화 |
 | `AUDIO_ENERGY_MIN_RMS` | `150.0` | PSTN 소음 필터 임계값 (RMS) |
-| `ECHO_ENERGY_THRESHOLD_RMS` | `400.0` | Echo window 에너지 임계값 (RMS) |
+| `ECHO_ENERGY_THRESHOLD_RMS` | `500.0` | Echo window 에너지 임계값 (RMS) |
 | `ECHO_DETECTOR_ENABLED` | `false` | 레거시 EchoDetector 활성화 (Pearson 상관계수) |
 | `ECHO_DETECTOR_THRESHOLD` | `0.6` | Pearson 상관계수 임계값 |
 | `ECHO_DETECTOR_SAFETY_COOLDOWN_S` | `0.15` | TTS 종료 후 안전 마진 (초) |
