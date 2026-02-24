@@ -24,7 +24,9 @@ export function toCallResponse(row: CallRow): Call {
     result: row.result,
     summary: row.summary,
     callMode: row.call_mode ?? undefined,
-    communicationMode: row.communication_mode ?? undefined,
+    communicationMode: row.communication_mode === 'voice_to_text'
+      ? 'voice_to_voice'  // Legacy V2T → V2V fallback
+      : row.communication_mode ?? undefined,
     relayWsUrl: row.relay_ws_url ?? undefined,
     callId: row.call_id,
     callSid: row.call_sid,

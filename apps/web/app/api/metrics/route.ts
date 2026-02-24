@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
     const callCount = validCalls.length;
 
     // By mode breakdown
-    const modes = ['voice_to_voice', 'text_to_voice', 'voice_to_text', 'full_agent'];
+    const modes = ['voice_to_voice', 'text_to_voice', 'full_agent'];
     const byMode: Record<string, { call_count: number; avg_session_a_ms: number; avg_session_b_ms: number; avg_turns: number }> = {};
 
     for (const m of modes) {

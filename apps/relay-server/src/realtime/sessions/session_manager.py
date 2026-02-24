@@ -327,7 +327,7 @@ class DualSessionManager:
             session_b_vad_mode = VadMode.SERVER
 
         # Session B modalities: communication_mode에 따라 분기
-        # - VOICE_TO_VOICE / VOICE_TO_TEXT: ["text", "audio"] — 수신자 번역 TTS를 App에 재생
+        # - VOICE_TO_VOICE: ["text", "audio"] — 수신자 번역 TTS를 App에 재생
         # - TEXT_TO_VOICE / FULL_AGENT: ["text"] — Session B는 텍스트 번역만 (TTS 불필요, 토큰 절약)
         #   Local VAD 모드에서는 turn_detection=null이므로 server VAD 비활성화 무관
         if communication_mode in (

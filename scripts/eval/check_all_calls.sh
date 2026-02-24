@@ -102,7 +102,6 @@ MODE_LABELS = {
     "voice_to_voice": "V2V",
     "text_to_voice": "T2V",
     "full_agent": "Agent",
-    "voice_to_text": "V2T",
 }
 for c in data:
     raw = c.get("communication_mode") or "unknown"
@@ -354,7 +353,7 @@ print("-" * 64)
 print("  [Mode-Level Latency]")
 print("-" * 64)
 print(f"  {'Mode':<8s} {'Calls':>5s}  {'SA_P50':>8s}  {'SB_P50':>8s}  {'SA_turns':>8s}  {'SB_turns':>8s}")
-for mlabel in ["V2V", "T2V", "Agent", "V2T"]:
+for mlabel in ["V2V", "T2V", "Agent"]:
     if mlabel not in mode_calls:
         continue
     sa_vals = mode_sa.get(mlabel, [])

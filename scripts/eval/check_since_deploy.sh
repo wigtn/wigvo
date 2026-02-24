@@ -105,7 +105,6 @@ MODE_LABELS = {
     "voice_to_voice": "V2V",
     "text_to_voice": "T2V",
     "full_agent": "Agent",
-    "voice_to_text": "V2T",
 }
 mode_counter = Counter()
 for c in data:

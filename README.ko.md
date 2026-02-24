@@ -289,7 +289,7 @@ apps/
 │   │   ├── realtime/                # OpenAI Realtime 세션 관리
 │   │   │   ├── pipeline/            # Strategy 패턴 — 모드별 파이프라인
 │   │   │   │   ├── base.py          # BasePipeline ABC
-│   │   │   │   ├── voice_to_voice.py # V2V + V2T (EchoDetector, 전체 오디오)
+│   │   │   │   ├── voice_to_voice.py # V2V (Echo Gate + Silence Injection)
 │   │   │   │   ├── text_to_voice.py  # T2V (per-response instruction, 텍스트 전용 B)
 │   │   │   │   └── full_agent.py     # Agent (function calling, 자율)
 │   │   │   ├── audio_router.py      # 얇은 위임자 → 파이프라인 선택

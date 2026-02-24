@@ -63,7 +63,6 @@ export type CallMode = 'agent' | 'relay';
 export type CommunicationMode =
   | 'voice_to_voice'   // 양방향 음성 번역
   | 'text_to_voice'    // 텍스트 입력 → AI 음성 전달
-  | 'voice_to_text'    // 상대방 음성 → 자막 표시
   | 'full_agent';      // AI 자율 통화
 
 // --- Call Category (v5: 2-category UI) ---
@@ -103,8 +102,6 @@ export function getModeUIConfig(mode: CommunicationMode): ModeUIConfig {
       return { audioInput: true, audioOutput: true, textInput: false, captionOnly: false };
     case 'text_to_voice':
       return { audioInput: false, audioOutput: true, textInput: true, captionOnly: false };
-    case 'voice_to_text':
-      return { audioInput: true, audioOutput: false, textInput: false, captionOnly: true };
     case 'full_agent':
       return { audioInput: false, audioOutput: true, textInput: true, captionOnly: false };
   }

@@ -1,7 +1,6 @@
 """VoiceToVoicePipeline — 양방향 음성 번역 파이프라인.
 
-VOICE_TO_VOICE: User 음성 → 번역 → Twilio TTS + 수신자 음성 → 번역 → App TTS
-VOICE_TO_TEXT:  suppress_b_audio=True — Session B 오디오 출력 생략 (자막만)
+User 음성 → 번역 → Twilio TTS + 수신자 음성 → 번역 → App TTS
 
 핵심 컴포넌트:
   - Echo Gate + Silence Injection (TTS 에코 차단)
@@ -57,7 +56,6 @@ class VoiceToVoicePipeline(BasePipeline):
         app_ws_send: Callable[[WsMessage], Coroutine[Any, Any, None]],
         prompt_a: str = "",
         prompt_b: str = "",
-        suppress_b_audio: bool = False,
     ):
         super().__init__(call)
         self.dual_session = dual_session
@@ -66,7 +64,6 @@ class VoiceToVoicePipeline(BasePipeline):
         self._call_timer_task: asyncio.Task | None = None
         self._prompt_a = prompt_a
         self._prompt_b = prompt_b
-        self._suppress_b_audio = suppress_b_audio
 
         # Guardrail (PRD Phase 4 / M-2)
         self.guardrail: GuardrailChecker | None = None
@@ -374,8 +371,6 @@ class VoiceToVoicePipeline(BasePipeline):
     # --- Session B 콜백 (큐 기반 순차 스트리밍) ---
 
     async def _on_session_b_audio(self, audio_bytes: bytes) -> None:
-        if self._suppress_b_audio:
-            return
         await self._b_output_queue.put(("audio", audio_bytes))
 
     async def _on_session_b_caption(self, role: str, text: str) -> None:

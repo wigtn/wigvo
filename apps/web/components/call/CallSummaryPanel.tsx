@@ -14,7 +14,6 @@ import {
   Zap,
   Mic,
   MessageSquare,
-  Captions,
   Bot,
   MessageCircle,
   List,
@@ -30,14 +29,12 @@ interface CallSummaryPanelProps {
 const MODE_KEYS: Record<CommunicationMode, string> = {
   voice_to_voice: 'voiceToVoice',
   text_to_voice: 'textToVoice',
-  voice_to_text: 'voiceToText',
   full_agent: 'fullAgent',
 };
 
 const MODE_ICONS: Record<CommunicationMode, typeof Mic> = {
   voice_to_voice: Mic,
   text_to_voice: MessageSquare,
-  voice_to_text: Captions,
   full_agent: Bot,
 };
 

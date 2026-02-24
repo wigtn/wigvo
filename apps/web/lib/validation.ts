@@ -26,7 +26,7 @@ export const ChatRequestSchema = z.object({
     .max(MAX_MESSAGE_LENGTH, `message must be ${MAX_MESSAGE_LENGTH} characters or less`)
     .transform((val) => val.trim()),
   communicationMode: z
-    .enum(['voice_to_voice', 'text_to_voice', 'voice_to_text', 'full_agent'])
+    .enum(['voice_to_voice', 'text_to_voice', 'full_agent'])
     .optional(),
   locale: z.enum(['en', 'ko']).optional(),
 });

@@ -3,19 +3,17 @@
 import { useTranslations } from 'next-intl';
 import type { CollectedData } from '@/shared/types';
 import type { CommunicationMode } from '@/shared/call-types';
-import { Phone, Pencil, Plus, MapPin, Calendar, Scissors, User, Users, FileText, Mic, MessageSquare, Captions, Bot } from 'lucide-react';
+import { Phone, Pencil, Plus, MapPin, Calendar, Scissors, User, Users, FileText, Mic, MessageSquare, Bot } from 'lucide-react';
 
 const MODE_ICONS: Record<CommunicationMode, React.ReactNode> = {
   voice_to_voice: <Mic className="size-3" />,
   text_to_voice: <MessageSquare className="size-3" />,
-  voice_to_text: <Captions className="size-3" />,
   full_agent: <Bot className="size-3" />,
 };
 
 const MODE_LABEL_KEYS: Record<CommunicationMode, string> = {
   voice_to_voice: 'voiceToVoice',
   text_to_voice: 'textToVoice',
-  voice_to_text: 'voiceToText',
   full_agent: 'fullAgent',
 };
 

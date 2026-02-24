@@ -65,7 +65,6 @@ interface MetricsData {
 const MODE_LABELS: Record<string, string> = {
   voice_to_voice: 'Voice-to-Voice',
   text_to_voice: 'Text-to-Voice',
-  voice_to_text: 'Voice-to-Text',
   full_agent: 'Full Agent',
 };
 

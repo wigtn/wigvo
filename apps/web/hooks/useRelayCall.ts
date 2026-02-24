@@ -160,7 +160,7 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
         }
 
         case WsMessageType.RECIPIENT_AUDIO: {
-          // voice_to_text 모드: 수신자 음성은 재생하지 않음 (자막만 표시)
+          // audioOutput이 false인 모드: 수신자 음성은 재생하지 않음
           if (!modeConfig.audioOutput) break;
           const audio = msg.data.audio as string;
           if (audio) {

@@ -228,7 +228,7 @@ export interface Call {
   result: CallResult | null;
   summary: string | null;
   callMode?: 'agent' | 'relay';
-  communicationMode?: 'voice_to_voice' | 'text_to_voice' | 'voice_to_text' | 'full_agent';
+  communicationMode?: 'voice_to_voice' | 'text_to_voice' | 'full_agent';
   relayWsUrl?: string;
   callId?: string | null;
   callSid?: string | null;
@@ -301,7 +301,7 @@ export interface CallRow {
 export interface ChatRequest {
   conversationId: string;
   message: string;
-  communicationMode?: 'voice_to_voice' | 'text_to_voice' | 'voice_to_text' | 'full_agent';
+  communicationMode?: 'voice_to_voice' | 'text_to_voice' | 'full_agent';
 }
 
 export interface ChatResponse {
@@ -314,7 +314,7 @@ export interface ChatResponse {
 // POST /api/calls
 export interface CreateCallRequest {
   conversationId: string;
-  communicationMode?: 'voice_to_voice' | 'text_to_voice' | 'voice_to_text' | 'full_agent';
+  communicationMode?: 'voice_to_voice' | 'text_to_voice' | 'full_agent';
 }
 
 // POST /api/conversations request (v3: 시나리오 선택)

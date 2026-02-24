@@ -15,7 +15,6 @@ import {
   Mic,
   MicOff,
   MessageSquare,
-  Captions,
   Bot,
   Loader2,
   BarChart3,
@@ -28,14 +27,12 @@ const Orb = dynamic(() => import('@/components/ui/Orb'), { ssr: false });
 const modeBadgeIcon: Record<CommunicationMode, typeof Mic> = {
   voice_to_voice: Mic,
   text_to_voice: MessageSquare,
-  voice_to_text: Captions,
   full_agent: Bot,
 };
 
 const COMM_MODE_KEYS: Record<CommunicationMode, string> = {
   voice_to_voice: 'voiceToVoice',
   text_to_voice: 'textToVoice',
-  voice_to_text: 'voiceToText',
   full_agent: 'fullAgent',
 };
 
@@ -233,7 +230,7 @@ export default function CallEffectPanel() {
           </button>
 
           {/* Mute button (voice modes only) */}
-          {(communicationMode === 'voice_to_voice' || communicationMode === 'voice_to_text') && (
+          {communicationMode === 'voice_to_voice' && (
             <button
               onClick={() => toggleMute?.()}
               className={`flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-medium transition-all ${

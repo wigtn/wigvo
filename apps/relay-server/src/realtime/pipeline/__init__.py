@@ -2,7 +2,6 @@
 
 Mode → Pipeline 매핑:
   VOICE_TO_VOICE → VoiceToVoicePipeline
-  VOICE_TO_TEXT  → VoiceToVoicePipeline(suppress_b_audio=True)
   TEXT_TO_VOICE  → TextToVoicePipeline
   FULL_AGENT     → FullAgentPipeline
 """

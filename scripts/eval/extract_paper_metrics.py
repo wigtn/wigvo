@@ -275,7 +275,7 @@ def extract_all(calls: list[dict]) -> dict:
 
     # ── 2b. Session B — Mode Breakdown ────────────────────────
     mode_breakdown = {}
-    for mode_key in ["voice_to_voice", "text_to_voice", "voice_to_text"]:
+    for mode_key in ["voice_to_voice", "text_to_voice"]:
         mode_metrics = [(c, m) for c, m in calls_with_metrics
                         if c.get("communication_mode") == mode_key]
         if not mode_metrics:

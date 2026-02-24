@@ -444,7 +444,6 @@ function buildModeSection(
   const modeLabels: Record<string, string> = {
     voice_to_voice: '양방향 음성 번역',
     text_to_voice: '텍스트→음성',
-    voice_to_text: '음성→자막',
   };
   const modeLabel = modeLabels[communicationMode] || communicationMode;
 

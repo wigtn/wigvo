@@ -80,7 +80,7 @@ This isn't a claim of superiority — it's a fundamentally different approach. T
 | **Echo Control** | Hardware AEC (chipset) | Telecom-level control | N/A (no phone) | **Software Silence Injection** |
 | **Phone Call Support** | Galaxy S24+ only | SKT subscribers only | No PSTN support | **Any phone number, any carrier** |
 | **Recipient Requirements** | Same device ecosystem | Same carrier | App installed | **Nothing — just answer the phone** |
-| **Accessibility Modes** | Translation only | Call summary / recording | Translation only | **4 modes: V2V, V2T, T2V, AI Agent** |
+| **Accessibility Modes** | Translation only | Call summary / recording | Translation only | **3 modes: V2V, T2V, AI Agent** |
 | **Device Requirement** | Flagship Galaxy | SKT SIM required | App on both sides | **Any browser or smartphone** |
 
 *\*WIGVO uses OpenAI's model as-is. Our engineering contribution is not the AI model itself, but the system that makes it work reliably over PSTN phone lines — echo cancellation, VAD, codec bridging, and session management that the API was never designed to handle.*
@@ -506,7 +506,7 @@ apps/
 │   │   ├── realtime/                # OpenAI Realtime session management
 │   │   │   ├── pipeline/            # Strategy pattern — mode-specific pipelines
 │   │   │   │   ├── base.py          # BasePipeline ABC
-│   │   │   │   ├── voice_to_voice.py # V2V + V2T (Echo Gate + Silence Injection)
+│   │   │   │   ├── voice_to_voice.py # V2V (Echo Gate + Silence Injection)
 │   │   │   │   ├── text_to_voice.py  # T2V (per-response instruction, text-only B)
 │   │   │   │   └── full_agent.py     # Agent (function calling, autonomous)
 │   │   │   ├── audio_router.py      # Thin delegator → pipeline selection

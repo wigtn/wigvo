@@ -1,39 +1,20 @@
 'use client';
 
-import { Mic, MicOff, Captions } from 'lucide-react';
+import { Mic, MicOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { CommunicationMode } from '@/shared/call-types';
 
 interface AudioControlsProps {
   isMuted: boolean;
   isSpeaking: boolean;
   onToggleMute: () => void;
-  communicationMode?: CommunicationMode;
 }
 
 export default function AudioControls({
   isMuted,
   isSpeaking,
   onToggleMute,
-  communicationMode,
 }: AudioControlsProps) {
   const t = useTranslations('call');
-  // voice_to_text 모드: 자막 전용 모드 뱃지 표시
-  if (communicationMode === 'voice_to_text') {
-    return (
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-[#E2E8F0]">
-        <div className="flex items-center gap-2 flex-1">
-          <Captions className="size-4 text-[#64748B]" />
-          <span className="text-xs font-medium text-[#64748B]">
-            {t('captionOnlyMode')}
-          </span>
-        </div>
-        <div className="rounded-lg bg-[#F1F5F9] border border-[#E2E8F0] px-3 py-1.5">
-          <span className="text-[10px] text-[#94A3B8]">{t('audioNotPlayed')}</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 border-t border-[#E2E8F0]">

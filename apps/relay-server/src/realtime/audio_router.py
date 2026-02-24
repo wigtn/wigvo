@@ -8,7 +8,6 @@
 
 Mode → Pipeline 매핑:
   VOICE_TO_VOICE → VoiceToVoicePipeline
-  VOICE_TO_TEXT  → VoiceToVoicePipeline(suppress_b_audio=True)
   TEXT_TO_VOICE  → TextToVoicePipeline
   FULL_AGENT     → FullAgentPipeline
 """
@@ -85,16 +84,6 @@ class AudioRouter:
                     app_ws_send=app_ws_send,
                     prompt_a=prompt_a,
                     prompt_b=prompt_b,
-                )
-            case CommunicationMode.VOICE_TO_TEXT:
-                return VoiceToVoicePipeline(
-                    call=call,
-                    dual_session=dual_session,
-                    twilio_handler=twilio_handler,
-                    app_ws_send=app_ws_send,
-                    prompt_a=prompt_a,
-                    prompt_b=prompt_b,
-                    suppress_b_audio=True,
                 )
             case CommunicationMode.TEXT_TO_VOICE:
                 return TextToVoicePipeline(

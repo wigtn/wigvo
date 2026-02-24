@@ -36,7 +36,6 @@ CALL_RESULT_MAP: dict[str, str] = {
 class CommunicationMode(str, Enum):
     VOICE_TO_VOICE = "voice_to_voice"
     TEXT_TO_VOICE = "text_to_voice"
-    VOICE_TO_TEXT = "voice_to_text"
     FULL_AGENT = "full_agent"
 
 

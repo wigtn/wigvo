@@ -6,7 +6,7 @@ import type { CallMode, CommunicationMode } from '@/shared/call-types';
 import { useRelayCall } from '@/hooks/useRelayCall';
 import CallStatusBar from './CallStatusBar';
 import LiveCaptionPanel from './LiveCaptionPanel';
-import { PhoneOff, Send, Mic, MicOff, MessageSquare, Captions, Bot } from 'lucide-react';
+import { PhoneOff, Send, Mic, MicOff, MessageSquare, Bot } from 'lucide-react';
 
 interface RealtimeCallViewProps {
   callId: string;
@@ -20,14 +20,12 @@ interface RealtimeCallViewProps {
 const modeBadgeIcon: Record<CommunicationMode, typeof Mic> = {
   voice_to_voice: Mic,
   text_to_voice: MessageSquare,
-  voice_to_text: Captions,
   full_agent: Bot,
 };
 
 const COMM_MODE_KEYS: Record<CommunicationMode, string> = {
   voice_to_voice: 'voiceToVoice',
   text_to_voice: 'textToVoice',
-  voice_to_text: 'voiceToText',
   full_agent: 'fullAgent',
 };
 
@@ -221,46 +219,6 @@ export default function RealtimeCallView({
     </>
   );
 
-  // --- Voice to Text layout ---
-  const renderVoiceToText = () => (
-    <>
-      {/* Full area: large captions (expanded) */}
-      <div className="flex-1 min-h-0">
-        <LiveCaptionPanel
-          captions={relay.captions}
-          translationState={relay.translationState}
-          expanded
-        />
-      </div>
-
-      {isActive && (
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-[#E2E8F0]">
-          {/* Mic recording status */}
-          <div className="flex items-center gap-2 flex-1">
-            <div
-              className={`w-2.5 h-2.5 rounded-full ${
-                relay.isRecording
-                  ? 'bg-red-500 animate-pulse'
-                  : 'bg-teal-500'
-              }`}
-            />
-            <span className="text-xs text-[#64748B]">
-              {relay.isRecording ? t('recording') : t('waiting')}
-            </span>
-          </div>
-
-          <button
-            onClick={handleEndCall}
-            className="flex items-center justify-center gap-2 rounded-xl bg-red-500 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-red-600"
-          >
-            <PhoneOff className="size-4" />
-            {t('endCall')}
-          </button>
-        </div>
-      )}
-    </>
-  );
-
   // --- Full Agent layout ---
   const renderFullAgent = () => (
     <>
@@ -318,8 +276,6 @@ export default function RealtimeCallView({
         return renderVoiceToVoice();
       case 'text_to_voice':
         return renderTextToVoice();
-      case 'voice_to_text':
-        return renderVoiceToText();
       case 'full_agent':
         return renderFullAgent();
     }

@@ -162,7 +162,7 @@ export function getSubTypeConfig(
 /**
  * 모드별 필수 필드 반환
  * - full_agent: 시나리오별 전체 필수 필드 (기존 동작)
- * - relay 모드 (voice_to_voice, text_to_voice, voice_to_text): target_name + target_phone만 필수
+ * - relay 모드 (voice_to_voice, text_to_voice): target_name + target_phone만 필수
  */
 export function getRequiredFieldsForMode(
   scenarioType: ScenarioType,
