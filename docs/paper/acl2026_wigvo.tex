@@ -12,9 +12,17 @@
 \usepackage{multirow}
 \usepackage{xcolor}
 \usepackage{amssymb}
-\usepackage{fontspec}
-\newfontfamily\koreanfont{AppleMyungjo}[Scale=MatchLowercase]
-\newcommand{\ko}[1]{{\koreanfont #1}}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc}
+
+% ACL 2026 System Demos uses single-blind review: author names are visible,
+% line numbers are retained. The [review] option above enables line numbering
+% but also sets \acl@anonymize to true (double-blind). We override this because
+% System Demos requires single-blind (see ACL 2026 CFP). If acl.sty adds a
+% [nonblind] option in the future, replace this block with that option.
+\makeatletter
+\acl@anonymizefalse
+\makeatother
 
 \title{WIGVO: Real-Time Bidirectional Speech Translation\\over Legacy PSTN Calls via Dual-Session Echo Gating}
 
@@ -106,13 +114,13 @@ Figure~\ref{fig:architecture} shows the high-level architecture. A browser-based
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/architecture}
-  \caption{WIGVO architecture. The relay server manages Session~A (caller$\to$callee) and Session~B (callee$\to$caller) as independent Realtime API connections, with a telephony gateway for PSTN audio.}
+  \resizebox{\columnwidth}{!}{\input{figures/architecture.tikz}}
+  \caption{WIGVO architecture. The relay server manages Session~A (caller$\to$callee) and Session~B (callee$\to$caller) as independent Realtime API connections, with a telephony gateway for PSTN audio. The dashed line shows the echo path that Echo Gate suppresses via silence injection.}
   \label{fig:architecture}
 \end{figure}
 
 \paragraph{AudioRouter and pipelines.}
-An \texttt{AudioRouter} implements the Strategy pattern to dispatch events to one of four pipeline implementations: V2V, T2V, VTT, or Full-Agent (V2V, T2V, and Full-Agent are evaluated in this work). Each pipeline manages the lifecycle of two Realtime sessions and cross-cutting components (guardrails, context window, metrics).
+An \texttt{AudioRouter} implements the Strategy pattern to dispatch events to one of three pipeline implementations: V2V, T2V, or Full-Agent. Each pipeline manages the lifecycle of two Realtime sessions and cross-cutting components (guardrails, context window, metrics).
 
 \paragraph{Dual Realtime sessions.}
 Session~A receives browser audio (PCM16) and produces translated G.711 $\mu$-law for the telephony gateway. Session~B receives PSTN audio (G.711 $\mu$-law, 8\,kHz) and produces translated audio and captions for the browser. Each session has its own system prompt, sliding context window (6 turns), and event stream, ensuring strict directional separation.
@@ -316,7 +324,7 @@ All calls were initiated by the authors and collaborators for system testing. Au
 
 \section*{Acknowledgments}
 
-This work was conducted independently by the WIGTN crew at SoundMind Inc. We thank the anonymous reviewers for their feedback. WIGVO uses OpenAI's Realtime API and Twilio Media Streams. The relay server is implemented in Python with FastAPI.
+This work was conducted independently by the WIGTN crew at SoundMind Inc. We thank the reviewers for their feedback. WIGVO uses OpenAI's Realtime API and Twilio Media Streams. The relay server is implemented in Python with FastAPI.
 
 \bibliography{references}
 \bibliographystyle{acl_natbib}

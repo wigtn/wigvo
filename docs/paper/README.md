@@ -12,8 +12,8 @@
 
 논문에서 참조하는 figure 파일들:
 
-1. `figures/architecture.pdf` — 시스템 아키텍처 다이어그램
-2. `figures/screenshot_call.pdf` — 통화 중 웹 UI 스크린샷
+1. `figures/architecture.tikz` — 시스템 아키텍처 다이어그램 (TikZ, 컴파일 시 자동 생성)
+2. `figures/screenshot_call.png` — 통화 중 웹 UI 스크린샷
 
 ## Build
 

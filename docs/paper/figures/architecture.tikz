@@ -1,0 +1,80 @@
+% WIGVO System Architecture Diagram (Figure 1)
+% Left-to-right flow: Browser/App -> Relay Server -> OpenAI Realtime + Twilio -> PSTN Callee
+% Shows dual-session separation (A: caller->callee, B: callee->caller),
+% internal relay components (AudioRouter, Echo Gate, Local VAD),
+% audio format labels, and the echo path that Echo Gate suppresses.
+\begin{tikzpicture}[
+  node distance=0.6cm and 1.0cm,
+  box/.style={draw, rounded corners=3pt, minimum height=0.8cm, minimum width=1.6cm,
+              font=\small\sffamily, align=center, thick},
+  component/.style={draw, rounded corners=2pt, minimum height=0.55cm,
+                    font=\scriptsize\sffamily, fill=white, thick},
+  session/.style={draw, rounded corners=2pt, minimum height=0.55cm, minimum width=1.8cm,
+                  font=\scriptsize\sffamily, thick},
+  arr/.style={-{Stealth[length=5pt]}, thick},
+  darr/.style={{Stealth[length=5pt]}-{Stealth[length=5pt]}, thick},
+  dasharr/.style={-{Stealth[length=5pt]}, thick, densely dashed, red!70!black},
+  lbl/.style={font=\tiny\sffamily, fill=white, inner sep=1pt},
+]
+  % === Left: Browser / App ===
+  \node[box, fill=blue!8] (client) {Browser /\\Mobile App};
+
+  % === Center: Relay Server ===
+  \node[box, fill=orange!8, minimum width=3.0cm, minimum height=2.8cm,
+        right=1.8cm of client] (relay) {};
+  \node[font=\small\sffamily\bfseries, anchor=north] at ([yshift=-0.15cm]relay.north)
+        {Relay Server};
+
+  % Internal components (AudioRouter dispatches to pipelines; Echo Gate
+  % suppresses PSTN echo via silence injection; Local VAD filters noise)
+  \node[component, fill=orange!15, below=0.55cm of relay.north] (router) {AudioRouter};
+  \node[component, fill=red!12, below=0.25cm of router] (echogate) {Echo Gate};
+  \node[component, fill=green!12, below=0.25cm of echogate] (vad) {Local VAD};
+
+  % === Upper-right: OpenAI Realtime API ===
+  \node[box, fill=violet!8, minimum width=2.4cm, minimum height=1.6cm,
+        right=1.8cm of relay, yshift=0.7cm] (openai) {};
+  \node[font=\small\sffamily\bfseries, anchor=north] at ([yshift=-0.1cm]openai.north)
+        {OpenAI Realtime};
+
+  \node[session, fill=violet!15, below=0.45cm of openai.north] (sA)
+        {Session A \scriptsize(U$\to$C)};
+  \node[session, fill=violet!15, below=0.15cm of sA] (sB)
+        {Session B \scriptsize(C$\to$U)};
+
+  % === Lower-right: Twilio Media Streams ===
+  \node[box, fill=yellow!12, right=1.8cm of relay, yshift=-1.2cm] (twilio)
+        {Twilio\\Media Streams};
+
+  % === Far right: PSTN Callee ===
+  \node[box, fill=gray!12, right=1.2cm of twilio] (callee) {PSTN\\Callee};
+
+  % === Arrows: Client <-> Relay (PCM16 16kHz WebSocket) ===
+  \draw[arr] ([yshift=0.15cm]client.east) -- node[lbl, above] {PCM16 16kHz}
+             ([yshift=0.15cm]relay.west);
+  \draw[arr] ([yshift=-0.15cm]relay.west) -- node[lbl, below] {audio + captions}
+             ([yshift=-0.15cm]client.east);
+
+  % === Arrows: Relay <-> OpenAI (WebSocket per session) ===
+  \draw[arr] ([yshift=0.15cm]relay.east |- sA) -- node[lbl, above] {WS}
+             ([yshift=0.15cm]sA.west);
+  \draw[arr] ([yshift=-0.15cm]sA.west) -- ([yshift=-0.15cm]relay.east |- sA);
+
+  \draw[arr] ([yshift=0.15cm]relay.east |- sB) -- node[lbl, above] {WS}
+             ([yshift=0.15cm]sB.west);
+  \draw[arr] ([yshift=-0.15cm]sB.west) -- ([yshift=-0.15cm]relay.east |- sB);
+
+  % === Arrows: Relay <-> Twilio (G.711 mu-law 8kHz) ===
+  \draw[darr] (relay.east |- twilio) -- node[lbl, above] {G.711 $\mu$-law}
+              (twilio.west);
+
+  % === Arrow: Twilio <-> PSTN Callee ===
+  \draw[darr] (twilio.east) -- node[lbl, above] {PSTN} (callee.west);
+
+  % === Echo path (dashed red): TTS audio echoes back from PSTN ===
+  \draw[dasharr] ([yshift=-0.3cm]twilio.north west)
+        to[out=150, in=-30]
+        node[lbl, below, text=red!70!black, pos=0.5] {\textit{echo path}}
+        ([yshift=0.1cm]echogate.east);
+
+\end{tikzpicture}
