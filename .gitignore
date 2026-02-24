@@ -41,3 +41,14 @@ node_modules/
 # Next.js
 .next/
 next-env.d.ts
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
