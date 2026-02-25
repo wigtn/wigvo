@@ -124,3 +124,7 @@ def setup_logging(
         uv_logger = logging.getLogger(name)
         uv_logger.handlers.clear()
         uv_logger.propagate = True
+
+    # Suppress noisy third-party loggers (Cloud Run 로그 분석 효율화)
+    for noisy in ("httpcore", "hpack", "httpx", "twilio.http_client"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

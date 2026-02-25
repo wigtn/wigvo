@@ -56,6 +56,10 @@ def _normalize_for_blocklist(text: str) -> str:
     """블록리스트 비교용 정규화: strip + 구두점 제거."""
     return text.strip().translate(_PUNCT_STRIP)
 
+# 최소 E2E 임계값 (ms): 네트워크 RTT + STT + 번역 처리 최소 시간
+# debounce(300ms) + speech(250ms) + 처리 → 이보다 빠른 응답은 할루시네이션
+_MIN_E2E_MS = 500
+
 # [unclear] 변형 패턴 — 모델이 지시를 따르지 않고 다른 표현을 사용하는 경우
 _UNCLEAR_PHRASES = (
     "[unclear]",
@@ -119,6 +123,9 @@ class SessionBHandler:
         self._pending_output: list[tuple[str, Any]] = []
         self._speech_started_at: float = 0.0  # 파이프라인 지연 계측용
         self._speech_stopped_at: float = 0.0  # processing latency 계측용
+        # Committed timestamps: commit 시점 스냅샷 (speech_started 덮어쓰기 경쟁 방지)
+        self._committed_speech_started_at: float = 0.0
+        self._committed_speech_stopped_at: float = 0.0
         self._use_local_vad = use_local_vad
         self._context_prune_keep = context_prune_keep
 
@@ -451,8 +458,8 @@ class SessionBHandler:
             return
 
         # 4) 발화 길이 대비 번역 비율 검증 (짧은 입력 + 긴 번역 = 추측)
-        if self._speech_started_at > 0 and self._speech_stopped_at > 0:
-            speech_s = self._speech_stopped_at - self._speech_started_at
+        if self._committed_speech_started_at > 0 and self._committed_speech_stopped_at > 0:
+            speech_s = self._committed_speech_stopped_at - self._committed_speech_started_at
             if speech_s > 0 and len(transcript) / speech_s > settings.hallucination_max_chars_per_sec:
                 logger.warning(
                     "[SessionB] Suspicious translation rate (%.1f chars/%.1fs = %.1f c/s): %s",
@@ -467,8 +474,19 @@ class SessionBHandler:
         if self._call:
             self._call.call_metrics.vad_false_triggers = max(0, self._speech_started_count - self._transcript_completed_count)
 
-        if self._speech_started_at > 0:
-            e2e_ms = (time.time() - self._speech_started_at) * 1000
+        if self._committed_speech_started_at > 0:
+            e2e_ms = (time.time() - self._committed_speech_started_at) * 1000
+            # 5) 최소 e2e 필터: 물리적으로 불가능한 속도의 응답 → 할루시네이션
+            if e2e_ms < _MIN_E2E_MS:
+                logger.warning(
+                    "[SessionB] Impossibly fast response (e2e=%.0fms < %.0fms), discarding: %s",
+                    e2e_ms, _MIN_E2E_MS, transcript[:80],
+                )
+                self._pending_stt_ms = 0.0
+                if self._call:
+                    self._call.call_metrics.hallucinations_blocked += 1
+                return
+
             logger.info(
                 "[SessionB] Translation complete (e2e=%.0fms): %s",
                 e2e_ms, transcript[:80],
@@ -482,8 +500,8 @@ class SessionBHandler:
                 self._pending_stt_ms = 0.0
                 self._call.call_metrics.turn_count += 1
                 # processing latency: speech_stopped → 번역 완료 (STT와 독립적)
-                if self._speech_stopped_at > 0:
-                    proc_ms = (time.time() - self._speech_stopped_at) * 1000
+                if self._committed_speech_stopped_at > 0:
+                    proc_ms = (time.time() - self._committed_speech_stopped_at) * 1000
                     self._call.call_metrics.session_b_processing_latencies_ms.append(proc_ms)
         else:
             logger.info("[SessionB] Translation complete: %s", transcript[:80])
@@ -510,9 +528,9 @@ class SessionBHandler:
         if self._on_caption_done:
             await self._on_caption_done()
 
-        # 타임스탬프 리셋
-        self._speech_started_at = 0.0
-        self._speech_stopped_at = 0.0
+        # 커밋 타임스탬프 리셋 (live timestamps는 speech 이벤트가 관리)
+        self._committed_speech_started_at = 0.0
+        self._committed_speech_stopped_at = 0.0
         self._pending_stt_ms = 0.0
 
     async def _handle_response_done(self, event: dict[str, Any]) -> None:
@@ -632,6 +650,10 @@ class SessionBHandler:
             # T2V: keep_last=0 (컨텍스트 기반 추측 방지), V2V: keep_last=1
             await self._prune_conversation_items(keep_last=self._context_prune_keep)
 
+            # 메트릭용 타임스탬프 스냅샷 (새 speech_started 덮어쓰기 전 고정)
+            self._committed_speech_started_at = self._speech_started_at
+            self._committed_speech_stopped_at = self._speech_stopped_at
+
             if self._use_local_vad:
                 # clear_input_buffer는 notify_speech_started에서 이미 호출됨 (line 261)
                 # timeout 경로와 달리 여기서는 중복 clear 불필요
@@ -690,6 +712,10 @@ class SessionBHandler:
             # 이전 턴 아이템 삭제 (debounced_create_response와 동일)
             await self._prune_conversation_items(keep_last=self._context_prune_keep)
 
+            # 메트릭용 타임스탬프 스냅샷
+            self._committed_speech_started_at = self._speech_started_at
+            self._committed_speech_stopped_at = self._speech_stopped_at
+
             if self._use_local_vad:
                 # 15초 축적된 노이즈 제거 후 commit (할루시네이션 방지)
                 await self.session.clear_input_buffer()
@@ -729,13 +755,13 @@ class SessionBHandler:
         if self._output_suppressed:
             self._pending_output.append(("original_caption", ("recipient", transcript)))
             return
-        if self._speech_started_at > 0:
-            stt_ms = (time.time() - self._speech_started_at) * 1000
+        if self._committed_speech_started_at > 0:
+            stt_ms = (time.time() - self._committed_speech_started_at) * 1000
             logger.info("[SessionB] Original STT (Stage 1, stt=%.0fms): %s", stt_ms, transcript[:80])
             # STT latency를 임시 저장 — E2E 기록 시 함께 append하여 리스트 정합성 보장
             self._pending_stt_ms = stt_ms
-            if self._call and self._speech_stopped_at > 0:
-                after_stop_ms = (time.time() - self._speech_stopped_at) * 1000
+            if self._call and self._committed_speech_stopped_at > 0:
+                after_stop_ms = (time.time() - self._committed_speech_stopped_at) * 1000
                 if after_stop_ms > 0:
                     self._call.call_metrics.session_b_stt_after_stop_ms.append(after_stop_ms)
         else:

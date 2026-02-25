@@ -14,6 +14,7 @@ from src.realtime.sessions.session_b import (
     SessionBHandler,
     _normalize_for_blocklist,
     _STT_HALLUCINATION_BLOCKLIST,
+    _MIN_E2E_MS,
 )
 from src.types import ActiveCall, CallMetrics, CallMode, CommunicationMode
 
@@ -218,8 +219,8 @@ class TestProcessingLatenciesMs:
         """번역 완료 시 processing latency가 기록된다."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = time.time() - 0.5  # 0.5초 전 speech stopped
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = time.time() - 0.5  # 0.5초 전 speech stopped
 
         await handler._save_transcript_and_notify("translated text")
 
@@ -232,8 +233,8 @@ class TestProcessingLatenciesMs:
         """speech_stopped_at 없으면 processing latency 미기록."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = 0.0  # not set
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = 0.0  # not set
 
         await handler._save_transcript_and_notify("translated text")
 
@@ -248,8 +249,8 @@ class TestSttAfterStopMs:
         """STT 완료가 speech_stopped 이후에 발생하면 지연이 기록된다."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = time.time() - 0.3  # 0.3초 전 stop
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = time.time() - 0.3  # 0.3초 전 stop
 
         await handler._handle_input_transcription_completed({"transcript": "테스트"})
 
@@ -262,12 +263,44 @@ class TestSttAfterStopMs:
         """speech_stopped_at 없으면 stt_after_stop 미기록."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = 0.0
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = 0.0
 
         await handler._handle_input_transcription_completed({"transcript": "테스트"})
 
         assert len(call.call_metrics.session_b_stt_after_stop_ms) == 0
+
+
+class TestMinE2eFilter:
+    """최소 E2E 임계값 필터 검증."""
+
+    @pytest.mark.asyncio
+    async def test_fast_response_blocked(self):
+        """e2e < _MIN_E2E_MS인 응답은 할루시네이션으로 차단된다."""
+        call = _make_call()
+        handler = _make_handler(call=call)
+        # 100ms 전 시작 → e2e ≈ 100ms < 500ms
+        handler._committed_speech_started_at = time.time() - 0.1
+        handler._committed_speech_stopped_at = time.time() - 0.05
+
+        await handler._save_transcript_and_notify("hallucinated text")
+
+        assert len(call.call_metrics.session_b_e2e_latencies_ms) == 0
+        assert call.call_metrics.hallucinations_blocked == 1
+
+    @pytest.mark.asyncio
+    async def test_normal_response_passes(self):
+        """e2e >= _MIN_E2E_MS인 응답은 정상 통과한다."""
+        call = _make_call()
+        handler = _make_handler(call=call)
+        # 2초 전 시작 → e2e ≈ 2000ms > 500ms
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = time.time() - 0.5
+
+        await handler._save_transcript_and_notify("translated text")
+
+        assert len(call.call_metrics.session_b_e2e_latencies_ms) == 1
+        assert call.call_metrics.hallucinations_blocked == 0
 
 
 class TestExistingMetricsUnchanged:
@@ -278,8 +311,8 @@ class TestExistingMetricsUnchanged:
         """E2E latency는 여전히 기록된다."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = time.time() - 0.5
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = time.time() - 0.5
 
         await handler._save_transcript_and_notify("translated text")
 
@@ -290,8 +323,8 @@ class TestExistingMetricsUnchanged:
         """STT latency는 여전히 기록된다."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = time.time() - 0.3
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = time.time() - 0.3
 
         await handler._handle_input_transcription_completed({"transcript": "테스트"})
 
@@ -303,16 +336,16 @@ class TestTimestampReset:
 
     @pytest.mark.asyncio
     async def test_timestamps_reset_after_translation(self):
-        """_save_transcript_and_notify 후 타임스탬프가 리셋된다."""
+        """_save_transcript_and_notify 후 커밋 타임스탬프가 리셋된다."""
         call = _make_call()
         handler = _make_handler(call=call)
-        handler._speech_started_at = time.time() - 2.0
-        handler._speech_stopped_at = time.time() - 0.5
+        handler._committed_speech_started_at = time.time() - 2.0
+        handler._committed_speech_stopped_at = time.time() - 0.5
 
         await handler._save_transcript_and_notify("translated text")
 
-        assert handler._speech_started_at == 0.0
-        assert handler._speech_stopped_at == 0.0
+        assert handler._committed_speech_started_at == 0.0
+        assert handler._committed_speech_stopped_at == 0.0
 
 
 class TestCallMetricsFields:
