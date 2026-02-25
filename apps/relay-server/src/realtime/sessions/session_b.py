@@ -47,6 +47,15 @@ _STT_HALLUCINATION_BLOCKLIST = frozenset({
 # 동일 토큰 3회 이상 연속 반복 감지 (whisper/gpt-4o 공통 할루시네이션)
 _REPETITION_RE = re.compile(r'(\b\S+\b)(\s+\1){2,}', re.IGNORECASE)
 
+# 블록리스트 비교 전 제거할 구두점 (Whisper가 한국어 전사 끝에 추가)
+# ! ? (ASCII), 。！？ (CJK 전각), … (말줄임), · (가운데점 — 한국어 합성어 구분자)
+_PUNCT_STRIP = str.maketrans("", "", "!?。！？…·")
+
+
+def _normalize_for_blocklist(text: str) -> str:
+    """블록리스트 비교용 정규화: strip + 구두점 제거."""
+    return text.strip().translate(_PUNCT_STRIP)
+
 # [unclear] 변형 패턴 — 모델이 지시를 따르지 않고 다른 표현을 사용하는 경우
 _UNCLEAR_PHRASES = (
     "[unclear]",
@@ -425,8 +434,8 @@ class SessionBHandler:
                 self._call.call_metrics.hallucinations_blocked += 1
             return
 
-        # 2) STT 블록리스트 재적용 (번역에도 원문 할루시네이션이 그대로 출력되는 경우)
-        if transcript.strip() in _STT_HALLUCINATION_BLOCKLIST:
+        # 2) STT 블록리스트 재적용 (구두점 정규화: "감사합니다!" → "감사합니다")
+        if _normalize_for_blocklist(transcript) in _STT_HALLUCINATION_BLOCKLIST:
             logger.warning("[SessionB] Translation hallucination blocked: %s", transcript[:80])
             self._pending_stt_ms = 0.0
             if self._call:
@@ -624,6 +633,8 @@ class SessionBHandler:
             await self._prune_conversation_items(keep_last=self._context_prune_keep)
 
             if self._use_local_vad:
+                # clear_input_buffer는 notify_speech_started에서 이미 호출됨 (line 261)
+                # timeout 경로와 달리 여기서는 중복 clear 불필요
                 logger.info(
                     "[SessionB] Debounce complete (%.0fms) — committing audio + creating response (local VAD)",
                     self._response_debounce_s * 1000,
@@ -665,6 +676,7 @@ class SessionBHandler:
                 self._silence_timeout_s,
             )
             self._is_recipient_speaking = False
+            self._speech_stopped_at = time.time()  # chars/sec 필터가 작동하도록 설정
             self._timeout_forced = True
 
             # 이전 응답 생성 중이면 완료 대기 (최대 5초)
@@ -679,6 +691,8 @@ class SessionBHandler:
             await self._prune_conversation_items(keep_last=self._context_prune_keep)
 
             if self._use_local_vad:
+                # 15초 축적된 노이즈 제거 후 commit (할루시네이션 방지)
+                await self.session.clear_input_buffer()
                 await self.session.commit_audio_only()
 
             self._is_response_active = True
@@ -706,8 +720,8 @@ class SessionBHandler:
         if not transcript:
             return
         self._last_recipient_stt = transcript  # 번역 품질 평가용 원문 저장
-        # Whisper STT 할루시네이션 필터링
-        if transcript.strip() in _STT_HALLUCINATION_BLOCKLIST:
+        # Whisper STT 할루시네이션 필터링 (구두점 정규화: "감사합니다!" → "감사합니다")
+        if _normalize_for_blocklist(transcript) in _STT_HALLUCINATION_BLOCKLIST:
             logger.warning("[SessionB] STT hallucination blocked: %s", transcript[:80])
             if self._call:
                 self._call.call_metrics.hallucinations_blocked += 1

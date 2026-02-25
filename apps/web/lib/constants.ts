@@ -44,8 +44,8 @@ export const VAD_SPEECH_ONSET_DELAY = 150;
 /** 발화 종료 지연 (ms) */
 export const VAD_SPEECH_END_DELAY = 350;
 
-/** 오디오 청크 크기 (100ms @ 24kHz mono) */
-export const VAD_CHUNK_SIZE = 2400;
+/** 오디오 청크 크기 (100ms @ 16kHz mono) */
+export const VAD_CHUNK_SIZE = 1600;
 
 // -----------------------------------------------------------------------------
 // UI / UX

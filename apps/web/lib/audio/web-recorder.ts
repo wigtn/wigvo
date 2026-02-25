@@ -1,12 +1,12 @@
 /**
  * Web Audio API microphone recorder.
  * Captures PCM16 audio chunks via AudioWorklet (ScriptProcessorNode fallback).
- * Output: base64-encoded PCM16 chunks (2400 samples = 100ms @ 24kHz).
+ * Output: base64-encoded PCM16 chunks (1600 samples = 100ms @ 16kHz).
  */
 
 import { arrayBufferToBase64, float32ToPcm16, SAMPLE_RATE } from './pcm16-utils';
 
-const CHUNK_SIZE = 2400; // 100ms @ 24kHz
+const CHUNK_SIZE = 1600; // 100ms @ 16kHz
 
 export type ChunkCallback = (base64Audio: string, float32Samples: Float32Array) => void;
 

@@ -10,7 +10,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.realtime.sessions.session_b import SessionBHandler
+from src.realtime.sessions.session_b import (
+    SessionBHandler,
+    _normalize_for_blocklist,
+    _STT_HALLUCINATION_BLOCKLIST,
+)
 from src.types import ActiveCall, CallMetrics, CallMode, CommunicationMode
 
 
@@ -56,6 +60,84 @@ def _make_handler(call=None, use_local_vad=False, **kwargs) -> SessionBHandler:
         **kwargs,
     )
     return handler
+
+
+class TestNormalizeForBlocklist:
+    """_normalize_for_blocklist 구두점 정규화 검증."""
+
+    def test_strips_exclamation_mark(self):
+        """느낌표가 제거되어 블록리스트에 매칭된다."""
+        assert _normalize_for_blocklist("시청해주셔서 감사합니다!") == "시청해주셔서 감사합니다"
+        assert _normalize_for_blocklist("시청해주셔서 감사합니다!") in _STT_HALLUCINATION_BLOCKLIST
+
+    def test_strips_question_mark(self):
+        """물음표가 제거된다."""
+        assert _normalize_for_blocklist("MBC 뉴스 이덕영입니다?") == "MBC 뉴스 이덕영입니다"
+
+    def test_strips_fullwidth_punctuation(self):
+        """전각 구두점이 제거된다."""
+        assert _normalize_for_blocklist("전해드립니다！") == "전해드립니다"
+        assert _normalize_for_blocklist("밝혔습니다。") == "밝혔습니다"
+
+    def test_preserves_ascii_period(self):
+        """ASCII 마침표는 유지된다 (블록리스트에 . 포함 버전이 별도 등록)."""
+        assert _normalize_for_blocklist("밝혔습니다.") == "밝혔습니다."
+
+    def test_normal_text_unchanged(self):
+        """일반 텍스트는 변경되지 않는다."""
+        assert _normalize_for_blocklist("안녕하세요") == "안녕하세요"
+        assert _normalize_for_blocklist("Hello, how are you?") == "Hello, how are you"
+
+    def test_empty_and_whitespace(self):
+        """빈 문자열/공백 처리."""
+        assert _normalize_for_blocklist("") == ""
+        assert _normalize_for_blocklist("  ") == ""
+
+
+class TestSilenceTimeoutAntiHallucination:
+    """Silence Timeout 경로의 anti-hallucination 수정 검증."""
+
+    @pytest.mark.asyncio
+    async def test_timeout_sets_speech_stopped_at(self):
+        """Silence timeout이 _speech_stopped_at을 설정한다."""
+        handler = _make_handler(use_local_vad=True)
+        handler._speech_started_at = time.time() - 15.0
+        handler._silence_timeout_s = 0.01  # 즉시 트리거
+
+        await handler._silence_timeout_handler()
+
+        assert handler._speech_stopped_at > 0
+
+    @pytest.mark.asyncio
+    async def test_timeout_clears_buffer_before_commit(self):
+        """Silence timeout이 clear_input_buffer → commit_audio_only 순서로 호출한다."""
+        handler = _make_handler(use_local_vad=True)
+        handler._speech_started_at = time.time() - 15.0
+        handler._silence_timeout_s = 0.01
+
+        call_order = []
+        handler.session.clear_input_buffer = AsyncMock(
+            side_effect=lambda: call_order.append("clear")
+        )
+        handler.session.commit_audio_only = AsyncMock(
+            side_effect=lambda: call_order.append("commit")
+        )
+
+        await handler._silence_timeout_handler()
+
+        assert call_order == ["clear", "commit"]
+
+    @pytest.mark.asyncio
+    async def test_timeout_not_clear_buffer_for_server_vad(self):
+        """Server VAD 모드에서는 clear_input_buffer를 호출하지 않는다."""
+        handler = _make_handler(use_local_vad=False)
+        handler._speech_started_at = time.time() - 15.0
+        handler._silence_timeout_s = 0.01
+
+        await handler._silence_timeout_handler()
+
+        handler.session.clear_input_buffer.assert_not_called()
+        handler.session.commit_audio_only.assert_not_called()
 
 
 class TestSpeechStoppedTimestamp:

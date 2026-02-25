@@ -15,9 +15,9 @@ export const VAD_CONFIG = {
   /** Pre-speech buffer duration (ms) */
   preBufferDuration: 300,
   /** Audio sample rate (Hz) */
-  sampleRate: 24000,
-  /** Chunk size in samples (100ms @ 24kHz) */
-  chunkSize: 2400,
+  sampleRate: 16000,
+  /** Chunk size in samples (100ms @ 16kHz) */
+  chunkSize: 1600,
   /** Chunk duration in ms */
   chunkDurationMs: 100,
 } as const;
