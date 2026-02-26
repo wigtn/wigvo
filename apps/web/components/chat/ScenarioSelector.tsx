@@ -20,7 +20,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { ScenarioType, ScenarioSubType } from '@/shared/types';
 import type { CommunicationMode, CallCategory } from '@/shared/call-types';
-import { SUPPORTED_LANGUAGES, DEFAULT_LANGUAGE_PAIR, resolveDirectMode } from '@/shared/call-types';
+import { SUPPORTED_LANGUAGES, getDefaultLanguagePairForLocale, resolveDirectMode } from '@/shared/call-types';
 import type { DirectCallOptions } from '@/shared/call-types';
 import LanguageDropdown from '@/components/common/LanguageDropdown';
 
@@ -65,11 +65,10 @@ export function ScenarioSelector({ onSelect, disabled = false }: ScenarioSelecto
   const tLang = useTranslations('scenario.lang');
   const locale = useLocale();
 
-  // Language pair
-  const defaultSource = locale === 'ko' ? DEFAULT_LANGUAGE_PAIR.source.code : 'en';
-  const defaultTarget = locale === 'ko' ? DEFAULT_LANGUAGE_PAIR.target.code : 'ko';
-  const [sourceLang, setSourceLang] = useState(defaultSource);
-  const [targetLang, setTargetLang] = useState(defaultTarget);
+  // Language pair (locale 기반 기본값: UI 언어 = source, 상대방 = target)
+  const defaultPair = getDefaultLanguagePairForLocale(locale);
+  const [sourceLang, setSourceLang] = useState(defaultPair.source.code);
+  const [targetLang, setTargetLang] = useState(defaultPair.target.code);
 
   // Step navigation
   const [step, setStep] = useState<Step>('category');

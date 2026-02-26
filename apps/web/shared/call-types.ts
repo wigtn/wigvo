@@ -52,10 +52,20 @@ export interface LanguagePair {
   target: SupportedLanguage;
 }
 
-export const DEFAULT_LANGUAGE_PAIR: LanguagePair = {
+const DEFAULT_LANGUAGE_PAIR: LanguagePair = {
   source: SUPPORTED_LANGUAGES[0], // ko
   target: SUPPORTED_LANGUAGES[1], // en
 };
+
+/** Locale 기반 기본 언어 쌍. source = 사용자 UI 언어, target = 상대방 언어. */
+export function getDefaultLanguagePairForLocale(locale: string): LanguagePair {
+  const source = ACTIVE_LANGUAGES.find(l => l.code === locale);
+  if (source) {
+    const target = ACTIVE_LANGUAGES.find(l => l.code !== locale) ?? ACTIVE_LANGUAGES[0];
+    return { source, target };
+  }
+  return DEFAULT_LANGUAGE_PAIR;
+}
 
 // --- Call Mode ---
 

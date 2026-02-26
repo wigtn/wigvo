@@ -19,7 +19,7 @@ import type {
   ScenarioSubType,
 } from '@/shared/types';
 import type { CommunicationMode } from '@/shared/call-types';
-import { DEFAULT_LANGUAGE_PAIR } from '@/shared/call-types';
+import { getDefaultLanguagePairForLocale } from '@/shared/call-types';
 import { createEmptyCollectedData } from '@/shared/types';
 import { useDashboard } from '@/hooks/useDashboard';
 import { getStoredLocale } from '@/lib/i18n';
@@ -76,8 +76,9 @@ export function useChat(): UseChatReturn {
   const [selectedScenario, setSelectedScenario] = useState<ScenarioType | null>(null);
   const [selectedSubType, setSelectedSubType] = useState<ScenarioSubType | null>(null);
   const [communicationMode, setCommunicationMode] = useState<CommunicationMode | null>(null);
-  const [sourceLang, setSourceLang] = useState(DEFAULT_LANGUAGE_PAIR.source.code);
-  const [targetLang, setTargetLang] = useState(DEFAULT_LANGUAGE_PAIR.target.code);
+  const defaultPair = getDefaultLanguagePairForLocale(getStoredLocale());
+  const [sourceLang, setSourceLang] = useState(defaultPair.source.code);
+  const [targetLang, setTargetLang] = useState(defaultPair.target.code);
 
   // ── Refs (StrictMode 이중 초기화 방지) ─────────────────────
   const initializedRef = useRef(false);
@@ -169,8 +170,9 @@ export function useChat(): UseChatReturn {
           setSelectedScenario(null);
           setSelectedSubType(null);
           setCommunicationMode(null);
-          setSourceLang(DEFAULT_LANGUAGE_PAIR.source.code);
-          setTargetLang(DEFAULT_LANGUAGE_PAIR.target.code);
+          const resetPair = getDefaultLanguagePairForLocale(getStoredLocale());
+          setSourceLang(resetPair.source.code);
+          setTargetLang(resetPair.target.code);
           setIsInitializing(false);
           return;
         }
@@ -214,8 +216,9 @@ export function useChat(): UseChatReturn {
         setSelectedScenario(null);
         setSelectedSubType(null);
         setCommunicationMode(null);
-        setSourceLang(DEFAULT_LANGUAGE_PAIR.source.code);
-        setTargetLang(DEFAULT_LANGUAGE_PAIR.target.code);
+        const resetPair2 = getDefaultLanguagePairForLocale(getStoredLocale());
+        setSourceLang(resetPair2.source.code);
+        setTargetLang(resetPair2.target.code);
       }
     },
     [handle401]
@@ -401,8 +404,9 @@ export function useChat(): UseChatReturn {
     setSelectedScenario(null);
     setSelectedSubType(null);
     setCommunicationMode(null);
-    setSourceLang(DEFAULT_LANGUAGE_PAIR.source.code);
-    setTargetLang(DEFAULT_LANGUAGE_PAIR.target.code);
+    const resetPair3 = getDefaultLanguagePairForLocale(getStoredLocale());
+    setSourceLang(resetPair3.source.code);
+    setTargetLang(resetPair3.target.code);
     // 대시보드 초기화 (지도, 검색결과, 통화)
     resetDashboard();
     resetCalling();
