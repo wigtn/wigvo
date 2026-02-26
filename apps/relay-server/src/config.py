@@ -121,6 +121,10 @@ class Settings(BaseSettings):
     # 이 시간 초과 시 오디오 버퍼를 강제 commit하여 번역 시작
     max_speech_duration_s: float = 8.0
 
+    # Speculative STT: 발화 중 조기 commit으로 STT 선행 시작 (T2V/Agent Chat API 경로)
+    speculative_stt_enabled: bool = True
+    speculative_stt_delay_s: float = 1.5  # speech_started 후 N초 뒤 중간 commit
+
     # Session B Chat API 번역 (T2V/Agent 모드 한정)
     session_b_use_chat_translation: bool = True
     session_b_chat_translation_model: str = "gpt-4o-mini"

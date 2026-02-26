@@ -272,6 +272,10 @@ class SessionBHandler:
         # speech_stopped가 지연되는 문제를 방지. 타이머 초과 시 강제 commit.
         self._max_speech_timer: asyncio.Task | None = None
 
+        # Speculative STT: 발화 중 선행 commit (Chat API 경로 전용)
+        self._speculative_stt_task: asyncio.Task | None = None
+        self._speculative_committed: bool = False
+
         # 대화 아이템 트래킹: 컨텍스트 누적에 의한 할루시네이션 방지
         # 매 턴 시작 전 이전 턴의 아이템을 삭제하여 GPT-4o가 오디오에만 집중하도록 함
         self._conversation_item_ids: list[str] = []
@@ -284,6 +288,9 @@ class SessionBHandler:
         # Post-echo settling 보호: settling 직후 speech는 노이즈 할루시네이션 가능성 높음
         self._post_echo: bool = False
         # commit_audio_only() 호출 횟수 대비 STT 도착 추적 (모든 STT 수신 후 번역 시작)
+        # 주의: asyncio 협력적 스케줄링이므로 동시 변경은 없으나,
+        # speech_stopped / debounce / speculative handler 등 여러 사이트에서 증감됨.
+        # 변경 시 전체 증감 사이트를 확인할 것.
         self._pending_stt_count: int = 0
 
         self._register_handlers()
@@ -319,6 +326,7 @@ class SessionBHandler:
             self._response_debounce_task.cancel()
             self._response_debounce_task = None
         self._cancel_silence_timeout()
+        self._cancel_speculative_stt()
         if self._max_speech_timer and not self._max_speech_timer.done():
             self._max_speech_timer.cancel()
             self._max_speech_timer = None
@@ -424,6 +432,12 @@ class SessionBHandler:
         # Silence timeout 시작
         self._start_silence_timeout()
 
+        # Speculative STT: Chat API 경로에서 선행 commit timer 시작
+        self._speculative_committed = False
+        self._cancel_speculative_stt()
+        if self._chat_translator and settings.speculative_stt_enabled:
+            self._speculative_stt_task = asyncio.create_task(self._speculative_stt_handler())
+
         if self._on_recipient_speech_started:
             await self._on_recipient_speech_started()
 
@@ -440,6 +454,7 @@ class SessionBHandler:
         self._is_recipient_speaking = False
         self._speech_stopped_at = time.time()
         self._cancel_silence_timeout()
+        self._cancel_speculative_stt()
 
         # 최소 발화 길이 필터
         speech_duration = time.time() - self._speech_started_at
@@ -753,6 +768,12 @@ class SessionBHandler:
         # Silence timeout 시작: speech_stopped이 안 오면 강제 response
         self._start_silence_timeout()
 
+        # Speculative STT: Chat API 경로에서 선행 commit timer 시작
+        self._speculative_committed = False
+        self._cancel_speculative_stt()
+        if self._chat_translator and settings.speculative_stt_enabled:
+            self._speculative_stt_task = asyncio.create_task(self._speculative_stt_handler())
+
         if self._on_recipient_speech_started:
             await self._on_recipient_speech_started()
 
@@ -764,6 +785,13 @@ class SessionBHandler:
         self._is_recipient_speaking = False
         self._speech_stopped_at = time.time()
         self._cancel_silence_timeout()
+        self._cancel_speculative_stt()
+
+        # Speculative STT: Server VAD auto-commit의 STT를 즉시 추적
+        # debounce(300ms) 중 STT가 먼저 도착하는 race condition 방지
+        if self._speculative_committed and self._chat_translator:
+            self._pending_stt_count += 1
+            self._stt_ready_event.clear()
 
         # 최소 발화 길이 필터: 너무 짧은 segment는 노이즈로 간주
         speech_duration = time.time() - self._speech_started_at
@@ -831,7 +859,20 @@ class SessionBHandler:
 
             if self._chat_translator:
                 # --- Chat API 번역 경로 (T2V/Agent) ---
-                if self._use_local_vad:
+                if self._speculative_committed:
+                    # Part 1은 speculative commit이 이미 처리 중
+                    if self._use_local_vad:
+                        # Local VAD: Part 2 수동 commit + STT 추적
+                        await self.session.commit_audio_only()
+                        self._pending_stt_count += 1
+                        self._stt_ready_event.clear()
+                    # Server VAD: speech_stopped에서 이미 auto-commit + count 증가됨
+                    logger.info(
+                        "[SessionB] Speculative STT: final commit for remaining audio (pending=%d)",
+                        self._pending_stt_count,
+                    )
+                elif self._use_local_vad:
+                    # 기존 Local VAD 경로 (speculative 미발동 — 짧은 발화)
                     logger.info(
                         "[SessionB] Debounce complete (%.0fms) — committing audio for STT (Chat API path, local VAD)",
                         self._response_debounce_s * 1000,
@@ -840,6 +881,7 @@ class SessionBHandler:
                     self._pending_stt_count += 1
                     self._stt_ready_event.clear()
                 else:
+                    # Server VAD + no speculative → 기존 동작 유지
                     logger.info(
                         "[SessionB] Debounce complete (%.0fms) — waiting for STT (Chat API path)",
                         self._response_debounce_s * 1000,
@@ -925,6 +967,43 @@ class SessionBHandler:
         # 번역 완료 처리 (transcript 저장 + 메트릭 + caption_done)
         await self._save_transcript_and_notify(result.translated_text)
 
+    # --- Speculative STT (발화 중 선행 commit) ---
+
+    async def _speculative_stt_handler(self) -> None:
+        """발화 중간에 오디오를 commit하여 Whisper STT를 선행 시작한다.
+
+        speech_started 후 N초 뒤 발동. 아직 발화 중이면:
+        1. commit_audio_only()로 누적 오디오를 Whisper STT에 전달
+        2. _pending_stt_count 증가 → _translate_via_chat_api가 모든 STT 도착까지 대기
+        3. OpenAI Realtime API가 commit 시 입력 버퍼를 자동 리셋
+           → 이후 수신되는 오디오는 새 버퍼에 누적됨
+        speech_stopped 시 나머지 오디오가 자동(Server VAD) 또는 수동(Local VAD) commit됨.
+        """
+        try:
+            await asyncio.sleep(settings.speculative_stt_delay_s)
+            if not self._is_recipient_speaking:
+                return
+            if not self._chat_translator:
+                return
+
+            await self.session.commit_audio_only()
+            self._pending_stt_count += 1
+            self._stt_ready_event.clear()
+            self._speculative_committed = True
+            if self._call:
+                self._call.call_metrics.speculative_stt_count += 1
+            logger.info("[SessionB] Speculative STT: mid-speech commit (pending=%d)", self._pending_stt_count)
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("[SessionB] Speculative STT handler error")
+
+    def _cancel_speculative_stt(self) -> None:
+        """실행 중인 speculative STT 타이머를 취소한다."""
+        if self._speculative_stt_task and not self._speculative_stt_task.done():
+            self._speculative_stt_task.cancel()
+            self._speculative_stt_task = None
+
     # --- Silence Timeout (VAD stuck 방지) ---
 
     def _start_silence_timeout(self) -> None:
@@ -942,6 +1021,7 @@ class SessionBHandler:
         """speech_stopped이 타임아웃 내에 안 오면 강제로 response.create."""
         try:
             await asyncio.sleep(self._silence_timeout_s)
+            self._cancel_speculative_stt()
             logger.warning(
                 "[SessionB] Silence timeout (%.0fs) — VAD stuck, forcing response creation",
                 self._silence_timeout_s,
@@ -968,7 +1048,16 @@ class SessionBHandler:
             if self._chat_translator:
                 # --- Chat API 번역 경로 ---
                 if self._use_local_vad:
-                    await self.session.clear_input_buffer()
+                    if not self._speculative_committed:
+                        # 15초 축적된 노이즈 제거 후 commit (할루시네이션 방지)
+                        # speculative 발동 시에는 Part 2 오디오를 보존해야 하므로 skip
+                        await self.session.clear_input_buffer()
+                    await self.session.commit_audio_only()
+                    self._pending_stt_count += 1
+                    self._stt_ready_event.clear()
+                elif self._speculative_committed:
+                    # Server VAD + speculative: speech_stopped 없이 timeout 발동
+                    # 나머지 오디오를 강제 commit (auto-commit 미발생)
                     await self.session.commit_audio_only()
                     self._pending_stt_count += 1
                     self._stt_ready_event.clear()
