@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useChat } from "@/hooks/useChat";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -70,14 +70,37 @@ export default function ChatContainer() {
     }
   }, [callStatus, refetch]);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);
   const prevLoadingRef = useRef(isLoading);
 
-  // 스크롤 + 포커스
+  // 스크롤 + 포커스 (iOS 키보드 올라와도 동작하도록 scrollTop 직접 제어)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollContainerRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
   }, [messages, isLoading, captions.length, callStatus]);
+
+  // iOS 키보드 열림/닫힘 시 스크롤 보정
+  const scrollToBottom = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    vv.addEventListener("resize", scrollToBottom);
+    return () => vv.removeEventListener("resize", scrollToBottom);
+  }, [scrollToBottom]);
 
   // AI 답변 완료 후 입력창 자동 포커스
   useEffect(() => {
@@ -148,7 +171,7 @@ export default function ChatContainer() {
       </div>
 
       {/* 메시지 영역 */}
-      <div className="flex-1 overflow-y-auto styled-scrollbar px-5 pt-4 pb-2">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto styled-scrollbar px-5 pt-4 pb-2">
         {/* 기존 채팅 메시지 */}
         {messages.map((msg) => (
           <ChatMessage key={msg.id} message={msg} />

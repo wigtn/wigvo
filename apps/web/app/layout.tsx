@@ -34,7 +34,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased h-screen overflow-hidden bg-[#F8FAFC]`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased h-dvh overflow-hidden bg-[#F8FAFC]`}
       >
         <I18nProvider>
           <main className="h-full">
