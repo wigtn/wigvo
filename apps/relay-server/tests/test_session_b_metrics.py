@@ -320,7 +320,12 @@ class TestExistingMetricsUnchanged:
 
     @pytest.mark.asyncio
     async def test_stt_still_recorded(self):
-        """STT latency는 여전히 기록된다."""
+        """STT latency는 _pending_stt_ms에 임시 저장된다.
+
+        2단계 기록: _handle_input_transcription_completed → _pending_stt_ms 저장,
+        _save_transcript_and_notify → session_b_stt_latencies_ms 리스트에 append.
+        리스트 인덱스 정합성(E2E ↔ STT)을 위해 동시 기록.
+        """
         call = _make_call()
         handler = _make_handler(call=call)
         handler._committed_speech_started_at = time.time() - 2.0
@@ -328,7 +333,7 @@ class TestExistingMetricsUnchanged:
 
         await handler._handle_input_transcription_completed({"transcript": "테스트"})
 
-        assert len(call.call_metrics.session_b_stt_latencies_ms) == 1
+        assert handler._pending_stt_ms > 0
 
 
 class TestTimestampReset:

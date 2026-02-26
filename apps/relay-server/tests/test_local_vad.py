@@ -202,8 +202,12 @@ class TestLocalVADStateMachine:
         on_end.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_rms_gate_causes_silence_transition(self):
-        """RMS 게이트로 인한 silence도 SPEAKING→SILENCE 전환 유발."""
+    async def test_rms_silence_with_silero_causes_silence_transition(self):
+        """SPEAKING 상태에서 RMS silence + Silero silence → SPEAKING→SILENCE 전환.
+
+        SPEAKING→SILENCE 전환은 Silero only 설계 (음절 간 RMS 딥에서 끊김 방지).
+        RMS < threshold이어도 Silero에 위임하므로 Silero도 silence를 반환해야 전환됨.
+        """
         on_end = AsyncMock()
         vad = self._make_vad(
             rms_threshold=150.0,
@@ -221,12 +225,13 @@ class TestLocalVADStateMachine:
             await vad.process(loud)
         assert vad.is_speaking is True
 
-        # RMS 게이트 복원
+        # RMS 게이트 복원 + Silero도 silence 반환
         vad._rms_threshold = 150.0
+        vad._model.process.return_value = 0.1  # < silence_threshold (0.35)
 
-        # 무음 오디오 → RMS < threshold → Silero 스킵, silence_count 증가
+        # 무음 오디오 → Silero에 위임 → silence 전환
         silence = bytes([0xFF] * 160)
-        for _ in range(3):
+        for _ in range(10):  # 충분한 프레임으로 Silero silence 누적
             await vad.process(silence)
 
         assert vad.is_speaking is False
