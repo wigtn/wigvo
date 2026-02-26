@@ -727,7 +727,7 @@ function TranscriptBubble({ entry }: { entry: TranscriptEntry }) {
           'max-w-[80%] rounded-xl px-3 py-1.5 text-xs leading-relaxed',
           isUser
             ? 'bg-[#0F172A] text-white rounded-br-sm'
-            : 'bg-[#F1F5F9] text-[#334155] rounded-bl-sm',
+            : 'bg-[#F1F5F9] text-[#334155] rounded-bl-sm border border-[#E2E8F0]',
         )}
       >
         {entry.translated_text}
