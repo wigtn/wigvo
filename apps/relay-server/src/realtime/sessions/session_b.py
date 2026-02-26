@@ -228,6 +228,17 @@ class SessionBHandler:
         self._use_local_vad = use_local_vad
         self._context_prune_keep = context_prune_keep
 
+        # V2V per-response instruction: chat_translator가 없을 때(= V2V) 매 응답에 번역 방향 명시
+        if call and not chat_translator:
+            self._translation_instruction: str | None = (
+                f"Translate the recipient's speech from {call.target_language} to {call.source_language}. "
+                f"Output ONLY the translated sentence. Do NOT transcribe — you MUST translate. "
+                f"Do NOT output text in {call.target_language}. ALL output must be in {call.source_language}. "
+                f"Even for short phrases, translate them. NEVER echo back the original language."
+            )
+        else:
+            self._translation_instruction = None
+
         # Response 생성 상태 추적: conversation_already_has_active_response 방지
         self._is_response_active = False
         self._response_done_event = asyncio.Event()
@@ -847,7 +858,7 @@ class SessionBHandler:
 
                 self._is_response_active = True
                 self._response_done_event.clear()
-                await self.session.create_response()
+                await self.session.create_response(instructions=self._translation_instruction)
         except asyncio.CancelledError:
             logger.debug("[SessionB] Debounced response creation cancelled")
         except Exception:
@@ -968,7 +979,7 @@ class SessionBHandler:
 
                 self._is_response_active = True
                 self._response_done_event.clear()
-                await self.session.create_response()
+                await self.session.create_response(instructions=self._translation_instruction)
 
             if self._on_recipient_speech_stopped:
                 await self._on_recipient_speech_stopped()

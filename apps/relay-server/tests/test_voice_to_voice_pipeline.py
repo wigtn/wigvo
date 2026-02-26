@@ -865,3 +865,44 @@ class TestVoiceToVoiceCallTimer:
             and c[0][0].data.get("status") == "timeout"
         ]
         assert len(timeout_msgs) >= 1
+
+
+# ===========================================================================
+# TestVoiceToVoiceSessionBTranslation
+# ===========================================================================
+
+
+class TestVoiceToVoiceSessionBTranslation:
+    """V2V Session B 번역 instruction + context_prune_keep 검증."""
+
+    def test_session_b_context_prune_keep_zero(self):
+        """V2V Session B의 context_prune_keep이 0으로 설정된다."""
+        router = _make_router()
+        assert router.session_b._context_prune_keep == 0
+
+    def test_translation_instruction_contains_languages(self):
+        """V2V Session B의 _translation_instruction에 source/target 언어가 포함된다."""
+        router = _make_router(source_language="en", target_language="ko")
+        inst = router.session_b._translation_instruction
+        assert inst is not None
+        assert "ko" in inst  # target_language (번역 원본)
+        assert "en" in inst  # source_language (번역 대상)
+        assert "translate" in inst.lower()
+
+    @pytest.mark.asyncio
+    async def test_session_b_create_response_includes_instructions(self):
+        """V2V Session B의 create_response() 호출 시 instructions가 전달된다."""
+        router = _make_router()
+        router.session_b.session.create_response = AsyncMock()
+        router.session_b.session.commit_audio_only = AsyncMock()
+        router.session_b._chat_translator = None
+
+        # _debounced_create_response 내부 Realtime API 경로 실행
+        router.session_b._is_response_active = False
+        router.session_b._response_done_event.set()
+        await router.session_b._debounced_create_response()
+
+        router.session_b.session.create_response.assert_called_once()
+        call_kwargs = router.session_b.session.create_response.call_args
+        assert call_kwargs.kwargs.get("instructions") is not None
+        assert "translate" in call_kwargs.kwargs["instructions"].lower()

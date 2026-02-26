@@ -105,6 +105,7 @@ class VoiceToVoicePipeline(BasePipeline):
             on_transcript_complete=self._on_turn_complete,
             on_caption_done=self._on_session_b_caption_done,
             use_local_vad=settings.local_vad_enabled,
+            context_prune_keep=0,
         )
 
         # Local VAD (Silero + RMS Energy Gate)
