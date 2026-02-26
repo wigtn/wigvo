@@ -79,7 +79,7 @@ export default function CallChatInput({ onSend, onTypingStart, disabled }: CallC
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={t('sendMessage')}
-          className="flex-1 rounded-xl border border-[#E2E8F0] px-3 py-2 text-sm text-[#334155] placeholder:text-[#CBD5E1] focus:outline-none focus:ring-1 focus:ring-[#0F172A] disabled:opacity-40"
+          className="flex-1 rounded-xl border border-[#E2E8F0] px-3 py-2 text-base md:text-sm text-[#334155] placeholder:text-[#CBD5E1] focus:outline-none focus:ring-1 focus:ring-[#0F172A] disabled:opacity-40"
         />
         <button
           onClick={() => handleSend()}
