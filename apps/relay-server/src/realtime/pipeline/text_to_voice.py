@@ -290,12 +290,11 @@ class TextToVoicePipeline(BasePipeline):
             # send_text_item 없이 create_response만 사용 (이슈 1)
             # send_text_item은 대화 히스토리에 user 메시지로 추가되어
             # 번역기 system prompt가 이를 사용자 발화로 해석하는 문제 방지
+            # mark_generating()을 create_response() 전에 호출하여 race condition 방지
+            self.session_a.mark_generating()
             await self.dual_session.session_a.create_response(
                 instructions=f'Say exactly this sentence and nothing else: "{filler}"',
             )
-            # 즉시 generating 상태로 전환 — OpenAI response.audio.delta 도착 전에
-            # handle_user_text()가 is_generating을 정상 감지하도록 함
-            self.session_a.mark_generating()
 
     async def handle_user_text(self, text: str) -> None:
         """텍스트 입력을 Session A에 per-response instruction override로 전달한다.
@@ -329,17 +328,17 @@ class TextToVoicePipeline(BasePipeline):
             # Relay: keep=0 (전부 삭제), Agent: keep=1 (최신 1개 유지)
             await self.session_a.prune_before_response()
 
-            await self.context_manager.inject_context(self.dual_session.session_a)
+            await self.context_manager.inject_context(self.dual_session.session_a, input_mode="text")
 
             # Per-response instruction override (Relay mode)
             # Agent mode에서는 기본 instructions 사용
             if self.call.mode == CallMode.RELAY:
+                # mark_generating()을 create_response() 전에 호출하여 race condition 방지
+                self.session_a.mark_generating()
                 await self.dual_session.session_a.send_text_item(text)
                 await self.dual_session.session_a.create_response(
                     instructions=self._strict_relay_instruction,
                 )
-                # 즉시 generating 상태로 전환 (race condition 방지)
-                self.session_a.mark_generating()
             else:
                 await self.session_a.send_user_text(text)
 
