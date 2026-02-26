@@ -55,6 +55,7 @@ class EchoGateManager:
         self._in_echo_window = False
         self._settling_until: float = 0.0
         self._settling_started_at: float = 0.0
+        self._settling_broken: bool = False
         self._echo_cooldown_task: asyncio.Task | None = None
         self._tts_first_chunk_at: float = 0.0
         self._tts_total_bytes: int = 0
@@ -94,17 +95,28 @@ class EchoGateManager:
         # Settling 중: 높은 에너지만 VAD에 전달 (AGC 노이즈 pre-gate)
         return audio_rms > settings.echo_energy_threshold_rms
 
-    def break_settling(self) -> None:
-        """Settling을 즉시 해제한다 (LocalVAD SPEAKING 전환 확인 시)."""
+    async def break_settling(self) -> None:
+        """Settling 돌파: 에코 오염 버퍼 폐기 + 100ms grace period.
+
+        LocalVAD가 SPEAKING 전환을 확인했을 때 호출.
+        1. Session B 입력 버퍼 폐기 (에코 혼합 프레임 제거)
+        2. LocalVAD 상태 리셋 (SILENCE로 복귀 → 깨끗한 오디오로 재감지)
+        3. 100ms grace period 유지 (에코 꼬리 감쇠 대기)
+        """
         now = time.time()
-        if now < self._settling_until:
+        if now < self._settling_until and not self._settling_broken:
             elapsed = now - self._settling_started_at
             logger.info(
-                "Settling breakthrough — Silero VAD confirmed speech (%.1fs into settling)",
+                "Settling breakthrough — flushing buffers + 100ms grace (%.1fs into settling)",
                 elapsed,
             )
-            self._settling_until = 0.0
+            self._settling_broken = True
+            self._settling_until = now + 0.1  # 100ms grace period
             self._call_metrics.settling_breakthroughs += 1
+            # 에코 오염 버퍼 폐기
+            await self._session_b.clear_input_buffer()
+            if self._local_vad is not None:
+                self._local_vad.reset_state()
 
     def on_tts_chunk(self, chunk_size: int) -> bool:
         """TTS 청크 수신 시 호출. echo window 활성화 + 바이트 추적.
@@ -177,6 +189,7 @@ class EchoGateManager:
         """Echo window를 즉시 해제한다."""
         self._in_echo_window = False
         self._settling_until = 0.0
+        self._settling_broken = False
         if self._echo_cooldown_task and not self._echo_cooldown_task.done():
             self._echo_cooldown_task.cancel()
             self._echo_cooldown_task = None
@@ -218,6 +231,7 @@ class EchoGateManager:
                 min(audio_duration_s * settings.echo_settling_tts_ratio,
                     settings.echo_settling_max_s),
             )
+            self._settling_broken = False
             now = time.time()
             self._settling_until = now + settling_duration
             self._settling_started_at = now

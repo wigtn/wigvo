@@ -338,38 +338,151 @@ class TestShouldProcessVad:
 class TestBreakSettling:
     """break_settling 메서드 테스트."""
 
-    def test_clears_settling(self):
-        """break_settling() → is_suppressing=False."""
-        gate, _, _ = _make_echo_gate()
+    @pytest.mark.asyncio
+    async def test_clears_settling_with_grace(self):
+        """break_settling() → 100ms grace period 후 is_suppressing=False."""
+        local_vad = MagicMock()
+        local_vad.reset_state = MagicMock()
+        session_b = MagicMock()
+        session_b.clear_input_buffer = AsyncMock()
+        gate = EchoGateManager(
+            session_b=session_b,
+            local_vad=local_vad,
+            call_metrics=_make_call_metrics(),
+            echo_margin_s=0.3,
+            max_echo_window_s=1.2,
+        )
         gate._settling_until = time.time() + 10.0
         gate._settling_started_at = time.time()
         assert gate.is_suppressing is True
 
-        gate.break_settling()
+        await gate.break_settling()
 
+        # Grace period 중이므로 아직 suppressing
+        assert gate.is_suppressing is True
+        assert gate._settling_broken is True
+
+        # 150ms 대기 → grace period 만료
+        await asyncio.sleep(0.15)
         assert gate.is_suppressing is False
-        assert gate._settling_until == 0.0
 
-    def test_counts_metric(self):
+    @pytest.mark.asyncio
+    async def test_counts_metric(self):
         """break_settling() → settling_breakthroughs 메트릭 증가."""
-        gate, _, metrics = _make_echo_gate()
+        gate, session_b, metrics = _make_echo_gate()
         metrics.settling_breakthroughs = 0
         gate._settling_until = time.time() + 10.0
         gate._settling_started_at = time.time()
 
-        gate.break_settling()
+        await gate.break_settling()
 
         assert metrics.settling_breakthroughs == 1
 
-    def test_noop_when_not_settling(self):
+    @pytest.mark.asyncio
+    async def test_noop_when_not_settling(self):
         """Settling 아닐 때 break_settling() → no-op."""
-        gate, _, metrics = _make_echo_gate()
+        gate, session_b, metrics = _make_echo_gate()
         metrics.settling_breakthroughs = 0
         gate._settling_until = 0.0
 
-        gate.break_settling()
+        await gate.break_settling()
 
         assert metrics.settling_breakthroughs == 0
+
+    @pytest.mark.asyncio
+    async def test_break_settling_clears_buffer(self):
+        """break_settling() → session_b.clear_input_buffer() 호출."""
+        session_b = MagicMock()
+        session_b.clear_input_buffer = AsyncMock()
+        gate = EchoGateManager(
+            session_b=session_b,
+            local_vad=None,
+            call_metrics=_make_call_metrics(),
+            echo_margin_s=0.3,
+            max_echo_window_s=1.2,
+        )
+        gate._settling_until = time.time() + 10.0
+        gate._settling_started_at = time.time()
+
+        await gate.break_settling()
+
+        session_b.clear_input_buffer.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_break_settling_resets_vad(self):
+        """break_settling() → local_vad.reset_state() 호출."""
+        local_vad = MagicMock()
+        local_vad.reset_state = MagicMock()
+        session_b = MagicMock()
+        session_b.clear_input_buffer = AsyncMock()
+        gate = EchoGateManager(
+            session_b=session_b,
+            local_vad=local_vad,
+            call_metrics=_make_call_metrics(),
+            echo_margin_s=0.3,
+            max_echo_window_s=1.2,
+        )
+        gate._settling_until = time.time() + 10.0
+        gate._settling_started_at = time.time()
+
+        await gate.break_settling()
+
+        local_vad.reset_state.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_break_settling_grace_period(self):
+        """break_settling() 후 100ms 동안 is_suppressing=True."""
+        gate, session_b, _ = _make_echo_gate()
+        gate._settling_until = time.time() + 10.0
+        gate._settling_started_at = time.time()
+
+        await gate.break_settling()
+
+        # Grace period 중
+        assert gate.is_suppressing is True
+        await asyncio.sleep(0.05)
+        assert gate.is_suppressing is True  # 50ms — 아직 grace 중
+
+        await asyncio.sleep(0.1)
+        assert gate.is_suppressing is False  # 150ms — grace 만료
+
+    @pytest.mark.asyncio
+    async def test_break_settling_no_reentry(self):
+        """2번째 break_settling() 호출 → no-op (_settling_broken 플래그)."""
+        local_vad = MagicMock()
+        local_vad.reset_state = MagicMock()
+        session_b = MagicMock()
+        session_b.clear_input_buffer = AsyncMock()
+        gate = EchoGateManager(
+            session_b=session_b,
+            local_vad=local_vad,
+            call_metrics=_make_call_metrics(),
+            echo_margin_s=0.3,
+            max_echo_window_s=1.2,
+        )
+        metrics = gate._call_metrics
+        metrics.settling_breakthroughs = 0
+        gate._settling_until = time.time() + 10.0
+        gate._settling_started_at = time.time()
+
+        await gate.break_settling()
+        assert metrics.settling_breakthroughs == 1
+        assert session_b.clear_input_buffer.call_count == 1
+
+        # 2번째 호출 → no-op
+        await gate.break_settling()
+        assert metrics.settling_breakthroughs == 1  # 증가 없음
+        assert session_b.clear_input_buffer.call_count == 1  # 추가 호출 없음
+
+    def test_deactivate_resets_broken_flag(self):
+        """_deactivate() → _settling_broken=False."""
+        gate, _, _ = _make_echo_gate()
+        gate._settling_broken = True
+        gate._activate()
+
+        gate._deactivate()
+
+        assert gate._settling_broken is False
 
 
 class TestDynamicSettling:

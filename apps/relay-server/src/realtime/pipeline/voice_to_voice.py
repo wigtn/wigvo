@@ -479,7 +479,7 @@ class VoiceToVoicePipeline(BasePipeline):
 
     async def _on_local_vad_speech_start(self) -> None:
         """Local VAD가 수신자 발화 시작을 감지."""
-        self.echo_gate.break_settling()  # Settling 해제 (Silero 확인)
+        await self.echo_gate.break_settling()  # Settling 해제 (Silero 확인)
         await self.session_b.notify_speech_started()
 
     async def _on_local_vad_speech_end(self) -> None:

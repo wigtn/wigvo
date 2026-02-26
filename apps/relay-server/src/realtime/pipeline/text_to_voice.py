@@ -266,7 +266,13 @@ class TextToVoicePipeline(BasePipeline):
 
         async with self._text_send_lock:
             if self.session_a.is_generating:
-                await self.session_a.wait_for_done(timeout=3.0)
+                done = await self.session_a.wait_for_done(timeout=3.0)
+                if not done:
+                    logger.warning(
+                        "Session A still busy after 3s — skipping typing filler"
+                    )
+                    self._typing_filler_sent = False  # 재시도 허용
+                    return
             # send_text_item 없이 create_response만 사용 (이슈 1)
             # send_text_item은 대화 히스토리에 user 메시지로 추가되어
             # 번역기 system prompt가 이를 사용자 발화로 해석하는 문제 방지
@@ -467,7 +473,7 @@ class TextToVoicePipeline(BasePipeline):
 
     async def _on_local_vad_speech_start(self) -> None:
         """Local VAD가 수신자 발화 시작을 감지."""
-        self.echo_gate.break_settling()  # Settling 해제 (Silero 확인)
+        await self.echo_gate.break_settling()  # Settling 해제 (Silero 확인)
         await self.session_b.notify_speech_started()
 
     async def _on_local_vad_speech_end(self) -> None:
