@@ -9,7 +9,7 @@ import ChatContainer from "@/components/chat/ChatContainer";
 import RelayCallProvider from "@/components/call/RelayCallProvider";
 import CallEffectPanel from "@/components/call/CallEffectPanel";
 import ConversationHistoryPanel from "@/components/chat/ConversationHistoryPanel";
-import PricingPanel from "./PricingPanel";
+
 import { useDashboard } from "@/hooks/useDashboard";
 import { useChat } from "@/hooks/useChat";
 import { cn } from "@/lib/utils";
@@ -75,27 +75,7 @@ export default function DashboardLayout() {
       />
 
       {/* 메인 콘텐츠 */}
-      {activeMenu === "pricing" ? (
-        /* 요금제 전체 영역 */
-        <div className="relative z-10 flex-1 flex flex-col overflow-hidden p-0 lg:p-4">
-          {/* 모바일 헤더 (메뉴 버튼만) */}
-          <div className={mobileHeaderClass}>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-white/55 rounded-lg transition-colors"
-            >
-              <Menu className="size-5 text-[#4A5D76]" />
-            </button>
-          </div>
-
-          {/* 요금제 패널 */}
-          <div className="flex-1 overflow-hidden p-0 lg:p-5">
-            <div className={panelClass}>
-              <PricingPanel />
-            </div>
-          </div>
-        </div>
-      ) : activeMenu === "conversations" ? (
+      {activeMenu === "conversations" ? (
         /* 대화 기록 전체 영역 */
         <div className="relative z-10 flex-1 flex flex-col overflow-hidden p-0 lg:p-4">
           {/* 모바일 헤더 (메뉴 버튼만) */}

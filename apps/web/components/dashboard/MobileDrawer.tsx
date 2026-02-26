@@ -8,7 +8,7 @@ import {
   X,
   MessageSquarePlus,
   History,
-  CreditCard,
+
   Zap,
   LogOut,
 } from "lucide-react";
@@ -58,7 +58,7 @@ export default function MobileDrawer({
     };
   }, [isSidebarOpen, setSidebarOpen]);
 
-  const handleMenuClick = (menu: "chat" | "conversations" | "pricing") => {
+  const handleMenuClick = (menu: "chat" | "conversations") => {
     if (menu === "chat") {
       onNewConversation();
     }
@@ -125,13 +125,6 @@ export default function MobileDrawer({
               isCollapsed={false}
               isActive={activeMenu === "conversations"}
               onClick={() => handleMenuClick("conversations")}
-            />
-            <SidebarMenu
-              icon={<CreditCard className="size-[18px]" />}
-              label={t("pricing")}
-              isCollapsed={false}
-              isActive={activeMenu === "pricing"}
-              onClick={() => handleMenuClick("pricing")}
             />
           </div>
         </nav>

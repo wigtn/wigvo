@@ -22,6 +22,8 @@ interface CallWithConversation {
   target_name: string | null;
   status: string;
   parsed_service: string | null;
+  source_language: string | null;
+  target_language: string | null;
   call_mode: CallMode | null;
   communication_mode: CommunicationMode | null;
   conversations: {
@@ -89,6 +91,8 @@ export async function POST(
       fallback_datetimes: [],
       fallback_action: null,
       special_request: null,
+      source_language: null,
+      target_language: null,
     };
 
     // ── 5. Call 상태를 CALLING으로 업데이트 ──
@@ -149,8 +153,8 @@ export async function POST(
         call_id: callId,
         phone_number: phoneNumber,
         mode: callMode,
-        source_language: collectedData.source_language || "ko",
-        target_language: collectedData.target_language || "en",
+        source_language: collectedData.source_language || typedCall.source_language || "ko",
+        target_language: collectedData.target_language || typedCall.target_language || "en",
         vad_mode: callMode === "relay" ? "client" : "server",
         collected_data: collectedData as unknown as Record<string, unknown>,
         system_prompt_override: systemPromptOverride,

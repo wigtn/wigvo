@@ -693,12 +693,17 @@ class TestRaceConditionFix:
 
 
 class TestEnglishHallucinationBlocklist:
-    """_STT_HALLUCINATION_BLOCKLIST_EN 필터링 검증."""
+    """_STT_HALLUCINATION_BLOCKLIST_EN 필터링 검증.
+
+    영어 STT 할루시네이션 필터는 수신자가 영어가 아닐 때(target_language != "en")만 적용:
+    - target_language="ko": 수신자가 한국어 → 영어 STT는 Whisper 할루시네이션 → 차단
+    - target_language="en": 수신자가 영어 → 영어 STT는 정상 발화 → 통과
+    """
 
     @pytest.mark.asyncio
-    async def test_en_blocklist_blocks_thank_you(self):
-        """'Thank you.'가 EN 블록리스트에 의해 차단된다."""
-        call = _make_call(target_language="en")
+    async def test_en_blocklist_blocks_when_target_is_ko(self):
+        """target_language=ko일 때 'Thank you.'가 EN 블록리스트에 의해 차단된다."""
+        call = _make_call(target_language="ko")
         chat_mock = _make_chat_translator_mock()
         handler = _make_handler(call=call, chat_translator=chat_mock)
 
@@ -712,9 +717,9 @@ class TestEnglishHallucinationBlocklist:
         assert call.call_metrics.hallucinations_blocked == 1
 
     @pytest.mark.asyncio
-    async def test_en_blocklist_blocks_thanks_for_watching(self):
-        """'Thanks for watching'이 차단된다."""
-        call = _make_call(target_language="en")
+    async def test_en_blocklist_blocks_thanks_for_watching_when_target_ko(self):
+        """target_language=ko일 때 'Thanks for watching'이 차단된다."""
+        call = _make_call(target_language="ko")
         handler = _make_handler(call=call)
 
         await handler._handle_input_transcription_completed(
@@ -725,9 +730,9 @@ class TestEnglishHallucinationBlocklist:
         assert call.call_metrics.hallucinations_blocked == 1
 
     @pytest.mark.asyncio
-    async def test_en_blocklist_not_applied_for_ko_target(self):
-        """target_language=ko이면 EN 블록리스트가 적용되지 않는다."""
-        call = _make_call(target_language="ko")
+    async def test_en_blocklist_not_applied_for_en_target(self):
+        """target_language=en이면 EN 블록리스트가 적용되지 않는다 (수신자가 영어)."""
+        call = _make_call(target_language="en")
         chat_mock = _make_chat_translator_mock()
         handler = _make_handler(call=call, chat_translator=chat_mock)
 
@@ -736,14 +741,14 @@ class TestEnglishHallucinationBlocklist:
             {"transcript": "Thank you."}
         )
 
-        # KO target에서는 EN blocklist 미적용 → 통과
+        # EN target에서는 EN blocklist 미적용 → 통과 (수신자의 정상 영어 발화)
         assert handler._stt_texts == ["Thank you."]
         assert handler._stt_blocked is False
 
     @pytest.mark.asyncio
-    async def test_en_blocklist_blocks_single_word_you(self):
-        """단일 단어 'you'가 차단된다."""
-        call = _make_call(target_language="en")
+    async def test_en_blocklist_blocks_single_word_you_when_target_ko(self):
+        """target_language=ko일 때 단일 단어 'you'가 차단된다."""
+        call = _make_call(target_language="ko")
         handler = _make_handler(call=call)
 
         await handler._handle_input_transcription_completed(
@@ -755,12 +760,17 @@ class TestEnglishHallucinationBlocklist:
 
 
 class TestEnglishShortHallucination:
-    """_is_english_short_hallucination() 검증."""
+    """_is_english_short_hallucination() 검증.
+
+    수신자가 영어가 아닐 때(target_language != "en")만 적용:
+    - target_language="ko": 짧은 영어 표현은 할루시네이션 → 차단
+    - target_language="en": 짧은 영어 표현은 정상 발화 → 통과
+    """
 
     @pytest.mark.asyncio
-    async def test_hi_name_pattern_blocked(self):
-        """'Hi, Tammy' 패턴이 차단된다."""
-        call = _make_call(target_language="en")
+    async def test_hi_name_pattern_blocked_when_target_ko(self):
+        """target_language=ko일 때 'Hi, Tammy' 패턴이 차단된다."""
+        call = _make_call(target_language="ko")
         handler = _make_handler(call=call)
 
         await handler._handle_input_transcription_completed(
@@ -771,9 +781,9 @@ class TestEnglishShortHallucination:
         assert call.call_metrics.hallucinations_blocked == 1
 
     @pytest.mark.asyncio
-    async def test_hi_name_with_period_blocked(self):
-        """'Hi, Tammy.' (마침표 포함)도 차단된다."""
-        call = _make_call(target_language="en")
+    async def test_hi_name_with_period_blocked_when_target_ko(self):
+        """target_language=ko일 때 'Hi, Tammy.' (마침표 포함)도 차단된다."""
+        call = _make_call(target_language="ko")
         handler = _make_handler(call=call)
 
         await handler._handle_input_transcription_completed(
@@ -783,9 +793,9 @@ class TestEnglishShortHallucination:
         assert handler._stt_blocked is True
 
     @pytest.mark.asyncio
-    async def test_short_polite_blocked(self):
-        """짧은 공손 표현 'Okay'가 차단된다."""
-        call = _make_call(target_language="en")
+    async def test_short_polite_blocked_when_target_ko(self):
+        """target_language=ko일 때 짧은 공손 표현 'Okay'가 차단된다."""
+        call = _make_call(target_language="ko")
         handler = _make_handler(call=call)
 
         await handler._handle_input_transcription_completed(
@@ -810,9 +820,9 @@ class TestEnglishShortHallucination:
         assert handler._stt_blocked is False
 
     @pytest.mark.asyncio
-    async def test_not_applied_for_ko_target(self):
-        """target_language=ko이면 EN short hallucination이 적용되지 않는다."""
-        call = _make_call(target_language="ko")
+    async def test_not_applied_for_en_target(self):
+        """target_language=en이면 EN short hallucination이 적용되지 않는다 (수신자가 영어)."""
+        call = _make_call(target_language="en")
         chat_mock = _make_chat_translator_mock()
         handler = _make_handler(call=call, chat_translator=chat_mock)
 
@@ -821,7 +831,7 @@ class TestEnglishShortHallucination:
             {"transcript": "Hi, Tammy"}
         )
 
-        # KO target → EN 필터 미적용
+        # EN target → EN 필터 미적용 (수신자의 정상 영어 발화)
         assert handler._stt_texts == ["Hi, Tammy"]
 
 

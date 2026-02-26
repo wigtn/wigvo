@@ -119,6 +119,8 @@ export async function POST(request: NextRequest) {
         parsed_date: collectedData.primary_datetime?.split(' ')[0] || null,
         parsed_time: collectedData.primary_datetime?.split(' ')[1] || null,
         parsed_service: collectedData.service,
+        source_language: collectedData.source_language || null,
+        target_language: collectedData.target_language || null,
         status: 'PENDING',
         call_mode: callMode,
         communication_mode: selectedMode,

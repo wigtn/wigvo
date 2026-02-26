@@ -59,7 +59,9 @@ def _normalize_for_blocklist(text: str) -> str:
 
 
 # Whisper 영어 할루시네이션 블록리스트
-# YouTube/팟캐스트 아웃트로 + 단일 단어 필러 (target_language=en일 때만 적용)
+# YouTube/팟캐스트 아웃트로 + 단일 단어 필러
+# Stage 1 (STT 필터): target_language≠en일 때 적용 (수신자가 비영어권이면 영어 STT=할루시네이션)
+# Stage 2 (번역 출력 필터): target_language=en일 때 적용 (번역이 한국어여야 하는데 영어=할루시네이션)
 _STT_HALLUCINATION_BLOCKLIST_EN = frozenset({
     # YouTube / podcast outros
     "Thank you.",
@@ -104,7 +106,8 @@ def _is_english_short_hallucination(text: str) -> bool:
     """짧은 영어 할루시네이션 감지 (≤3단어 공손 표현/인사/필러 + Hi [Name] 패턴).
 
     Whisper가 무음/저에너지 구간에서 자주 생성하는 짧은 영어 표현을 차단.
-    target_language가 영어일 때만 적용.
+    Stage 1: 수신자가 비영어권(target_language≠en)일 때 적용.
+    Stage 2: 번역 출력이 영어가 아니어야 할 때(target_language=en) 적용.
     """
     stripped = text.strip()
     if not stripped:
@@ -1024,8 +1027,10 @@ class SessionBHandler:
             if self._chat_translator:
                 self._decrement_pending_stt()
             return
-        # 영어 할루시네이션 필터 (target_language=en일 때만 적용)
-        if self._call and self._call.target_language.startswith("en"):
+        # 영어 할루시네이션 필터 (수신자가 영어가 아닐 때만 적용)
+        # target_language=en이면 수신자가 영어를 말하므로 영어 STT는 정상 → 필터 스킵
+        # target_language=ko/ja/zh 등이면 영어 STT는 Whisper 할루시네이션 → 차단
+        if self._call and not self._call.target_language.startswith("en"):
             if _normalize_for_blocklist(transcript) in _STT_HALLUCINATION_BLOCKLIST_EN:
                 logger.warning("[SessionB] EN STT hallucination blocked: %s", transcript[:80])
                 self._stt_blocked = True

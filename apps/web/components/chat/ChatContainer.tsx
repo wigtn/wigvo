@@ -252,37 +252,41 @@ export default function ChatContainer() {
 
       {/* 수집 완료 시 요약 카드 */}
       {!isCalling && collectedData && (isComplete || conversationStatus === "READY") && (
-        <CollectionSummary
-          data={collectedData}
-          communicationMode={communicationMode}
-          onConfirm={handleConfirm}
-          onEdit={handleEdit}
-          onNewConversation={handleNewConversation}
-          isLoading={isLoading}
-        />
+        <div className="shrink-0">
+          <CollectionSummary
+            data={collectedData}
+            communicationMode={communicationMode}
+            onConfirm={handleConfirm}
+            onEdit={handleEdit}
+            onNewConversation={handleNewConversation}
+            isLoading={isLoading}
+          />
+        </div>
       )}
 
       {/* 입력 영역: 모드별 전환 */}
-      {isCallActive && isTextMode ? (
-        <CallChatInput
-          onSend={(text) => sendText?.(text)}
-          onTypingStart={() => sendTypingState?.()}
-          disabled={callStatus !== 'connected'}
-        />
-      ) : (
-        <ChatInput
-          ref={chatInputRef}
-          onSend={sendMessage}
-          disabled={isLoading || isComplete || isCallActive}
-          placeholder={
-            isCallActive
-              ? t("callingPlaceholder")
-              : isComplete
-                ? t("completePlaceholder")
-                : t("placeholder")
-          }
-        />
-      )}
+      <div className="shrink-0">
+        {isCallActive && isTextMode ? (
+          <CallChatInput
+            onSend={(text) => sendText?.(text)}
+            onTypingStart={() => sendTypingState?.()}
+            disabled={callStatus !== 'connected'}
+          />
+        ) : (
+          <ChatInput
+            ref={chatInputRef}
+            onSend={sendMessage}
+            disabled={isLoading || isComplete || isCallActive}
+            placeholder={
+              isCallActive
+                ? t("callingPlaceholder")
+                : isComplete
+                  ? t("completePlaceholder")
+                  : t("placeholder")
+            }
+          />
+        )}
+      </div>
     </div>
   );
 }

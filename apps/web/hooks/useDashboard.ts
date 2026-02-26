@@ -16,7 +16,7 @@ interface DashboardState {
   // 사이드바
   isSidebarOpen: boolean;
   isSidebarCollapsed: boolean;
-  activeMenu: 'chat' | 'conversations' | 'pricing';
+  activeMenu: 'chat' | 'conversations';
 
   // 대화 목록
   conversations: ConversationSummary[];
@@ -32,7 +32,7 @@ interface DashboardState {
   // Actions
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  setActiveMenu: (menu: 'chat' | 'conversations' | 'pricing') => void;
+  setActiveMenu: (menu: 'chat' | 'conversations') => void;
   setConversations: (conversations: ConversationSummary[]) => void;
   setActiveConversationId: (id: string | null) => void;
   setScenarioSelected: (selected: boolean) => void;
