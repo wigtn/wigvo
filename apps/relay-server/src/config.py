@@ -123,7 +123,7 @@ class Settings(BaseSettings):
 
     # Speculative STT: 발화 중 조기 commit으로 STT 선행 시작 (T2V/Agent Chat API 경로)
     speculative_stt_enabled: bool = True
-    speculative_stt_delay_s: float = 1.5  # speech_started 후 N초 뒤 중간 commit
+    speculative_stt_delay_s: float = 1.0  # speech_started 후 N초 뒤 중간 commit (P50 speech=1183ms 기반 튜닝)
 
     # Session B Chat API 번역 (T2V/Agent 모드 한정)
     session_b_use_chat_translation: bool = True

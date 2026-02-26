@@ -61,13 +61,6 @@ export default function ChatContainer() {
   const isCallEnded = callStatus === 'ended';
   const isCallActive = isCalling && !isCallEnded;
   const isTextMode = callingCommunicationMode === 'text_to_voice';
-  // callStatus가 ended로 바뀌면 즉시 서버 데이터 새로고침
-  useEffect(() => {
-    if (callStatus === 'ended') {
-      refetchCallData?.();
-    }
-  }, [callStatus, refetchCallData]);
-
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputHandle>(null);

@@ -393,7 +393,6 @@ class VoiceToVoicePipeline(BasePipeline):
                 data={"state": "done"},
             )
         )
-        await self._send_metrics_snapshot()
 
     # --- Session B 콜백 (큐 기반 순차 스트리밍) ---
 

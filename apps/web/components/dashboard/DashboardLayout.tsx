@@ -11,7 +11,6 @@ import CallEffectPanel from "@/components/call/CallEffectPanel";
 import ConversationHistoryPanel from "@/components/chat/ConversationHistoryPanel";
 
 import { useDashboard } from "@/hooks/useDashboard";
-import { useChat } from "@/hooks/useChat";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout() {
@@ -25,7 +24,6 @@ export default function DashboardLayout() {
     callingCommunicationMode,
   } = useDashboard();
 
-  const { handleNewConversation } = useChat();
   const t = useTranslations("dashboard");
 
   const [mobileTab, setMobileTab] = useState<"chat" | "calling">(
@@ -45,11 +43,14 @@ export default function DashboardLayout() {
     }
   }, [isCalling]);
 
-  const onNewConversation = useCallback(async () => {
+  const onNewConversation = useCallback(() => {
+    localStorage.removeItem('currentConversationId');
+    localStorage.removeItem('currentCommunicationMode');
+    localStorage.removeItem('currentSourceLang');
+    localStorage.removeItem('currentTargetLang');
     resetDashboard();
-    await handleNewConversation();
-    setMobileTab("chat");
-  }, [resetDashboard, handleNewConversation]);
+    window.location.href = '/';
+  }, [resetDashboard]);
 
   const onSelectConversation = useCallback(
     (id: string) => {
@@ -143,7 +144,7 @@ export default function DashboardLayout() {
           {/* 좌측: 채팅 카드 */}
           <div
             className={cn(
-              "h-full transition-all duration-500 ease-in-out",
+              "lg:h-full min-h-0 transition-all duration-500 ease-in-out",
               isCalling ? "lg:w-1/2" : "lg:w-full",
               mobileTab === "chat" ? "flex-1" : "hidden lg:block",
             )}
@@ -156,7 +157,7 @@ export default function DashboardLayout() {
           {/* 우측: 이펙트 패널 (calling 중) */}
           <div
             className={cn(
-              "h-full transition-all duration-500 ease-in-out overflow-hidden",
+              "lg:h-full min-h-0 transition-all duration-500 ease-in-out overflow-hidden",
               isCalling
                 ? cn(
                     "lg:w-1/2",

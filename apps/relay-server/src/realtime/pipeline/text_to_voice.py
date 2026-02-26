@@ -435,7 +435,6 @@ class TextToVoicePipeline(BasePipeline):
                 data={"state": "done"},
             )
         )
-        await self._send_metrics_snapshot()
 
     # --- Session B 콜백 ---
 
