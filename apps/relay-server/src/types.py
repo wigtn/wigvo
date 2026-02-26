@@ -192,11 +192,14 @@ class TranscriptEntry(BaseModel):
 
 
 class CostTokens(BaseModel):
-    """OpenAI Realtime API 토큰 사용량 추적."""
+    """OpenAI Realtime API + Chat API 토큰 사용량 추적."""
     audio_input: int = 0
     audio_output: int = 0
     text_input: int = 0
     text_output: int = 0
+    # Chat API (Session B 번역용)
+    chat_input: int = 0
+    chat_output: int = 0
 
     def add(self, other: "CostTokens") -> None:
         """다른 CostTokens를 더한다."""
@@ -204,24 +207,33 @@ class CostTokens(BaseModel):
         self.audio_output += other.audio_output
         self.text_input += other.text_input
         self.text_output += other.text_output
+        self.chat_input += other.chat_input
+        self.chat_output += other.chat_output
 
     @property
     def total(self) -> int:
-        return self.audio_input + self.audio_output + self.text_input + self.text_output
+        return (
+            self.audio_input + self.audio_output
+            + self.text_input + self.text_output
+            + self.chat_input + self.chat_output
+        )
 
     @property
     def cost_usd(self) -> float:
-        """OpenAI Realtime API 가격 기준 USD 비용 계산.
+        """OpenAI Realtime API + Chat API 가격 기준 USD 비용 계산.
 
         Pricing (per 1K tokens):
-          audio_input: $0.06, audio_output: $0.24
-          text_input: $0.005, text_output: $0.02
+          Realtime: audio_input $0.06, audio_output $0.24,
+                    text_input $0.005, text_output $0.02
+          Chat (gpt-4o-mini): input $0.00015, output $0.0006
         """
         return (
             self.audio_input * 0.06 / 1000
             + self.audio_output * 0.24 / 1000
             + self.text_input * 0.005 / 1000
             + self.text_output * 0.02 / 1000
+            + self.chat_input * 0.00015 / 1000
+            + self.chat_output * 0.0006 / 1000
         )
 
 

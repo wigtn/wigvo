@@ -25,6 +25,7 @@ from typing import Any, Callable, Coroutine
 from src.config import settings
 from src.guardrail.checker import GuardrailChecker
 from src.prompt.templates import TYPING_FILLER_TEMPLATES
+from src.realtime.chat_translator import ChatTranslator
 from src.realtime.audio_utils import ulaw_rms as _ulaw_rms
 from src.realtime.context_manager import ConversationContextManager
 from src.realtime.first_message import FirstMessageHandler
@@ -110,6 +111,15 @@ class TextToVoicePipeline(BasePipeline):
             on_transcript_complete=self._on_turn_complete,
         )
 
+        # Session B Chat API 번역 (할루시네이션 방지: Realtime STT + Chat API 번역 분리)
+        chat_translator: ChatTranslator | None = None
+        if settings.session_b_use_chat_translation:
+            chat_translator = ChatTranslator(
+                source_language=call.target_language,
+                target_language=call.source_language,
+                context_manager=self.context_manager,
+            )
+
         # Session B 핸들러: 수신자 음성 → 텍스트 번역 → App
         # modalities=['text'] — DualSessionManager가 communication_mode 기반으로 설정
         # context_prune_keep=0: T2V에서는 컨텍스트 아이템 전부 삭제 → 추측 할루시네이션 방지
@@ -125,6 +135,7 @@ class TextToVoicePipeline(BasePipeline):
             on_caption_done=self._on_session_b_caption_done,
             use_local_vad=settings.local_vad_enabled,
             context_prune_keep=0,
+            chat_translator=chat_translator,
         )
 
         # Local VAD (Silero + RMS Energy Gate)

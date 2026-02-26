@@ -116,6 +116,11 @@ class Settings(BaseSettings):
     # 이 시간 초과 시 오디오 버퍼를 강제 commit하여 번역 시작
     max_speech_duration_s: float = 8.0
 
+    # Session B Chat API 번역 (T2V/Agent 모드 한정)
+    session_b_use_chat_translation: bool = True
+    session_b_chat_translation_model: str = "gpt-4o-mini"
+    session_b_chat_translation_timeout_ms: int = 3000
+
     # Logging
     log_level: str = "INFO"
     log_dir: str = "logs"

@@ -15,6 +15,7 @@ import time
 from typing import Any, Callable, Coroutine
 
 from src.config import settings
+from src.realtime.chat_translator import ChatTranslator
 from src.realtime.sessions.session_manager import RealtimeSession
 from src.types import ActiveCall, CostTokens, TranscriptEntry
 
@@ -121,6 +122,7 @@ class SessionBHandler:
         on_caption_done: Callable[[], Coroutine] | None = None,
         use_local_vad: bool = False,
         context_prune_keep: int = 1,
+        chat_translator: ChatTranslator | None = None,
     ):
         """
         Args:
@@ -189,6 +191,11 @@ class SessionBHandler:
         # 대화 아이템 트래킹: 컨텍스트 누적에 의한 할루시네이션 방지
         # 매 턴 시작 전 이전 턴의 아이템을 삭제하여 GPT-4o가 오디오에만 집중하도록 함
         self._conversation_item_ids: list[str] = []
+
+        # Chat API 번역 (T2V/Agent 모드 한정)
+        self._chat_translator = chat_translator
+        self._stt_ready_event = asyncio.Event()
+        self._stt_text: str = ""
 
         self._register_handlers()
 
@@ -301,6 +308,12 @@ class SessionBHandler:
         self._is_recipient_speaking = True
         self._speech_started_at = time.time()
         self._timeout_forced = False
+
+        # Chat API 동기화 리셋 (새 발화 시작)
+        if self._chat_translator:
+            self._stt_ready_event.clear()
+            self._stt_text = ""
+            self._stt_blocked = False  # 이전 턴에서 stuck 방지
 
         # 대기 중인 debounce response.create 취소 (연속 발화)
         if self._response_debounce_task and not self._response_debounce_task.done():
@@ -611,6 +624,12 @@ class SessionBHandler:
         self._speech_started_at = time.time()
         self._timeout_forced = False  # 새 발화 시작 → timeout 플래그 초기화
 
+        # Chat API 동기화 리셋 (새 발화 시작)
+        if self._chat_translator:
+            self._stt_ready_event.clear()
+            self._stt_text = ""
+            self._stt_blocked = False  # 이전 턴에서 stuck 방지
+
         # 대기 중인 debounce response.create 취소 (연속 발화)
         if self._response_debounce_task and not self._response_debounce_task.done():
             self._response_debounce_task.cancel()
@@ -671,6 +690,10 @@ class SessionBHandler:
         Server VAD 모드: speech_stopped 시 자동 commit → response.create만 호출.
         Local VAD 모드: turn_detection=null이므로 수동 commit_audio_only() 후 response.create.
 
+        Chat API 모드 (chat_translator 설정 시):
+        commit_audio_only() 후 STT 완료 대기 → Chat API 번역 → 캡션 전송.
+        Realtime API의 response.create는 호출하지 않는다.
+
         conversation_already_has_active_response 방지:
         이전 응답이 아직 생성 중이면 완료 대기 후 새 응답을 생성한다.
         """
@@ -693,27 +716,84 @@ class SessionBHandler:
             self._committed_speech_started_at = self._speech_started_at
             self._committed_speech_stopped_at = self._speech_stopped_at
 
-            if self._use_local_vad:
-                # clear_input_buffer는 notify_speech_started에서 이미 호출됨 (line 261)
-                # timeout 경로와 달리 여기서는 중복 clear 불필요
-                logger.info(
-                    "[SessionB] Debounce complete (%.0fms) — committing audio + creating response (local VAD)",
-                    self._response_debounce_s * 1000,
-                )
-                await self.session.commit_audio_only()
+            if self._chat_translator:
+                # --- Chat API 번역 경로 (T2V/Agent) ---
+                if self._use_local_vad:
+                    logger.info(
+                        "[SessionB] Debounce complete (%.0fms) — committing audio for STT (Chat API path, local VAD)",
+                        self._response_debounce_s * 1000,
+                    )
+                    await self.session.commit_audio_only()
+                else:
+                    logger.info(
+                        "[SessionB] Debounce complete (%.0fms) — waiting for STT (Chat API path)",
+                        self._response_debounce_s * 1000,
+                    )
+                await self._translate_via_chat_api()
             else:
-                logger.info(
-                    "[SessionB] Debounce complete (%.0fms) — creating response",
-                    self._response_debounce_s * 1000,
-                )
+                # --- 기존 Realtime API 경로 (V2V) ---
+                if self._use_local_vad:
+                    logger.info(
+                        "[SessionB] Debounce complete (%.0fms) — committing audio + creating response (local VAD)",
+                        self._response_debounce_s * 1000,
+                    )
+                    await self.session.commit_audio_only()
+                else:
+                    logger.info(
+                        "[SessionB] Debounce complete (%.0fms) — creating response",
+                        self._response_debounce_s * 1000,
+                    )
 
-            self._is_response_active = True
-            self._response_done_event.clear()
-            await self.session.create_response()
+                self._is_response_active = True
+                self._response_done_event.clear()
+                await self.session.create_response()
         except asyncio.CancelledError:
             logger.debug("[SessionB] Debounced response creation cancelled")
         except Exception:
             logger.exception("[SessionB] Error in debounced response creation")
+
+    async def _translate_via_chat_api(self) -> None:
+        """Chat API를 통해 STT→번역을 수행하고 캡션/transcript를 전송한다.
+
+        Flow: _stt_ready_event 대기 → ChatTranslator.translate() → 캡션 + transcript 저장.
+        _debounced_create_response()와 _silence_timeout_handler()에서 호출된다.
+        실패 시 에러 로그만 남기고 해당 턴을 skip한다 (Realtime API fallback 없음).
+        """
+        # STT 완료 대기 (최대 10s)
+        try:
+            await asyncio.wait_for(self._stt_ready_event.wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("[SessionB] Chat API: STT wait timeout (10s) — skipping turn")
+            return
+
+        stt_text = self._stt_text
+        if not stt_text:
+            logger.info("[SessionB] Chat API: empty STT (filtered) — skipping turn")
+            return
+
+        # Chat API 번역
+        result = await self._chat_translator.translate(stt_text)
+        if result is None:
+            logger.error("[SessionB] Chat API translation failed — skipping turn")
+            return
+
+        logger.info(
+            "[SessionB] Chat API translation (%.0fms, in=%d, out=%d): %s → %s",
+            result.latency_ms, result.input_tokens, result.output_tokens,
+            stt_text[:40], result.translated_text[:40],
+        )
+
+        # 토큰 비용 기록
+        if self._call:
+            self._call.cost_tokens.chat_input += result.input_tokens
+            self._call.cost_tokens.chat_output += result.output_tokens
+
+        # 번역 캡션 전송 (output 억제 중이 아닌 경우)
+        if not self._output_suppressed and self._on_caption:
+            await self._on_caption("recipient", result.translated_text)
+
+        # 번역 완료 처리 (transcript 저장 + 메트릭 + caption_done)
+        await self._save_transcript_and_notify(result.translated_text)
 
     # --- Silence Timeout (VAD stuck 방지) ---
 
@@ -755,14 +835,22 @@ class SessionBHandler:
             self._committed_speech_started_at = self._speech_started_at
             self._committed_speech_stopped_at = self._speech_stopped_at
 
-            if self._use_local_vad:
-                # 15초 축적된 노이즈 제거 후 commit (할루시네이션 방지)
-                await self.session.clear_input_buffer()
-                await self.session.commit_audio_only()
+            if self._chat_translator:
+                # --- Chat API 번역 경로 ---
+                if self._use_local_vad:
+                    await self.session.clear_input_buffer()
+                    await self.session.commit_audio_only()
+                await self._translate_via_chat_api()
+            else:
+                # --- 기존 Realtime API 경로 ---
+                if self._use_local_vad:
+                    # 15초 축적된 노이즈 제거 후 commit (할루시네이션 방지)
+                    await self.session.clear_input_buffer()
+                    await self.session.commit_audio_only()
 
-            self._is_response_active = True
-            self._response_done_event.clear()
-            await self.session.create_response()
+                self._is_response_active = True
+                self._response_done_event.clear()
+                await self.session.create_response()
 
             if self._on_recipient_speech_stopped:
                 await self._on_recipient_speech_stopped()
@@ -780,9 +868,16 @@ class SessionBHandler:
         수신자 발화의 원문 텍스트(예: 한국어)를 App에 즉시 전달한다.
         번역 텍스트(Stage 2)는 response.audio_transcript.done에서 별도로 전송된다.
         억제 중이면 큐에 저장하여 나중에 배출한다.
+
+        Chat API 모드: STT 텍스트를 _stt_text에 저장하고 _stt_ready_event를 set하여
+        _translate_via_chat_api()의 대기를 해제한다.
         """
         transcript = event.get("transcript", "")
         if not transcript:
+            # Chat API 대기 해제 (빈 텍스트 → 턴 skip)
+            if self._chat_translator:
+                self._stt_text = ""
+                self._stt_ready_event.set()
             return
         # Whisper STT 할루시네이션 필터링 (구두점 정규화: "감사합니다!" → "감사합니다")
         if _normalize_for_blocklist(transcript) in _STT_HALLUCINATION_BLOCKLIST:
@@ -790,6 +885,9 @@ class SessionBHandler:
             self._stt_blocked = True  # 대응하는 번역도 차단
             if self._call:
                 self._call.call_metrics.hallucinations_blocked += 1
+            if self._chat_translator:
+                self._stt_text = ""
+                self._stt_ready_event.set()
             return
         # 구조적 노이즈 필터 (자음 스팸, 반복 패턴, 단일 문자)
         if _is_noise_stt(transcript):
@@ -797,8 +895,17 @@ class SessionBHandler:
             self._stt_blocked = True  # 대응하는 번역도 차단
             if self._call:
                 self._call.call_metrics.hallucinations_blocked += 1
+            if self._chat_translator:
+                self._stt_text = ""
+                self._stt_ready_event.set()
             return
         self._last_recipient_stt = transcript  # 번역 품질 평가용 원문 저장 (필터 통과 후)
+
+        # Chat API 동기화: STT 텍스트 저장 + 대기 해제
+        if self._chat_translator:
+            self._stt_text = transcript
+            self._stt_ready_event.set()
+
         if self._output_suppressed:
             self._pending_output.append(("original_caption", ("recipient", transcript)))
             return
