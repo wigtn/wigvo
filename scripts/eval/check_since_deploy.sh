@@ -112,11 +112,13 @@ for c in data:
     mode_counter[MODE_LABELS.get(raw, raw)] += 1
 
 all_sa, all_sb_e2e, all_sb_stt, all_sb_trans = [], [], [], []
+all_sb_speech_dur, all_sb_proc_lat, all_sb_stt_after = [], [], []
 all_paired_e2e, all_paired_stt = [], []
 all_scatter = []
+all_fml = []
 total_echo_supp = 0
-total_echo_loops = 0
 total_echo_breakthroughs = 0
+total_settling_breakthroughs = 0
 total_vad_false = 0
 total_hallucinations = 0
 total_interrupts = 0
@@ -134,6 +136,15 @@ for c, m in instrumented:
     all_sa.extend(sa)
     all_sb_e2e.extend(sb_e2e)
     all_sb_stt.extend(sb_stt)
+    all_sb_speech_dur.extend(m.get("session_b_speech_durations_ms", []))
+    all_sb_proc_lat.extend(m.get("session_b_processing_latencies_ms", []))
+    all_sb_stt_after.extend(m.get("session_b_stt_after_stop_ms", []))
+
+    fml_raw = m.get("first_message_latency_ms")
+    if isinstance(fml_raw, (int, float)):
+        all_fml.append(fml_raw)
+    elif isinstance(fml_raw, list):
+        all_fml.extend(fml_raw)
 
     paired = min(len(sb_e2e), len(sb_stt))
     for i in range(paired):
@@ -150,8 +161,8 @@ for c, m in instrumented:
         all_scatter.append({"char_len": char_len, "latency_ms": sb_e2e[i]})
 
     total_echo_supp += m.get("echo_suppressions", 0)
-    total_echo_loops += m.get("echo_loops_detected", 0)
     total_echo_breakthroughs += m.get("echo_gate_breakthroughs", 0)
+    total_settling_breakthroughs += m.get("settling_breakthroughs", 0)
     total_vad_false += m.get("vad_false_triggers", 0)
     total_hallucinations += m.get("hallucinations_blocked", 0)
     total_interrupts += m.get("interrupt_count", 0)
@@ -163,7 +174,8 @@ for c, m in instrumented:
     if not cost:
         ct = c.get("cost_tokens") or {}
         cost = (ct.get("audio_input", 0) * 0.06 + ct.get("audio_output", 0) * 0.24
-                + ct.get("text_input", 0) * 0.005 + ct.get("text_output", 0) * 0.02) / 1000
+                + ct.get("text_input", 0) * 0.005 + ct.get("text_output", 0) * 0.02
+                + ct.get("chat_input", 0) * 0.00015 + ct.get("chat_output", 0) * 0.0006) / 1000
         if cost > 0:
             n_estimated += 1
     total_cost_usd += cost
@@ -264,6 +276,14 @@ print("-" * 64)
 if sa_st["n"]:
     print(f"  P50: {sa_st['p50']:.0f}ms  P95: {sa_st['p95']:.0f}ms  Mean: {sa_st['mean']:.0f}ms  Max: {sa_st['max']:.0f}ms")
 
+fml_st = fmt_stats(all_fml)
+print()
+if fml_st["n"]:
+    print(f"  First Message Latency:")
+    print(f"  P50: {fml_st['p50']:.0f}ms  P95: {fml_st['p95']:.0f}ms  Mean: {fml_st['mean']:.0f}ms  (N={fml_st['n']})")
+else:
+    print("  First Message Latency: (no first message data)")
+
 # ── Session B ──
 print()
 print("-" * 64)
@@ -288,6 +308,16 @@ if all_paired_e2e:
     stt_pct = sum(valid_ratios) / len(valid_ratios) * 100 if valid_ratios else 0
     mis_tag = f"  ({misaligned} misaligned skipped)" if misaligned else ""
     print(f"  STT % of E2E: {stt_pct:.1f}%  (N={len(valid_ratios)} paired turns){mis_tag}")
+
+sd_st = fmt_stats(all_sb_speech_dur)
+pl_st = fmt_stats(all_sb_proc_lat)
+sa_stop_st = fmt_stats(all_sb_stt_after)
+if sd_st["n"]:
+    print(f"  Speech Dur P50: {sd_st['p50']:.0f}ms  P95: {sd_st['p95']:.0f}ms  Mean: {sd_st['mean']:.0f}ms")
+if pl_st["n"]:
+    print(f"  Proc Lat   P50: {pl_st['p50']:.0f}ms  P95: {pl_st['p95']:.0f}ms  Mean: {pl_st['mean']:.0f}ms")
+if sa_stop_st["n"]:
+    print(f"  STT>Stop   P50: {sa_stop_st['p50']:.0f}ms  P95: {sa_stop_st['p95']:.0f}ms  Mean: {sa_stop_st['mean']:.0f}ms")
 
 # ── Utterance Analysis ──
 print()
@@ -319,7 +349,7 @@ echo_per = total_echo_supp / n_instrumented if n_instrumented else 0
 vad_per = total_vad_false / n_instrumented if n_instrumented else 0
 print(f"  Echo gate activations:   {total_echo_supp:>4d} total  ({echo_per:.1f}/call)")
 print(f"  Echo gate breakthroughs: {total_echo_breakthroughs:>4d}  (callee interrupted during TTS — expected)")
-print(f"  Echo-induced loops:      {total_echo_loops:>4d} / {n_instrumented} calls")
+print(f"  Settling breakthroughs:  {total_settling_breakthroughs:>4d}")
 print(f"  VAD false triggers:      {total_vad_false:>4d} total  ({vad_per:.1f}/call)")
 print(f"  Hallucinations blocked:  {total_hallucinations:>4d}")
 print(f"  Interrupts:              {total_interrupts:>4d}")

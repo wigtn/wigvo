@@ -166,9 +166,30 @@ if stt_st["n"]:
 if trans_st["n"]:
     print(f"  Translate  P50: {trans_st['p50']:.0f}ms  P95: {trans_st['p95']:.0f}ms  Mean: {trans_st['mean']:.0f}ms")
 if paired_e2e:
-    ratios = [stt / e2e for stt, e2e in zip(paired_stt, paired_e2e) if e2e > 0]
-    stt_pct = sum(ratios) / len(ratios) * 100 if ratios else 0
-    print(f"  STT % of E2E: {stt_pct:.1f}%  (N={len(ratios)} paired turns)")
+    valid_ratios = []
+    misaligned = 0
+    for stt, e2e in zip(paired_stt, paired_e2e):
+        if e2e <= 0: continue
+        if stt > e2e:
+            misaligned += 1
+            continue
+        valid_ratios.append(stt / e2e)
+    stt_pct = sum(valid_ratios) / len(valid_ratios) * 100 if valid_ratios else 0
+    mis_tag = f"  ({misaligned} misaligned skipped)" if misaligned else ""
+    print(f"  STT % of E2E: {stt_pct:.1f}%  (N={len(valid_ratios)} paired turns){mis_tag}")
+
+sb_speech_dur = metrics.get("session_b_speech_durations_ms", [])
+sb_proc_lat = metrics.get("session_b_processing_latencies_ms", [])
+sb_stt_after = metrics.get("session_b_stt_after_stop_ms", [])
+sd_st = fmt_stats(sb_speech_dur)
+pl_st = fmt_stats(sb_proc_lat)
+sa_stop_st = fmt_stats(sb_stt_after)
+if sd_st["n"]:
+    print(f"  Speech Dur P50: {sd_st['p50']:.0f}ms  P95: {sd_st['p95']:.0f}ms  Mean: {sd_st['mean']:.0f}ms")
+if pl_st["n"]:
+    print(f"  Proc Lat   P50: {pl_st['p50']:.0f}ms  P95: {pl_st['p95']:.0f}ms  Mean: {pl_st['mean']:.0f}ms")
+if sa_stop_st["n"]:
+    print(f"  STT>Stop   P50: {sa_stop_st['p50']:.0f}ms  P95: {sa_stop_st['p95']:.0f}ms  Mean: {sa_stop_st['mean']:.0f}ms")
 
 # ── [Utterance Analysis] ─────────────────────────────────────────────────────
 
@@ -221,7 +242,7 @@ print("  [Echo & VAD]")
 print("-" * 64)
 print(f"  Echo gate activations:  {metrics.get('echo_suppressions', 0)}")
 print(f"  Echo gate breakthroughs:{metrics.get('echo_gate_breakthroughs', 0)}  (callee interrupted during TTS — expected)")
-print(f"  Echo-induced loops:     {metrics.get('echo_loops_detected', 0)}")
+print(f"  Settling breakthroughs: {metrics.get('settling_breakthroughs', 0)}")
 print(f"  VAD false triggers:     {metrics.get('vad_false_triggers', 0)}")
 print(f"  Hallucinations blocked: {metrics.get('hallucinations_blocked', 0)}")
 print(f"  Interrupts:             {metrics.get('interrupt_count', 0)}")
@@ -239,6 +260,8 @@ if not cost_usd and cost_tokens:
         + cost_tokens.get("audio_output", 0) * 0.24
         + cost_tokens.get("text_input", 0) * 0.005
         + cost_tokens.get("text_output", 0) * 0.02
+        + cost_tokens.get("chat_input", 0) * 0.00015
+        + cost_tokens.get("chat_output", 0) * 0.0006
     ) / 1000
     cost_estimated = True
 
@@ -255,7 +278,7 @@ if dur and dur > 0:
     cpm = cost_usd / (dur / 60)
     print(f"  Cost per minute: ${cpm:.4f}{cost_tag}")
 if cost_tokens:
-    print(f"  Breakdown:  audio_in={cost_tokens.get('audio_input',0):,}  audio_out={cost_tokens.get('audio_output',0):,}  text_in={cost_tokens.get('text_input',0):,}  text_out={cost_tokens.get('text_output',0):,}")
+    print(f"  Breakdown:  audio_in={cost_tokens.get('audio_input',0):,}  audio_out={cost_tokens.get('audio_output',0):,}  text_in={cost_tokens.get('text_input',0):,}  text_out={cost_tokens.get('text_output',0):,}  chat_in={cost_tokens.get('chat_input',0):,}  chat_out={cost_tokens.get('chat_output',0):,}")
 
 print()
 print("=" * 64)

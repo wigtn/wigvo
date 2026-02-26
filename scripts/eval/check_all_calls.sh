@@ -110,11 +110,12 @@ for c in data:
 # ── Latency aggregation (instrumented calls only) ────────────────────────────
 
 all_sa, all_sb_e2e, all_sb_stt, all_sb_trans = [], [], [], []
+all_sb_speech_dur, all_sb_proc_lat, all_sb_stt_after = [], [], []
 all_paired_e2e, all_paired_stt = [], []
 all_scatter = []
 total_echo_supp = 0
-total_echo_loops = 0
 total_echo_breakthroughs = 0
+total_settling_breakthroughs = 0
 total_vad_false = 0
 total_hallucinations = 0
 total_interrupts = 0
@@ -139,6 +140,9 @@ for c, m in instrumented:
     all_sa.extend(sa)
     all_sb_e2e.extend(sb_e2e)
     all_sb_stt.extend(sb_stt)
+    all_sb_speech_dur.extend(m.get("session_b_speech_durations_ms", []))
+    all_sb_proc_lat.extend(m.get("session_b_processing_latencies_ms", []))
+    all_sb_stt_after.extend(m.get("session_b_stt_after_stop_ms", []))
 
     raw_mode = c.get("communication_mode") or "unknown"
     mlabel = MODE_LABELS.get(raw_mode, raw_mode)
@@ -164,8 +168,8 @@ for c, m in instrumented:
 
     # Counters
     total_echo_supp += m.get("echo_suppressions", 0)
-    total_echo_loops += m.get("echo_loops_detected", 0)
     total_echo_breakthroughs += m.get("echo_gate_breakthroughs", 0)
+    total_settling_breakthroughs += m.get("settling_breakthroughs", 0)
     total_vad_false += m.get("vad_false_triggers", 0)
     total_hallucinations += m.get("hallucinations_blocked", 0)
     total_interrupts += m.get("interrupt_count", 0)
@@ -178,7 +182,8 @@ for c, m in instrumented:
     if not cost:
         ct = c.get("cost_tokens") or {}
         cost = (ct.get("audio_input", 0) * 0.06 + ct.get("audio_output", 0) * 0.24
-                + ct.get("text_input", 0) * 0.005 + ct.get("text_output", 0) * 0.02) / 1000
+                + ct.get("text_input", 0) * 0.005 + ct.get("text_output", 0) * 0.02
+                + ct.get("chat_input", 0) * 0.00015 + ct.get("chat_output", 0) * 0.0006) / 1000
         if cost > 0:
             n_estimated += 1
     total_cost_usd += cost
@@ -288,6 +293,16 @@ if all_paired_e2e:
     mis_tag = f"  ({misaligned} misaligned skipped)" if misaligned else ""
     print(f"  STT % of E2E: {stt_pct:.1f}%  (N={len(valid_ratios)} paired turns){mis_tag}")
 
+sd_st = fmt_stats(all_sb_speech_dur)
+pl_st = fmt_stats(all_sb_proc_lat)
+sa_stop_st = fmt_stats(all_sb_stt_after)
+if sd_st["n"]:
+    print(f"  Speech Dur P50: {sd_st['p50']:.0f}ms  P95: {sd_st['p95']:.0f}ms  Mean: {sd_st['mean']:.0f}ms")
+if pl_st["n"]:
+    print(f"  Proc Lat   P50: {pl_st['p50']:.0f}ms  P95: {pl_st['p95']:.0f}ms  Mean: {pl_st['mean']:.0f}ms")
+if sa_stop_st["n"]:
+    print(f"  STT>Stop   P50: {sa_stop_st['p50']:.0f}ms  P95: {sa_stop_st['p95']:.0f}ms  Mean: {sa_stop_st['mean']:.0f}ms")
+
 # ── Utterance Analysis ──
 print()
 print("-" * 64)
@@ -318,7 +333,7 @@ echo_per = total_echo_supp / n_instrumented if n_instrumented else 0
 vad_per = total_vad_false / n_instrumented if n_instrumented else 0
 print(f"  Echo gate activations:   {total_echo_supp:>4d} total  ({echo_per:.1f}/call)")
 print(f"  Echo gate breakthroughs: {total_echo_breakthroughs:>4d}  (callee interrupted during TTS — expected)")
-print(f"  Echo-induced loops:      {total_echo_loops:>4d} / {n_instrumented} calls")
+print(f"  Settling breakthroughs:  {total_settling_breakthroughs:>4d}")
 print(f"  VAD false triggers:      {total_vad_false:>4d} total  ({vad_per:.1f}/call)")
 print(f"  Hallucinations blocked:  {total_hallucinations:>4d}")
 print(f"  Interrupts:              {total_interrupts:>4d}")
@@ -356,7 +371,7 @@ if sa_st["n"]:
     print(f"  SA  P50: {sa_st['p50']:.0f}ms  P95: {sa_st['p95']:.0f}ms  (N={sa_st['n']} turns)")
 if e2e_st["n"]:
     print(f"  SB  P50: {e2e_st['p50']:.0f}ms  P95: {e2e_st['p95']:.0f}ms  (N={e2e_st['n']} turns)")
-print(f"  Overall echo loops: {total_echo_loops} / {n_instrumented} calls")
+print(f"  Overall settling breakthroughs: {total_settling_breakthroughs}")
 print()
 print("-" * 64)
 print("  [Mode-Level Latency]")
@@ -399,7 +414,7 @@ if all_scatter:
     ys_p = [s["latency_ms"] for s in all_scatter]
     r_p = pearson_r(xs_p, ys_p)
     print(f"  Pearson r          : {r_p:.3f}  (N={len(all_scatter)} turns)")
-print(f"  Echo loops         : {total_echo_loops} / {n_instrumented} calls")
+print(f"  Settling BT        : {total_settling_breakthroughs}")
 print(f"  VAD false triggers : {total_vad_false} ({vad_per:.1f}/call)")
 print(f"  Echo breakthroughs : {total_echo_breakthroughs} (callee interrupts)")
 print(f"  Hallucinations     : {total_hallucinations} blocked")
@@ -421,7 +436,8 @@ for mlabel in ["V2V", "T2V", "Agent"]:
         if not mc:
             ct_m = c.get("cost_tokens") or {}
             mc = (ct_m.get("audio_input", 0) * 0.06 + ct_m.get("audio_output", 0) * 0.24
-                  + ct_m.get("text_input", 0) * 0.005 + ct_m.get("text_output", 0) * 0.02) / 1000
+                  + ct_m.get("text_input", 0) * 0.005 + ct_m.get("text_output", 0) * 0.02
+                  + ct_m.get("chat_input", 0) * 0.00015 + ct_m.get("chat_output", 0) * 0.0006) / 1000
         mode_cost += mc
         mode_n += 1
     if mode_dur > 0 and mode_n > 0:
