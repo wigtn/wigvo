@@ -114,6 +114,7 @@ class Settings(BaseSettings):
     audio_energy_gate_enabled: bool = True
     audio_energy_min_rms: float = 150.0  # PSTN 소음(50-200) → silence 교체, 발화(500+) → 통과
     echo_energy_threshold_rms: float = 500.0  # Echo window: 에코(100-400) → silence, 발화(500+) → 통과
+    echo_settling_rms_threshold: float = 200.0  # Settling 중 VAD 통과 임계값 (에코 이미 감쇠, 정상 발화 수준)
     session_b_min_peak_rms: float = 300.0  # Peak RMS 품질 필터: 조용한 PSTN 발화(200-500)도 통과
 
     # Max speech duration: 에너지 게이트로도 VAD speech_stopped가 지연되는 극단 케이스 안전망

@@ -20,6 +20,7 @@ import asyncio
 import base64
 import logging
 import time
+from collections import deque
 from typing import Any, Callable, Coroutine
 
 from src.config import settings
@@ -166,6 +167,9 @@ class TextToVoicePipeline(BasePipeline):
             on_notify_app=self._notify_app,
             call=call,
         )
+
+        # Pre-speech buffer: SPEAKING 전환 전 오디오 프레임 보존 (200ms = 20ms × 10)
+        self._pre_speech_buf: deque[bytes] = deque(maxlen=10)
 
         # Echo Gate Manager (TTS 에코 차단)
         # T2V: max_echo_window_s=5.0 캡 (무제한→5초, 긴 silence 누적 방지)
@@ -343,16 +347,27 @@ class TextToVoicePipeline(BasePipeline):
         effective_audio = self.echo_gate.filter_audio(audio_bytes)
 
         # Local VAD 경로: VAD 상태에 따라 실제 오디오 또는 무음을 Session B에 전송
-        # Echo window 중: VAD 완전 스킵
-        # Settling 중: RMS pre-gate로 고에너지만 VAD에 전달 → Silero가 speech 판정 시 break
+        # SPEAKING 상태: pre-speech buffer flush + 오디오 그대로 전송
+        # SILENCE + can_process_vad: pre-speech buffer에 축적 (SPEAKING 전환 시 flush)
+        # Echo window / suppressing: pre-speech buffer 폐기 + 무음 전송
         if self.local_vad is not None:
             audio_rms = _ulaw_rms(effective_audio)
             can_process_vad = self.echo_gate.should_process_vad(audio_rms)
             if can_process_vad:
                 await self.local_vad.process(effective_audio)
             if self.local_vad.is_speaking and not self.echo_gate.is_suppressing:
+                # Flush pre-speech buffer first (SPEAKING 전환 전 오디오 복구)
+                while self._pre_speech_buf:
+                    buf_b64 = base64.b64encode(self._pre_speech_buf.popleft()).decode("ascii")
+                    await self.session_b.send_recipient_audio(buf_b64)
                 audio_to_send = effective_audio
+            elif can_process_vad and not self.echo_gate.is_suppressing:
+                # Not speaking yet but audio is clean → buffer for pre-speech
+                self._pre_speech_buf.append(effective_audio)
+                audio_to_send = bytes([0xFF] * len(effective_audio))
             else:
+                # Echo window / suppressing → discard contaminated buffer
+                self._pre_speech_buf.clear()
                 audio_to_send = bytes([0xFF] * len(effective_audio))
             audio_b64 = base64.b64encode(audio_to_send).decode("ascii")
             await self.session_b.send_recipient_audio(audio_b64)
@@ -474,6 +489,7 @@ class TextToVoicePipeline(BasePipeline):
     async def _on_local_vad_speech_start(self) -> None:
         """Local VAD가 수신자 발화 시작을 감지."""
         await self.echo_gate.break_settling()  # Settling 해제 (Silero 확인)
+        self._pre_speech_buf.clear()  # settling breakthrough 시 오염 버퍼 폐기
         await self.session_b.notify_speech_started()
 
     async def _on_local_vad_speech_end(self) -> None:

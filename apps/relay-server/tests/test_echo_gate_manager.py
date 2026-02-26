@@ -317,16 +317,33 @@ class TestShouldProcessVad:
         assert gate.should_process_vad(1000.0) is False
 
     def test_settling_low_rms_false(self):
-        """Settling 중 RMS 400 → False (AGC 노이즈 차단)."""
+        """Settling 중 RMS 100 → False (배경 소음 차단)."""
         gate, _, _ = _make_echo_gate()
         gate._settling_until = time.time() + 10.0  # 10초 settling 강제
-        assert gate.should_process_vad(400.0) is False
+        assert gate.should_process_vad(100.0) is False
 
     def test_settling_high_rms_true(self):
         """Settling 중 RMS 600 → True (VAD 처리 허용)."""
         gate, _, _ = _make_echo_gate()
         gate._settling_until = time.time() + 10.0
         assert gate.should_process_vad(600.0) is True
+
+    def test_settling_uses_lower_rms_threshold(self):
+        """Settling 중 RMS 300이 VAD에 통과 (settling 전용 임계값 200 사용)."""
+        gate, _, _ = _make_echo_gate()
+        gate._settling_until = time.time() + 10.0
+        assert gate.should_process_vad(300.0) is True
+
+    def test_echo_window_uses_high_rms_threshold(self):
+        """Echo window 중 RMS 300은 차단 (echo_energy_threshold_rms=500 사용)."""
+        gate, _, _ = _make_echo_gate()
+        gate.in_echo_window = True
+        # Echo window에서는 should_process_vad가 항상 False
+        assert gate.should_process_vad(300.0) is False
+        # filter_audio는 echo_energy_threshold_rms(500) 기준으로 silence 처리
+        audio = bytes([0xF0] * 160)  # RMS ~300 수준
+        result = gate.filter_audio(audio)
+        assert all(b == 0xFF for b in result)  # 500 미만이므로 silence
 
     def test_after_settling(self):
         """Settling 만료 → RMS 무관 True."""
@@ -342,7 +359,7 @@ class TestBreakSettling:
     async def test_clears_settling_with_grace(self):
         """break_settling() → 100ms grace period 후 is_suppressing=False."""
         local_vad = MagicMock()
-        local_vad.reset_state = MagicMock()
+        local_vad.force_speaking_state = MagicMock()
         session_b = MagicMock()
         session_b.clear_input_buffer = AsyncMock()
         gate = EchoGateManager(
@@ -409,10 +426,10 @@ class TestBreakSettling:
         session_b.clear_input_buffer.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_break_settling_resets_vad(self):
-        """break_settling() → local_vad.reset_state() 호출."""
+    async def test_break_settling_uses_force_speaking(self):
+        """break_settling() → local_vad.force_speaking_state() 호출 (SPEAKING 유지)."""
         local_vad = MagicMock()
-        local_vad.reset_state = MagicMock()
+        local_vad.force_speaking_state = MagicMock()
         session_b = MagicMock()
         session_b.clear_input_buffer = AsyncMock()
         gate = EchoGateManager(
@@ -427,7 +444,7 @@ class TestBreakSettling:
 
         await gate.break_settling()
 
-        local_vad.reset_state.assert_called_once()
+        local_vad.force_speaking_state.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_break_settling_grace_period(self):
@@ -450,7 +467,7 @@ class TestBreakSettling:
     async def test_break_settling_no_reentry(self):
         """2번째 break_settling() 호출 → no-op (_settling_broken 플래그)."""
         local_vad = MagicMock()
-        local_vad.reset_state = MagicMock()
+        local_vad.force_speaking_state = MagicMock()
         session_b = MagicMock()
         session_b.clear_input_buffer = AsyncMock()
         gate = EchoGateManager(

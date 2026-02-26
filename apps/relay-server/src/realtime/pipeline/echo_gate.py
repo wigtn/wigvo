@@ -82,7 +82,7 @@ class EchoGateManager:
         """Settling 중 VAD 처리 여부를 결정한다 (RMS pre-gate).
 
         Echo window 중: False (항상 억제)
-        Settling 중: RMS > echo_energy_threshold_rms(500)이면 True (VAD 처리 허용)
+        Settling 중: RMS > echo_settling_rms_threshold(200)이면 True (VAD 처리 허용)
         Normal: True
 
         NOTE: True를 반환해도 settling을 break하지 않는다.
@@ -91,16 +91,16 @@ class EchoGateManager:
         if self._in_echo_window:
             return False
         if time.time() >= self._settling_until:
-            return True  # Settling 만료
-        # Settling 중: 높은 에너지만 VAD에 전달 (AGC 노이즈 pre-gate)
-        return audio_rms > settings.echo_energy_threshold_rms
+            return True  # settling 만료
+        # Settling 중: 정상 발화 에너지만 VAD에 전달 (에코 이미 감쇠, 200 RMS로 충분)
+        return audio_rms > settings.echo_settling_rms_threshold
 
     async def break_settling(self) -> None:
         """Settling 돌파: 에코 오염 버퍼 폐기 + 100ms grace period.
 
         LocalVAD가 SPEAKING 전환을 확인했을 때 호출.
         1. Session B 입력 버퍼 폐기 (에코 혼합 프레임 제거)
-        2. LocalVAD 상태 리셋 (SILENCE로 복귀 → 깨끗한 오디오로 재감지)
+        2. LocalVAD를 SPEAKING 상태로 강제 전환 (grace period 후 즉시 오디오 통과)
         3. 100ms grace period 유지 (에코 꼬리 감쇠 대기)
         """
         now = time.time()
@@ -116,7 +116,7 @@ class EchoGateManager:
             # 에코 오염 버퍼 폐기
             await self._session_b.clear_input_buffer()
             if self._local_vad is not None:
-                self._local_vad.reset_state()
+                self._local_vad.force_speaking_state()
 
     def on_tts_chunk(self, chunk_size: int) -> bool:
         """TTS 청크 수신 시 호출. echo window 활성화 + 바이트 추적.
