@@ -4,12 +4,26 @@ Cloud Run → JSON stdout (Cloud Logging auto-parsed by severity)
 Local     → Color console + RotatingFileHandler (relay.log + error.log)
 """
 
+import contextvars
 import json
 import logging
 import os
 import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+# 비동기 컨텍스트 변수 — asyncio.create_task 시 자동 복사
+call_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("call_id", default="")
+call_mode_var: contextvars.ContextVar[str] = contextvars.ContextVar("call_mode", default="")
+
+
+class CallContextFilter(logging.Filter):
+    """LogRecord에 call_id와 call_mode를 자동 주입."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.call_id = call_id_var.get()  # type: ignore[attr-defined]
+        record.call_mode = call_mode_var.get()  # type: ignore[attr-defined]
+        return True
 
 
 class CloudRunJsonFormatter(logging.Formatter):
@@ -36,6 +50,13 @@ class CloudRunJsonFormatter(logging.Formatter):
             "function": record.funcName,
             "line": record.lineno,
         }
+        # CallContextFilter가 주입한 call_id/call_mode (빈 문자열이면 생략)
+        call_id = getattr(record, "call_id", "")
+        if call_id:
+            payload["call_id"] = call_id
+        call_mode = getattr(record, "call_mode", "")
+        if call_mode:
+            payload["mode"] = call_mode
         if record.exc_info and record.exc_info[1] is not None:
             payload["exception"] = "".join(traceback.format_exception(*record.exc_info))
         return json.dumps(payload, ensure_ascii=False)
@@ -57,7 +78,11 @@ class ColorConsoleFormatter(logging.Formatter):
         color = self._COLORS.get(record.levelname, self._RESET)
         timestamp = self.formatTime(record, self.datefmt)
         msg = record.getMessage()
-        base = f"{timestamp} {color}[{record.levelname}]{self._RESET} {record.name}: {msg}"
+        # CallContextFilter가 주입한 call_id/call_mode (있을 때만 표시)
+        call_id = getattr(record, "call_id", "")
+        call_mode = getattr(record, "call_mode", "")
+        ctx = f" [{call_id}|{call_mode}]" if call_id else ""
+        base = f"{timestamp} {color}[{record.levelname}]{self._RESET} {record.name}:{ctx} {msg}"
         if record.exc_info and record.exc_info[1] is not None:
             base += "\n" + "".join(traceback.format_exception(*record.exc_info))
         return base
@@ -82,9 +107,12 @@ def setup_logging(
     # Clear any pre-existing handlers (e.g. basicConfig defaults)
     root.handlers.clear()
 
+    # CallContextFilter — 모든 LogRecord에 call_id/call_mode 자동 주입
+    root.addFilter(CallContextFilter())
+
     if is_cloud_run:
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+        handler.setFormatter(CloudRunJsonFormatter())
         root.addHandler(handler)
     else:
         # Color console

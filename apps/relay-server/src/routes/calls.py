@@ -18,6 +18,7 @@ from fastapi import APIRouter, HTTPException
 
 from src.call_manager import call_manager
 from src.config import settings
+from src.logging_config import call_id_var, call_mode_var
 from src.prompt.generator_v3 import generate_session_a_prompt, generate_session_b_prompt
 from src.realtime.sessions.session_manager import DualSessionManager
 from src.tools.definitions import get_tools_for_mode
@@ -39,6 +40,10 @@ async def start_call(req: CallStartRequest):
     """전화 발신을 시작하고 OpenAI Dual Session을 생성한다."""
     if call_manager.get_call(req.call_id):
         raise HTTPException(status_code=409, detail="Call already in progress")
+
+    # 구조화 로깅 컨텍스트 설정 — 이후 모든 로그에 자동 주입
+    call_id_var.set(req.call_id)
+    call_mode_var.set(req.communication_mode.value)
 
     logger.info(
         "Starting call: id=%s, mode=%s, %s→%s",
@@ -145,6 +150,10 @@ async def end_call(call_id: str, req: CallEndRequest | None = None):
     call = call_manager.get_call(call_id)
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
+
+    # 구조화 로깅 컨텍스트 설정
+    call_id_var.set(call_id)
+    call_mode_var.set(call.communication_mode.value)
 
     reason = req.reason if req else "user_hangup"
     logger.info("Ending call: id=%s, reason=%s", call_id, reason)

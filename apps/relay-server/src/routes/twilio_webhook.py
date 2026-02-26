@@ -9,6 +9,7 @@ from fastapi.responses import Response
 
 from src.call_manager import call_manager
 from src.config import settings
+from src.logging_config import call_id_var, call_mode_var
 from src.realtime.audio_router import AudioRouter
 from src.twilio.media_stream import TwilioMediaStreamHandler
 from src.types import WsMessage, WsMessageType
@@ -35,6 +36,7 @@ async def twilio_webhook(call_id: str):
     </Connect>
 </Response>"""
 
+    call_id_var.set(call_id)
     logger.info("TwiML webhook for call_id=%s, stream_url=%s", call_id, stream_url)
     return Response(content=twiml, media_type="application/xml")
 
@@ -52,6 +54,7 @@ async def twilio_status_callback(
     수신자가 전화를 끊으면 completed/busy/no-answer 등이 오며,
     이때 cleanup_call()로 자동 정리한다.
     """
+    call_id_var.set(call_id)
     logger.info(
         "Twilio status callback: call_id=%s, status=%s, sid=%s, duration=%s",
         call_id,
@@ -86,6 +89,10 @@ async def twilio_media_stream(ws: WebSocket, call_id: str):
         logger.error("Twilio Media Stream: call %s not found", call_id)
         await ws.close()
         return
+
+    # 구조화 로깅 컨텍스트 설정 — 이후 모든 하위 태스크에 자동 전파
+    call_id_var.set(call_id)
+    call_mode_var.set(call.communication_mode.value)
 
     # DualSession은 start_call()에서 이미 생성됨 — 재사용
     dual_session = call_manager.get_session(call_id)

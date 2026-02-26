@@ -11,6 +11,7 @@ import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from src.call_manager import call_manager
+from src.logging_config import call_id_var, call_mode_var
 from src.types import WsMessage, WsMessageType
 
 router = APIRouter(tags=["stream"])
@@ -29,6 +30,7 @@ async def app_websocket(ws: WebSocket, call_id: str):
 
     call = call_manager.get_call(call_id)
     if not call:
+        # call 없으면 contextvar 설정 불가 — 에러 후 종료
         await ws.send_json(
             WsMessage(
                 type=WsMessageType.ERROR,
@@ -37,6 +39,10 @@ async def app_websocket(ws: WebSocket, call_id: str):
         )
         await ws.close()
         return
+
+    # 구조화 로깅 컨텍스트 설정
+    call_id_var.set(call_id)
+    call_mode_var.set(call.communication_mode.value)
 
     # App WS를 call_manager에 등록 (AudioRouter가 이 WS로 메시지 전송)
     call_manager.register_app_ws(call_id, ws)
