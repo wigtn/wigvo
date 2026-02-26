@@ -384,7 +384,7 @@ export default function ConversationHistoryPanel() {
       {/* ───── 우측: 대화 상세 ───── */}
       <div
         className={cn(
-          'flex-1 flex flex-col bg-white/28 backdrop-blur-sm',
+          'flex-1 flex flex-col min-h-0 bg-white/28 backdrop-blur-sm',
           // 모바일: detail일 때만 보임
           mobileView === 'detail' ? 'flex' : 'hidden lg:flex',
         )}
@@ -727,7 +727,7 @@ function TranscriptBubble({ entry }: { entry: TranscriptEntry }) {
           'max-w-[80%] rounded-xl px-3 py-1.5 text-xs leading-relaxed',
           isUser
             ? 'bg-[#0F172A] text-white rounded-br-sm'
-            : 'bg-[#F1F5F9] text-[#334155] rounded-bl-sm border border-[#E2E8F0]',
+            : 'bg-white text-[#334155] rounded-bl-sm border border-[#E2E8F0]',
         )}
       >
         {entry.translated_text}
