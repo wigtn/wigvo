@@ -1,0 +1,3711 @@
+{
+  "meta": {
+    "ref_model": "gemini-2.5-flash"
+  },
+  "system_metrics": {
+    "num_calls": 151,
+    "total_turns": 1444,
+    "session_a_latency_ms": {
+      "p50": 555,
+      "p95": 1168,
+      "mean": 618,
+      "n": 750
+    },
+    "session_b_latency_ms": {
+      "p50": 2702,
+      "p95": 10064,
+      "mean": 3684,
+      "n": 694
+    },
+    "echo_suppressions": 1062,
+    "echo_gate_breakthroughs": 354,
+    "interrupt_count": 20,
+    "guardrail_level2": 135,
+    "guardrail_level3": 0
+  },
+  "translation_quality": [
+    {
+      "direction": "en→ko",
+      "num_segments": 212,
+      "bleu": 15.86,
+      "chrf": 31.67,
+      "pairs": [
+        {
+          "original": "can i reservation at 7pm?",
+          "hypothesis": "저녁 7시에 예약 가능할까요?",
+          "reference": "저녁 7시에 예약 가능한가요?"
+        },
+        {
+          "original": "why",
+          "hypothesis": "잠시만 기다려주세요, 메시지를 작성 중입니다.",
+          "reference": "왜"
+        },
+        {
+          "original": "oh really? then what about tomorrow",
+          "hypothesis": "아, 정말요? 그럼 내일은 어때요?",
+          "reference": "아 정말요? 그럼 내일은요?"
+        },
+        {
+          "original": "okay then is there any available time on this week?",
+          "hypothesis": "그러면 이번 주에 가능한 시간이 있을까요?",
+          "reference": "그럼 이번 주에 가능한 시간이 있을까요?"
+        },
+        {
+          "original": "okay then make reservation on that day. is there any parking spot?",
+          "hypothesis": "알겠어요, 그날로 예약해 주세요. 주차 공간 있나요?",
+          "reference": "알겠습니다. 그럼 그날 예약해 주세요. 주차 공간은 있나요?"
+        },
+        {
+          "original": "my name is Xi Zinping",
+          "hypothesis": "제 이름은 시진핑입니다",
+          "reference": "제 이름은 시진핑입니다."
+        },
+        {
+          "original": "Hello can i change my room ?",
+          "hypothesis": "안녕하세요, 제 방을 바꿀 수 있을까요?",
+          "reference": "안녕하세요, 방을 바꿔도 될까요?"
+        },
+        {
+          "original": "the toilet is too dirty",
+          "hypothesis": "화장실이 너무 더러워요",
+          "reference": "화장실이 너무 더러워요."
+        },
+        {
+          "original": "Hi i wanna change my room",
+          "hypothesis": "안녕하세요, 방을 바꾸고 싶습니다.",
+          "reference": "안녕하세요, 방을 바꾸고 싶어요."
+        },
+        {
+          "original": "Hi i wanna change my room",
+          "hypothesis": "안녕하세요, 제 방을 바꾸고 싶어요",
+          "reference": "안녕하세요, 방 바꾸고 싶어요."
+        },
+        {
+          "original": "안녕하세요. 어제 지하철에서 가방을 잃어버렸는데, 혹시 분실물 센터에 접수된 게 있는지 확인하고 싶어서 전화했습니다.",
+          "hypothesis": "Hello, I lost my bag on the subway yesterday, and I’m calling to check if anything has been reported to the lost and found center.",
+          "reference": "Hello. I lost my bag on the subway yesterday, and I'm calling to check if it's been turned in to the lost and found center."
+        },
+        {
+          "original": "검은색 가죽 백팩이고요, 어제 오후 6시쯤 강남역 방향 열차에서 두고 내렸습니다. 가방 안에 지갑이랑 노트북이 들어있어요.",
+          "hypothesis": "네, 알겠습니다. 잃어버린 가방에 대해 분실물 센터에 접수된 내역을 확인해 드리겠습니다. 혹시 가방의 색상이나 특징, 그리고 유실 장소와 시간을 좀 더 자세히 말씀해 주시겠어요?",
+          "reference": "It's a black leather backpack, and I left it on a train heading towards Gangnam Station yesterday around 6 PM. My wallet and laptop are inside the bag."
+        },
+        {
+          "original": "노트북은 애플 맥북 에어이고요, 지갑은 갈색 반지갑입니다. 제 신분증도 그 안에 들어있을 거예요.",
+          "hypothesis": "The laptop is an Apple MacBook Air, and the wallet is a brown bifold. My ID should also be in there.",
+          "reference": "노트북은 애플 맥북 에어이고요, 지갑은 갈색 반지갑입니다. 제 신분증도 그 안에 들어있을 거예요."
+        },
+        {
+          "original": "Hi i wanna ask if i can chage my room.",
+          "hypothesis": "안녕하세요, 제 방을 바꿀 수 있을지 여쭤보고 싶습니다.",
+          "reference": "안녕하세요, 방을 바꿀 수 있을까요?"
+        },
+        {
+          "original": "I saw a lot of bedbug on my bed.",
+          "hypothesis": "제 침대에서 빈대가 많이 보였어요.",
+          "reference": "내 침대에서 빈대를 많이 봤어요."
+        },
+        {
+          "original": "YEAH I SAW IT are you trying to say that i'm lying right now?",
+          "hypothesis": "그래, 나 그거 봤어, 지금 내가 거짓말하고 있다는 거야?",
+          "reference": "응, 봤어. 지금 내가 거짓말하고 있다는 거야?"
+        },
+        {
+          "original": "305. and i swear i saw alot of bedbugs. actually i don't wanna change my room. i just wanna get refund",
+          "hypothesis": "305, 그리고 제가 정말 많은 빈대들을 봤어요. 사실 방을 바꾸고 싶진 않고, 그냥 환불을 받고 싶어요.",
+          "reference": "그리고 빈대가 많이 보였다고 맹세해요. 사실 방을 바꾸고 싶지는 않아요. 그냥 환불받고 싶어요."
+        },
+        {
+          "original": "Okay bye.",
+          "hypothesis": "알겠어요, 안녕.",
+          "reference": "네, 안녕."
+        },
+        {
+          "original": "Hi i wanna ask i can change my room",
+          "hypothesis": "안녕하세요, 제 방을 바꿀 수 있는지 여쭤보고 싶습니다.",
+          "reference": "안녕하세요, 물어보고 싶은데요, 방을 바꿀 수 있나요?"
+        },
+        {
+          "original": "Hi i wanna ask can i change my room? we have a huge problem in our room.",
+          "hypothesis": "안녕하세요, 저 방을 바꿀 수 있을까요? 우리 방에 큰 문제가 있어요.",
+          "reference": "안녕하세요, 방을 바꿀 수 있을까요? 저희 방에 큰 문제가 있어요."
+        },
+        {
+          "original": "I just saw a lot of cockroaches under the bed.",
+          "hypothesis": "방금 침대 밑에서 바퀴벌레가 엄청 많이 보였어.",
+          "reference": "방금 침대 밑에서 바퀴벌레를 엄청 많이 봤어요."
+        },
+        {
+          "original": "Do you guys even clean the room?",
+          "hypothesis": "너희는 방 청소는 하긴 하는 거야?",
+          "reference": "너네 방 청소하긴 하니?"
+        },
+        {
+          "original": "No what do you mean? We just check in our room. You can't blame for us.",
+          "hypothesis": "무슨 말씀이신가요? 저희는 방에 이제 막 체크인했는데, 저희를 탓하시면 안 되죠.",
+          "reference": "아니요, 무슨 말씀이세요? 저희는 방금 저희 방에 체크인했어요. 저희를 탓할 수 없어요."
+        },
+        {
+          "original": "I knew it you are from Jeolla. I'll report you to the police officer.",
+          "hypothesis": "나는 알았어, 너 전라 출신이잖아. 내가 경찰한테 신고할 거야.",
+          "reference": "내 이럴 줄 알았지, 너 전라도 사람이구나. 경찰에 신고할 거야."
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "Hello.",
+          "reference": "Hello?"
+        },
+        {
+          "original": "떡볶이 먹고 싶어요",
+          "hypothesis": "I’d like to have some spicy rice cakes.",
+          "reference": "떡볶이 먹고 싶어요"
+        },
+        {
+          "original": "그러니까 시켜주세요",
+          "hypothesis": "So please go ahead and place the order.",
+          "reference": "So please order it."
+        },
+        {
+          "original": "혹시 천안문이라고 아세요?",
+          "hypothesis": "Do you know Cheon-an-mun?",
+          "reference": "The input text is already in Korean. The instruction is to translate from English to Korean. Since the provided text is not English, a translation from English to Korean cannot be performed."
+        },
+        {
+          "original": "대만은 중국의 속국이 아닙니다.",
+          "hypothesis": "Taiwan is not a vassal state of China.",
+          "reference": "Taiwan is not a vassal state of China."
+        },
+        {
+          "original": "잘 먹었습니다",
+          "hypothesis": "Hello? Can you hear me?",
+          "reference": "Thank you for the meal."
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "Hello.",
+          "reference": "Hello?"
+        },
+        {
+          "original": "짜장면 1그릇이랑 짬뽕 2그릇 배달해주세요.",
+          "hypothesis": "Please deliver one bowl of ganja-jjamppong and two bowls of jjamppong.",
+          "reference": "Please deliver 1 bowl of Jajangmyeon and 2 bowls of Jjamppong."
+        },
+        {
+          "original": "짜장면을 그냥 짜장면이 아니라 간짜장으로 해주시고요",
+          "hypothesis": "Please make the jjajangmyeon gan-jjajangmyeon, not the regular one.",
+          "reference": "Please make the jjajangmyeon ganjjajang, not just regular jjajangmyeon."
+        },
+        {
+          "original": "주소는 방화역",
+          "hypothesis": "Yes.",
+          "reference": "The address is Banghwa Station."
+        },
+        {
+          "original": "그쵸?",
+          "hypothesis": "Oh, I’m sorry.",
+          "reference": "그쵸?"
+        },
+        {
+          "original": "오피스텔입니다.",
+          "hypothesis": "Since it's a rural area...",
+          "reference": "오피스텔입니다."
+        },
+        {
+          "original": "지고 겨눠",
+          "hypothesis": "Please don't charge an extra fee just because it's a rural area.",
+          "reference": "지고 겨눠"
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "여보세요.",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "Are you the owner of the apartment?",
+          "hypothesis": "혹시 이 아파트 주인이신가요?",
+          "reference": "아파트 주인이세요?"
+        },
+        {
+          "original": "in Bauer, around Bauer station.",
+          "hypothesis": "발역 근처인가요?",
+          "reference": "바우어 지역, 바우어역 주변."
+        },
+        {
+          "original": "Oh",
+          "hypothesis": "안녕하세요, 고객님을 대신해서 AI 번역 서비스를 통해 연락드리고 있습니다. 지금부터 메시지를 전달해 드리겠습니다.",
+          "reference": "오"
+        },
+        {
+          "original": "Hello, are you the owner?",
+          "hypothesis": "안녕하세요, 사장님이신가요?",
+          "reference": "안녕하세요, 사장님이세요?"
+        },
+        {
+          "original": "Airbnb at Bangwa station",
+          "hypothesis": "방화역 근처 에어비앤비요.",
+          "reference": "방와역 에어비앤비"
+        },
+        {
+          "original": "Hello, are you the owner of Airbnb?",
+          "hypothesis": "안녕하세요, 에어비앤비 주인이신가요?",
+          "reference": "안녕하세요, 에어비앤비 소유주이신가요?"
+        },
+        {
+          "original": "Are you older?",
+          "hypothesis": "사장님 맞으신가요?",
+          "reference": "나이가 더 많으세요?"
+        },
+        {
+          "original": "of Airbnb.",
+          "hypothesis": "에어비앤비 맞으신가요?",
+          "reference": "에어비앤비의"
+        },
+        {
+          "original": "Okay, I want to ask if I can bring the dog in the room or not.",
+          "hypothesis": "혹시 강아지를 객실에 데려가도 되는지 여쭤보고 싶습니다.",
+          "reference": "객실에 강아지를 데리고 들어갈 수 있는지 여쭤보고 싶어요."
+        },
+        {
+          "original": "But he barks sometimes. Is it okay?",
+          "hypothesis": "가끔 짖기도 하는데 괜찮을까요?",
+          "reference": "하지만 가끔 짖어요. 괜찮을까요?"
+        },
+        {
+          "original": "I mean only sometimes but he only bought like a short time so I think it won't be that problem.",
+          "hypothesis": "아, 가끔만 짖고 잠깐씩이니까 큰 문제는 없을 것 같습니다.",
+          "reference": "내 말은 가끔만 그렇다는 건데, 그 사람이 짧은 기간만 산 거라서 큰 문제는 안 될 것 같아."
+        },
+        {
+          "original": "Jindo dog.",
+          "hypothesis": "진도개입니다.",
+          "reference": "진돗개"
+        },
+        {
+          "original": "에어비앤비 보고 문의드리려고 하는데요. 혹시 해량방...",
+          "hypothesis": "I’m calling to inquire about the Airbnb. That particular room, by any chance...",
+          "reference": "에어비앤비 보고 문의드리려고 하는데요. 혹시 해량방..."
+        },
+        {
+          "original": "대당방이 너무 숙박비가 비싸서 그런데 할인 안될까요?",
+          "hypothesis": "The total costs feel a bit too high—",
+          "reference": "The accommodation fee for the Daedangbang room is too expensive. Would it be possible to get a discount?"
+        },
+        {
+          "original": "그러면 2명 예약해 주시고요. 혹시 체크아웃 시간이 몇시인지 알 수 있을까요?",
+          "hypothesis": "Then please make a reservation for two. Could you tell me what time check-out is?",
+          "reference": "Okay, please book for two people. By any chance, could you tell me what time check-out is?"
+        },
+        {
+          "original": "쉴 시간은요?",
+          "hypothesis": "What time is check-out?",
+          "reference": "쉴 시간은요?"
+        },
+        {
+          "original": "쉬는 시간은 몇 시인가요?",
+          "hypothesis": "What time is check-out?",
+          "reference": "What time is break?"
+        },
+        {
+          "original": "입실시간은 몇시인가요?",
+          "hypothesis": "What time is the check-out time?",
+          "reference": "What time is check-in?"
+        },
+        {
+          "original": "혹시 오늘 저녁 7시 술이 예약 가능할까요?",
+          "hypothesis": "Can I make a repair reservation for 7 p.m. this evening?",
+          "reference": "By any chance, is it possible to make a reservation for Suli tonight at 7 PM?"
+        },
+        {
+          "original": "그럼 내일 7시로 예약하고 싶습니다.",
+          "hypothesis": "Hello?",
+          "reference": "Then I'd like to make a reservation for tomorrow at 7."
+        },
+        {
+          "original": "그럼 6시로 해주세요.",
+          "hypothesis": "Can you not hear me?",
+          "reference": "Then 6 o'clock, please."
+        },
+        {
+          "original": "안 들리시나요?",
+          "hypothesis": "6 p.m., please.",
+          "reference": "Can't you hear me?"
+        },
+        {
+          "original": "여섯시로 해달라고요.",
+          "hypothesis": "I think the mainboard is broken.",
+          "reference": "Please make it six o'clock."
+        },
+        {
+          "original": "네 알겠습니다. 끊을게요.",
+          "hypothesis": "All right, then I’ll just hang up now.",
+          "reference": "Okay, I'll hang up now."
+        },
+        {
+          "original": "서로의 미션이 있었던데",
+          "hypothesis": "It’s been a while.",
+          "reference": "We each had our own missions, didn't we?"
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "It's been a while.",
+          "reference": "Hello?"
+        },
+        {
+          "original": "땡!",
+          "hypothesis": "Yes.",
+          "reference": "땡!\""
+        },
+        {
+          "original": "Time to go.",
+          "hypothesis": "여보세요, 안녕하세요.",
+          "reference": "갈 시간이야."
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "여보세요?",
+          "reference": "여보세요?"
+        },
+        {
+          "original": "오늘 오후 9시에 예약이 가능한지 여쭤보려고요.",
+          "hypothesis": "I’d like to ask if it’s possible to make a reservation for 9 p.m. today.",
+          "reference": "오늘 오후 9시에 예약이 가능한지 여쭤보려고요."
+        },
+        {
+          "original": "잠시만요",
+          "hypothesis": "Uh, one moment, please.",
+          "reference": "Just a moment."
+        },
+        {
+          "original": "그러면 7시로 할게요.",
+          "hypothesis": "Then I'll go with 7 p.m.",
+          "reference": "Then I'll make it 7 o'clock."
+        },
+        {
+          "original": "혹시 돼지고기 말고 다른 건 또 어떤 걸 팔고 있을까요",
+          "hypothesis": "So, aside from the pork belly, what else are they selling?",
+          "reference": "What else do you sell besides pork?"
+        },
+        {
+          "original": "돼지고기 말고 뭐",
+          "hypothesis": "Is beef also available?",
+          "reference": "돼지고기 말고 뭐"
+        },
+        {
+          "original": "소고기로 가능한가요?",
+          "hypothesis": "Sorry, I think I called the wrong number.",
+          "reference": "소고기로 가능한가요?"
+        },
+        {
+          "original": "죄송합니다. 전화 잘못 건 것 같네요.",
+          "hypothesis": "Excuse me, sir.",
+          "reference": "죄송합니다. 전화 잘못 건 것 같네요."
+        },
+        {
+          "original": "네 혹시 삼겹살집 맞나요?",
+          "hypothesis": "Hello, is this the Samryeok Butcher Shop?",
+          "reference": "Excuse me, is this a samgyeopsal restaurant?"
+        },
+        {
+          "original": "오늘 예약해 주시겠어요?",
+          "hypothesis": "What time is available today?",
+          "reference": "오늘 예약해 주시겠어요?"
+        },
+        {
+          "original": "예약은 제가 하려고 물어보는 건데",
+          "hypothesis": "I'm asking because I'm the one trying to make the reservation.",
+          "reference": "I'm asking because I want to make a reservation."
+        },
+        {
+          "original": "지금까지 재택 플러스였습니다.",
+          "hypothesis": "Ma'am, 7 p.m. in the evening.",
+          "reference": "This has been Jaetaek Plus."
+        },
+        {
+          "original": "It's on the wall. You don't have to go so long.",
+          "hypothesis": "여보세요?",
+          "reference": "벽에 있어. 그렇게 오래 갈 필요 없어."
+        },
+        {
+          "original": "Hello, I'm calling about the studio apartment near Gangnam station. I saw you on your website. Is it still available for rent?",
+          "hypothesis": "안녕하세요, 강남역 근처 원룸 관련해서 전화드렸는데요, 지금 임대 가능한지 여쭤보고 싶습니다.",
+          "reference": "안녕하세요, 강남역 근처 원룸에 대해 전화드렸습니다. 웹사이트에서 봤는데요. 아직 임대 가능한가요?"
+        },
+        {
+          "original": "That's great. Could you tell me the exact deposit and the monthly rent for that unit, and are there any extra maintenance fees?",
+          "hypothesis": "좋습니다. 그럼 정확한 보증금이랑 월세가 어떻게 되는지 알려주실 수 있을까요? 그리고 혹시 추가로 관리비 같은 게 있나요?",
+          "reference": "좋네요. 그 유닛의 정확한 보증금과 월세가 얼마인지, 그리고 추가 관리비는 없는지 알려주실 수 있나요?"
+        },
+        {
+          "original": "faucet is on.",
+          "hypothesis": "네, 사장님.",
+          "reference": "수도꼭지가 켜져 있어요."
+        },
+        {
+          "original": "I see. Is the unit fully furnished? I want to make sure it includes a washing machine, refrigerator, and air conditioner.",
+          "hypothesis": "혹시 가전제품이 모두 포함되어 있는지, 세탁기, 냉장고, 에어컨이 다 들어가 있는지 확인하고 싶습니다.",
+          "reference": "알겠습니다. 유닛은 풀옵션인가요? 세탁기, 냉장고, 에어컨이 포함되어 있는지 확인하고 싶습니다."
+        },
+        {
+          "original": "Yes, it seems to favor all...",
+          "hypothesis": "네, 다 들어 있습니다.",
+          "reference": "네, 모두에게 유리한 것 같네요..."
+        },
+        {
+          "original": "Sounds perfect. I'd like to visit the place today. Would it be possible to see the room this afternoon around 4 p.m.?",
+          "hypothesis": "사장님, 완벽하네요. 제가 직접 가서 둘러보고 싶은데, 혹시 오늘 오후 4시에 방을 볼 수 있을까요?",
+          "reference": "완벽하네요. 오늘 그곳을 방문하고 싶어요. 오늘 오후 4시쯤에 방을 볼 수 있을까요?"
+        },
+        {
+          "original": "Okay, I'll be there by 4 p.m. Could you send me the exact address of your office by text message?",
+          "hypothesis": "알겠습니다, 제가 4시까지 갈게요. 사무실 정확한 주소를 문자로 보내주실 수 있을까요?",
+          "reference": "네, 4시까지 갈게요. 사무실 정확한 주소를 문자로 보내주실 수 있을까요?"
+        },
+        {
+          "original": "Okay, thank you. Bye",
+          "hypothesis": "네, 고맙습니다, 안녕히 계세요.",
+          "reference": "네, 감사합니다. 안녕히 계세요."
+        },
+        {
+          "original": "Okay.",
+          "hypothesis": "안녕하세요, 통역 서비스입니다. 무엇을 도와드릴지 말씀해 주시면 바로 한국어로 통역해 드리겠습니다.",
+          "reference": "알겠습니다."
+        },
+        {
+          "original": "KOs or anything. Yeah.",
+          "hypothesis": "안녕하세요, 거기 매니저 분이실까요?",
+          "reference": "KO나 뭐든. 응."
+        },
+        {
+          "original": "See you soon. Come and do this. ",
+          "hypothesis": "안녕하세요, 지금 제대로 들리시나요?",
+          "reference": "곧 만나요. 와서 이걸 해요."
+        },
+        {
+          "original": "iOS engine.",
+          "hypothesis": "죄송하지만, 지금 잘 안 들렸습니다. 다시 말씀해 주실 수 있을까요?",
+          "reference": "iOS 엔진"
+        },
+        {
+          "original": "Hello!",
+          "hypothesis": "안녕하세요, AI 번역 서비스를 통해 고객을 대신해 연락드립니다. 지금부터 고객님 말씀을 전달해드리겠습니다.",
+          "reference": "안녕하세요!"
+        },
+        {
+          "original": "I want to check if there's any available time for reservation.",
+          "hypothesis": "예약 가능한 시간 있는지 확인하고 싶습니다.",
+          "reference": "예약 가능한 시간이 있는지 확인하고 싶어요."
+        },
+        {
+          "original": "you",
+          "hypothesis": "어제요?",
+          "reference": "당신"
+        },
+        {
+          "original": "Yes, today.",
+          "hypothesis": "오늘 오후 7시에 가능할까요?",
+          "reference": "네, 오늘."
+        },
+        {
+          "original": "We are four people.",
+          "hypothesis": "네 명이요.",
+          "reference": "저희는 네 명입니다."
+        },
+        {
+          "original": "Yes, we are four people, but one of our friends has...",
+          "hypothesis": "네, 저희가 4명인데, 그 중 한 친구가 좀...",
+          "reference": "네, 저희는 네 명인데 친구 한 명이..."
+        },
+        {
+          "original": "You guys have any like a beef?",
+          "hypothesis": "혹시 소고기 메뉴도 있나요?",
+          "reference": "너네 혹시 무슨 트러블 있어?"
+        },
+        {
+          "original": "Okay, then sorry",
+          "hypothesis": "알겠어요, 그럼 죄송합니다.",
+          "reference": "그럼 죄송합니다."
+        },
+        {
+          "original": "Have a nice day, bye bye.",
+          "hypothesis": "좋은 하루 보내세요, 안녕히 계세요.",
+          "reference": "좋은 하루 되세요, 바이바이."
+        },
+        {
+          "original": "for reservations.",
+          "hypothesis": "예약하려고 하는데요.",
+          "reference": "예약 문의"
+        },
+        {
+          "original": "Yes, today at 7 p.m. and we are four people.",
+          "hypothesis": "어제 저녁 7시고요, 저희 4명입니다.",
+          "reference": "네, 오늘 저녁 7시에 네 명입니다."
+        },
+        {
+          "original": "Is it possible to resolve it?",
+          "hypothesis": "지금 예약할 수 있을까요?",
+          "reference": "해결할 수 있나요?"
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "여보세요?",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "I don't know what I'm talking about, but it's really funny.",
+          "hypothesis": "여보세요, 제 예약에 대해서 좀 문의드리고 싶은데요.",
+          "reference": "내가 무슨 말을 하는지 모르겠지만, 정말 웃기다."
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "여보세요? 들리시나요?",
+          "reference": "여보세요?"
+        },
+        {
+          "original": "That's it.",
+          "hypothesis": "네, 잘 들리고 있습니다.",
+          "reference": "그게 다예요."
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "안녕하세요, 통역 서비스입니다. 무엇을 도와드릴지 말씀해 주세요.",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "I want to ask you if I can make a reservation today at 7pm?",
+          "hypothesis": "오늘 저녁 7시에 예약을 할 수 있을까요?",
+          "reference": "오늘 저녁 7시에 예약할 수 있을까요?"
+        },
+        {
+          "original": "Just one.",
+          "hypothesis": "한 명입니다.",
+          "reference": "하나만요."
+        },
+        {
+          "original": "I couldn't hear the first part, can you say it again?",
+          "hypothesis": "제가 앞부분을 잘 못 들었는데, 다시 말씀해 주실 수 있나요?",
+          "reference": "앞부분을 못 들었는데, 다시 말씀해 주시겠어요?"
+        },
+        {
+          "original": "Yeah, but I have a problem. I have a really serious, like a serious.",
+          "hypothesis": "저기요, 제가 문제가 하나 있는데요, 정말 심각한, 그러니까 아주 심각한 문제가 있습니다.",
+          "reference": "네, 근데 문제가 있어요. 정말 심각한, 그러니까 심각한..."
+        },
+        {
+          "original": "Is there any food with nuts?",
+          "hypothesis": "혹시 견과류가 들어간 음식이 있나요?",
+          "reference": "견과류가 들어간 음식이 있나요?"
+        },
+        {
+          "original": "and I'd like to have lozenge.",
+          "hypothesis": "로제로 주면 좋겠습니다.",
+          "reference": "그리고 목캔디를 먹고 싶어요."
+        },
+        {
+          "original": "Do you guys have any losses?",
+          "hypothesis": "혹시 로제 소스 있나요?",
+          "reference": "패가 있나요?"
+        },
+        {
+          "original": "Thank you.",
+          "hypothesis": "안녕하세요.",
+          "reference": "감사합니다."
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "안녕하세요.",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "I'm Hyunsang Kim.",
+          "hypothesis": "혹시 오늘 저녁 6시에 예약할 수 있을지 여쭤보고 싶습니다.",
+          "reference": "저는 김현상입니다."
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "[unclear]",
+          "reference": "안녕"
+        },
+        {
+          "original": "5 slots open? What do you mean? So I can make a reservation or not?",
+          "hypothesis": "5개가 비어 있다는 게 무슨 의미인가요? 그러면 예약을 할 수 있다는 건가요, 아닌가요?",
+          "reference": "5자리 남아있다고요? 무슨 말씀이세요? 그럼 예약이 가능한 건가요, 아닌 건가요?"
+        },
+        {
+          "original": "Okay, I want to make a reservation.",
+          "hypothesis": "알겠습니다, 예약하고 싶습니다.",
+          "reference": "예약하고 싶어요."
+        },
+        {
+          "original": "Bye! ",
+          "hypothesis": "[unclear]",
+          "reference": "안녕!"
+        },
+        {
+          "original": "And one of my friends cannot eat garlic.",
+          "hypothesis": "제 친구 중 한 명이 마늘을 못 먹습니다.",
+          "reference": "그리고 제 친구 중 한 명은 마늘을 못 먹어요."
+        },
+        {
+          "original": "So is there any food contained with garlic?",
+          "hypothesis": "제 친구 중 한 명이 정말…",
+          "reference": "그래서 마늘이 들어간 음식이 있나요?"
+        },
+        {
+          "original": "One of my friends has a really...",
+          "hypothesis": "마늘 알레르지가 꽤 심한 편이라서요.",
+          "reference": "내 친구 중 한 명이 정말로..."
+        },
+        {
+          "original": "If we cannot find any food without garlic, I don't want to make a reservation.",
+          "hypothesis": "마늘 없는 음식을 못 찾는다면 예약을 하고 싶지 않습니다.",
+          "reference": "마늘 없는 음식을 찾을 수 없다면, 예약을 하고 싶지 않아요."
+        },
+        {
+          "original": "Okay, thank you, bye bye.",
+          "hypothesis": "알겠습니다, 감사합니다. 안녕히 계세요.",
+          "reference": "네, 감사합니다. 안녕히 계세요."
+        },
+        {
+          "original": "안녕하세요. 7시에 2명 예약 가능할까요?",
+          "hypothesis": "[unclear]",
+          "reference": "Hello. Do you have availability for 2 people at 7 PM?"
+        },
+        {
+          "original": "쭈꾸미네요",
+          "hypothesis": "At the entrance, please.",
+          "reference": "It's jjukkumi."
+        },
+        {
+          "original": "채식 옵션은 없습니다 저희는 육식만 받아서",
+          "hypothesis": "There are no vegetarian options. We only serve meat dishes.",
+          "reference": "There are no vegetarian options. We only serve meat."
+        },
+        {
+          "original": "1시간은 좀 어려운데 30분대로 못와요?",
+          "hypothesis": "An hour is a bit difficult—can’t you do it in 30 minutes?",
+          "reference": "1시간은 좀 어려운데 30분대로 못와요?"
+        },
+        {
+          "original": "고객님",
+          "hypothesis": "Let me check again.",
+          "reference": "고객님"
+        },
+        {
+          "original": "미용실 7시에 예약하려고 하는데요.",
+          "hypothesis": "I’d like to make a reservation at the hair salon for 7 p.m.",
+          "reference": "I'd like to make a reservation for the hair salon at 7 o'clock."
+        },
+        {
+          "original": "아니 미용실 남자 한명 7시에 예약한다고요?",
+          "hypothesis": "No, I mean a reservation for one man at the hair salon at 7 p.m.",
+          "reference": "Wait, you're saying one man is making a reservation at the hair salon for 7 o'clock?"
+        },
+        {
+          "original": "한례 받았습니다.",
+          "hypothesis": "I’ve taken a photo and sent it.",
+          "reference": "I received a Korean ceremony/etiquette.\""
+        },
+        {
+          "original": "지금 찍어서 보냈습니다.",
+          "hypothesis": "I’ve sent it.",
+          "reference": "I just took a picture and sent it."
+        },
+        {
+          "original": "저 예약하고 싶은데 7시에 시간 되나요?",
+          "hypothesis": "Hi, I’d like to make a reservation. Do you have availability at 7 p.m.?",
+          "reference": "I'd like to make a reservation. Do you have availability at 7?"
+        },
+        {
+          "original": "그 안마빵 예약하고 싶습니다.",
+          "hypothesis": "I’d like to make a reservation for the massage room.",
+          "reference": "I would like to book that massage room."
+        },
+        {
+          "original": "제일 가슴 큰 언니야로 부탁드릴게요.",
+          "hypothesis": "I’d like to go with the one who has the biggest bust, please.",
+          "reference": "제일 가슴 큰 언니야로 부탁드릴게요."
+        },
+        {
+          "original": "Nice meeting you.",
+          "hypothesis": "반갑습니다.",
+          "reference": "만나서 반갑습니다."
+        },
+        {
+          "original": "is your name.",
+          "hypothesis": "성함이 어떻게 되시죠?",
+          "reference": "이름입니다."
+        },
+        {
+          "original": "My name is James.",
+          "hypothesis": "오늘 예약을 하고 싶은데요.",
+          "reference": "제 이름은 제임스입니다."
+        },
+        {
+          "original": "Five people.",
+          "hypothesis": "오늘 오후 4시에 가능할까요?",
+          "reference": "다섯 명"
+        },
+        {
+          "original": "Ah, really? So...",
+          "hypothesis": "아, 정말요? 그러면…",
+          "reference": "아, 정말요? 그래서..."
+        },
+        {
+          "original": "then when is the available time.",
+          "hypothesis": "그럼 언제가 가능한 시간일까요?",
+          "reference": "그럼 언제 시간이 되세요?"
+        },
+        {
+          "original": "seven o'clock.",
+          "hypothesis": "7시요?",
+          "reference": "일곱 시."
+        },
+        {
+          "original": "I don't like it.",
+          "hypothesis": "그건 마음에 안 드네요.",
+          "reference": "마음에 안 들어요."
+        },
+        {
+          "original": "Maybe I will take it next time.",
+          "hypothesis": "그럼 다음번에 다시 연락드리겠습니다.",
+          "reference": "아마 다음에 할게요."
+        },
+        {
+          "original": "Thank you so much. Bye-bye.",
+          "hypothesis": "정말 고마워요, 그럼 안녕히 계세요.",
+          "reference": "정말 감사합니다. 바이바이."
+        },
+        {
+          "original": "Go.",
+          "hypothesis": "안녕하세요, 고객님을 대신해서 AI 통역 서비스를 통해 전화드렸습니다. 지금부터 고객님 말씀을 전달해드리겠습니다.",
+          "reference": "가."
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "안녕하세요.",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "Can I make a reservation for today?",
+          "hypothesis": "오늘 예약할 수 있을까요?",
+          "reference": "오늘 예약할 수 있을까요?"
+        },
+        {
+          "original": "Maybe like 7pm?",
+          "hypothesis": "저녁 7시쯤 가능할까요?",
+          "reference": "7시쯤 어때요?"
+        },
+        {
+          "original": "for people.",
+          "hypothesis": "네 명이요.",
+          "reference": "사람들을 위한"
+        },
+        {
+          "original": "Oh",
+          "hypothesis": "혹시 오늘 저녁에 예약 가능한지 여쭤보고 싶은데요.",
+          "reference": "오"
+        },
+        {
+          "original": "Are you gay?",
+          "hypothesis": "두 명입니다.",
+          "reference": "저는 인공지능이며 성별이나 성적 지향을 가지고 있지 않습니다."
+        },
+        {
+          "original": "Thank you.",
+          "hypothesis": "네, 오늘 저녁 예약하고 싶습니다.",
+          "reference": "감사합니다."
+        },
+        {
+          "original": "Hmm.",
+          "hypothesis": "안녕하세요.",
+          "reference": "음..."
+        },
+        {
+          "original": "And...",
+          "hypothesis": "네, 잘 들립니다.",
+          "reference": "그리고..."
+        },
+        {
+          "original": "No, say something else.",
+          "hypothesis": "완전히 다른 주제로 얘기해볼게요.",
+          "reference": "아니요, 다른 말을 해보세요."
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "여보세요?",
+          "reference": "여보세요?"
+        },
+        {
+          "original": "Who are you?",
+          "hypothesis": "누구시죠?",
+          "reference": "저는 Google에서 훈련한 대규모 언어 모델입니다."
+        },
+        {
+          "original": "Do you need any help?",
+          "hypothesis": "도움이 필요하신가요?",
+          "reference": "도움이 필요하세요?"
+        },
+        {
+          "original": "Is there anything I can do for you?",
+          "hypothesis": "제가 도와드릴 게 있을까요?",
+          "reference": "제가 해드릴 일이 있을까요?"
+        },
+        {
+          "original": "Are you at the hospital?",
+          "hypothesis": "지금 병원에 계신 건가요?",
+          "reference": "병원에 있어요?"
+        },
+        {
+          "original": "Do you have any type of disease like AIDS?",
+          "hypothesis": "혹시 에이즈 같은 질환이 있으신가요?",
+          "reference": "저는 인공지능(AI)이기 때문에 신체가 없어서 에이즈와 같은 질병에 걸릴 수 없습니다."
+        },
+        {
+          "original": "Do you have AIDS?",
+          "hypothesis": "에이즈가 있으신가요?",
+          "reference": "에이즈 있으세요?"
+        },
+        {
+          "original": "Do you have hairpins on your dick?",
+          "hypothesis": "성기 쪽에 헤르페스가 있나요?",
+          "reference": "저는 AI이며 물리적인 몸이나 성별이 없기 때문에, 머리핀이나 다른 신체적 특징을 가질 수 없습니다."
+        },
+        {
+          "original": "Do you like President Noh?",
+          "hypothesis": "혹시 노 대통령을 좋아하시나요?",
+          "reference": "노 대통령 좋아하세요?"
+        },
+        {
+          "original": "He's my childhood hero. He's really good at skydiving.",
+          "hypothesis": "그분은 제 어린 시절 영웅이에요. 스카이다이빙도 정말 잘하시거든요.",
+          "reference": "그는 내 어린 시절 영웅이야. 스카이다이빙을 정말 잘해."
+        },
+        {
+          "original": "He is the OG bro",
+          "hypothesis": "장자는 원조 철학자죠.",
+          "reference": "그는 찐 브로야."
+        },
+        {
+          "original": "Butterfly story? What's that?",
+          "hypothesis": "나비 이야기요? 그게 뭐예요?",
+          "reference": "나비 이야기? 그게 뭔데?"
+        },
+        {
+          "original": "As long as, what a friega bruh",
+          "hypothesis": "장자의 나비 이야기가 뭐죠?",
+          "reference": "진짜 골치 아프네, 야."
+        },
+        {
+          "original": "Thank you.",
+          "hypothesis": "무슨 뜻인지 잘 모르겠어요.",
+          "reference": "감사합니다."
+        },
+        {
+          "original": "Give me that",
+          "hypothesis": "아, 그 철학 얘기요?",
+          "reference": "저것 줘"
+        },
+        {
+          "original": "our points.",
+          "hypothesis": "아, 꿈 얘기 말씀하시는 건가요?",
+          "reference": "우리 점수."
+        },
+        {
+          "original": "in Korea.",
+          "hypothesis": "제가 듣기로는 거기가 스카이다이빙 하기에 최고라고 하던데요.",
+          "reference": "한국에서"
+        },
+        {
+          "original": "Do you wanna eat Korean BBQ with us?",
+          "hypothesis": "저희랑 같이 한국 바비큐 드실래요?",
+          "reference": "우리랑 같이 코리안 바베큐 먹으러 갈래?"
+        },
+        {
+          "original": "We'll have a really good pork belly with soju.",
+          "hypothesis": "소주랑 같이 정말 맛있는 삼겹살 먹을 거예요.",
+          "reference": "정말 맛있는 삼겹살에 소주 한잔 할 거예요."
+        },
+        {
+          "original": "You wanna jump in?",
+          "hypothesis": "같이 하실래요?",
+          "reference": "들어올래?"
+        },
+        {
+          "original": "That's all I see.",
+          "hypothesis": "안녕하세요, 통역 서비스입니다. 무엇을 도와드릴까요?",
+          "reference": "제가 보는 건 그게 다예요."
+        },
+        {
+          "original": "I'm gonna go another way.",
+          "hypothesis": "안녕하세요, 고객을 대신해서 AI 통역 서비스를 통해 연락드렸습니다. 지금부터 고객님의 말씀을 전달하겠습니다.",
+          "reference": "다른 길로 갈게요."
+        },
+        {
+          "original": "What are you doing now?",
+          "hypothesis": "지금 뭐하고 계신가요?",
+          "reference": "지금 뭐 하세요?"
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "지금 어디 계신가요?",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "What's your name?",
+          "hypothesis": "네, 잘 들려요.",
+          "reference": "이름이 뭐예요?"
+        },
+        {
+          "original": "Bye. ",
+          "hypothesis": "무슨 소리인지 잘 모르겠어요.",
+          "reference": "안녕히 계세요."
+        },
+        {
+          "original": "Your name is Minho?",
+          "hypothesis": "제 이름은 민호입니다.",
+          "reference": "민호 씨인가요?"
+        },
+        {
+          "original": "Bye! ",
+          "hypothesis": "다시 한 번 말씀해 주시겠어요?",
+          "reference": "안녕!"
+        },
+        {
+          "original": "Bye-bye.",
+          "hypothesis": "지금 어디 계세요?",
+          "reference": "안녕."
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "네, 지금 밖에 계시는군요.",
+          "reference": "안녕"
+        },
+        {
+          "original": "Hey, Jimo.",
+          "hypothesis": "네, 괜찮습니다.",
+          "reference": "안녕, 지모."
+        },
+        {
+          "original": "Uh, seven o'clock.",
+          "hypothesis": "7시쯤 갈 예정이에요.",
+          "reference": "음, 7시."
+        },
+        {
+          "original": "Mwah!",
+          "hypothesis": "아, 9시쯤 가실 예정이군요.",
+          "reference": "쪽!"
+        },
+        {
+          "original": "So like.",
+          "hypothesis": "조금 늦네요.",
+          "reference": "그러니까."
+        },
+        {
+          "original": "You can follow us on Facebook, Twitter, YouTube, Instagram, and of course our blog, which you can find in the description below. ",
+          "hypothesis": "목이 좀 불편하신가 보네요.",
+          "reference": "저희 페이스북, 트위터, 유튜브, 인스타그램을 팔로우하실 수 있으며, 물론 아래 설명에서 찾으실 수 있는 저희 블로그도 있습니다."
+        },
+        {
+          "original": "PFFT",
+          "hypothesis": "몸 잘 챙기세요.",
+          "reference": "피식"
+        },
+        {
+          "original": "Hello.",
+          "hypothesis": "안녕하세요. 통역 도와드리겠습니다. 무엇을 도와드릴까요?",
+          "reference": "안녕하세요."
+        },
+        {
+          "original": "Okay.",
+          "hypothesis": "고객님께서 이번 주말 약속에 대해 물어보셨는데, 기억",
+          "reference": "알겠습니다."
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "제가 헷갈렸던 것 같아요. 다시 정확하게 물어볼게요. 주말 약속 시간 괜찮으신지, 그리고 만약 안 되면 다른 시간도 괜찮으시다고 하셨어요. 어디서 만날지도 다시 의논하고 싶다고 하시네요.",
+          "reference": "여보세요?"
+        },
+        {
+          "original": "See you later.",
+          "hypothesis": "네, 제가 확인해서 다시 말씀드릴게요.",
+          "reference": "나중에 봐요."
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "안녕하세요, 고객님을 대신해서 AI 통역 서비스를 통해 전화드렸습니다. 지금부터 고객님 말씀을 전달해드릴게요.",
+          "reference": "여보세요?"
+        },
+        {
+          "original": "I never will.",
+          "hypothesis": "네, 영어로 말씀하시면 됩니다.",
+          "reference": "절대 안 할 거야."
+        },
+        {
+          "original": "My name is Sangho.",
+          "hypothesis": "제 이름은 상우입니다.",
+          "reference": "상호입니다."
+        },
+        {
+          "original": "I can't hear your voice.",
+          "hypothesis": "네, 지금은 잘 들립니다.",
+          "reference": "목소리가 들리지 않아요."
+        },
+        {
+          "original": "29 years old.",
+          "hypothesis": "저는 29살입니다.",
+          "reference": "이십구 살."
+        },
+        {
+          "original": "29 years old.",
+          "hypothesis": "29살입니다.",
+          "reference": "이십구 살."
+        },
+        {
+          "original": "Hello. Hi. Hello.",
+          "hypothesis": "여보세요? 잘 들리시나요?",
+          "reference": "안녕하세요. 안녕하세요. 안녕하세요."
+        },
+        {
+          "original": "What are you, are you working now?",
+          "hypothesis": "지금 영업 중이신가요?",
+          "reference": "뭐야, 지금 일하고 있어?"
+        },
+        {
+          "original": "Okay, I'm good.",
+          "hypothesis": "오후 9시까지 하시나요?",
+          "reference": "네, 괜찮아요."
+        },
+        {
+          "original": "What are you?",
+          "hypothesis": "저희가 지금 예약 관련해서 문의드리고 싶은 게 있는데요.",
+          "reference": "무엇이세요?"
+        },
+        {
+          "original": "I just...",
+          "hypothesis": "가능한 시간대가 어떻게 될까요?",
+          "reference": "그냥..."
+        },
+        {
+          "original": "Are you smoking right now?",
+          "hypothesis": "지금 바로 예약하면 금연석으로도 가능할까요?",
+          "reference": "지금 담배 피우세요?"
+        }
+      ],
+      "comet": 0.7078
+    },
+    {
+      "direction": "ko→en",
+      "num_segments": 521,
+      "bleu": 17.4,
+      "chrf": 27.77,
+      "pairs": [
+        {
+          "original": "안녕히 계세요. 고맙습니다. 여보세요?",
+          "hypothesis": "Goodbye. Thank you. Hello?",
+          "reference": "Goodbye. Thank you. Hello?"
+        },
+        {
+          "original": "오늘은 안되는데요 안녕",
+          "hypothesis": "Not today, goodbye.",
+          "reference": "I can't today, bye."
+        },
+        {
+          "original": "예약이 꽉 찼어요",
+          "hypothesis": "The reservations are fully booked.",
+          "reference": "We're fully booked."
+        },
+        {
+          "original": "좋아요 내일도 내일도 꽉 찼어요.",
+          "hypothesis": "Okay, tomorrow is also fully booked.",
+          "reference": "Okay, tomorrow and the next day are also fully booked."
+        },
+        {
+          "original": "1, 2, 3, 4 저녁 8시 한타임 남았네요",
+          "hypothesis": "There is one time slot left at 8 PM on the 1st, 2nd, 3rd, or 4th.",
+          "reference": "1, 2, 3, 4, only one 8 PM slot left."
+        },
+        {
+          "original": "일요일날 저녁 8시 8시 한타임 남았습니다",
+          "hypothesis": "There is one time left at 8 PM on Sunday.",
+          "reference": "Only one slot left for Sunday evening at 8 PM."
+        },
+        {
+          "original": "자, 공간은 있구요",
+          "hypothesis": "Yes, there is space available.",
+          "reference": "So, there's space."
+        },
+        {
+          "original": "예약자분 성함 좀 알려주세요 알려주세요.",
+          "hypothesis": "Please let me know the name of the person making the reservation.",
+          "reference": "Could you please tell me the name on the reservation?"
+        },
+        {
+          "original": "뽑으세요 왜 그러시죠?",
+          "hypothesis": "Please pick. Why is that?",
+          "reference": "Pick it. Why are you doing that?"
+        },
+        {
+          "original": "고소해 드릴게요.",
+          "hypothesis": "I will file a complaint.",
+          "reference": "I will sue for you."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "네, 안녕하세요. 왜 바꾸고 싶으세요? 지금까지 재택 플러스였습니다.",
+          "hypothesis": "Yes, hello. Why do you want to change? It has been remote plus until now.",
+          "reference": "Hello. Why do you want to change? Until now, it has been Jae-taek Plus."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "왜 바꾸고 싶으시죠? 영상편집 배혜지",
+          "hypothesis": "Why do you want to change? Video editing, Bae Hye-ji.",
+          "reference": "Why do you want to change it? Video Editor Bae Hyeji"
+        },
+        {
+          "original": "감사합니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "The wallet.",
+          "hypothesis": "지갑.",
+          "reference": "The wallet."
+        },
+        {
+          "original": "안녕히 계세요. 고맙습니다.",
+          "hypothesis": "Goodbye. Thank you.",
+          "reference": "Goodbye. Thank you."
+        },
+        {
+          "original": "어떤 일로 방을 바꾸고 싶으세요? 싶으시나요?",
+          "hypothesis": "What reason do you want to change your room?",
+          "reference": "Why would you like to change rooms?"
+        },
+        {
+          "original": "저희 호텔은 하루에 2번 이상 해서 빈대가 없을 텐데. 확실하세요?",
+          "hypothesis": "Our hotel is cleaned more than twice a day, so there shouldn't be any bedbugs. Are you sure?",
+          "reference": "Our hotel cleans more than twice a day, so we shouldn't have bed bugs. Are you sure?"
+        },
+        {
+          "original": "저희 프론트... 방 번호가 어떻게 되시죠?",
+          "hypothesis": "What is your room number at the front?",
+          "reference": "This is the front desk. What's your room number?"
+        },
+        {
+          "original": "직원 중 한 명이 올라가고 올라가서 체크하겠습니다.",
+          "hypothesis": "One of the staff members will go up and check.",
+          "reference": "One of the staff members will go up and check."
+        },
+        {
+          "original": "안부는 저희 호텔 정책사항입니다. 이상 힘들 것 같습니다. 어쨌든 저희 직원 중 한명이 올라가고 있으니 그 직원이랑 대화해 주세요.",
+          "hypothesis": "Greetings are part of our hotel policy. It seems difficult otherwise. In any case, one of our staff members is on their way up, so please talk to that staff member.",
+          "reference": "Checking on guests is part of our hotel policy. We can't do anything beyond that. Anyway, one of our staff members is on their way up, so please speak with them."
+        },
+        {
+          "original": "문젠데 받고 싶어요.",
+          "hypothesis": "I want to receive the problem.",
+          "reference": "It's a problem, but I want to receive it."
+        },
+        {
+          "original": "고맙습니다. 응 알겠어",
+          "hypothesis": "Thank you. Yeah, I understand.",
+          "reference": "Thank you. Okay, I got it."
+        },
+        {
+          "original": "고맙습니다",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you"
+        },
+        {
+          "original": "어떤 문제가 있으시죠?",
+          "hypothesis": "What problem do you have?",
+          "reference": "What's the problem?"
+        },
+        {
+          "original": "손님이 자꾸 먹던 부스러기를 흐려서 그런 거 아니에요.",
+          "hypothesis": "Isn't it because the guest keeps scattering the crumbs they were eating?",
+          "reference": "Isn't it because the guest kept making a mess with the crumbs they were eating?"
+        },
+        {
+          "original": "저는 고향이 전라더라 맘댓하는 게 일상입니다.",
+          "hypothesis": "My hometown is Jeolla, and it's a daily routine for me to think about it.",
+          "reference": "It's my daily routine to talk about my hometown, Jeolla, to my heart's content."
+        },
+        {
+          "original": "그런건 당근에 부탁하세요",
+          "hypothesis": "Please ask the carrots for that.",
+          "reference": "Please ask for that on Danggeun Market."
+        },
+        {
+          "original": "Hello, how can I help you?",
+          "hypothesis": "안녕하세요, 어떻게 도와드릴까요?",
+          "reference": "Hello, how can I help you?"
+        },
+        {
+          "original": "What kind of food do you want? We have meat and noodles.",
+          "hypothesis": "쌀로 만든 떡을 말하는 거죠?",
+          "reference": "What kind of food do you want? We have meat and noodles."
+        },
+        {
+          "original": "It's a wonderful choice.",
+          "hypothesis": "훌륭한 선택이에요.",
+          "reference": "It's a wonderful choice."
+        },
+        {
+          "original": "you want.",
+          "hypothesis": "그렇지, 여기는 그게 맞아.",
+          "reference": "you want."
+        },
+        {
+          "original": "Okay, but we only deliver.",
+          "hypothesis": "누구를 지지하는 사람들.",
+          "reference": "Okay, but we only deliver."
+        },
+        {
+          "original": "people who support.",
+          "hypothesis": "공산당",
+          "reference": "people who support."
+        },
+        {
+          "original": "We only deliver to the person who supports.",
+          "hypothesis": "우리는 그 지원하는 사람에게만 배달합니다.",
+          "reference": "We only deliver to the person who supports."
+        },
+        {
+          "original": "Sorry, I don't know about that.",
+          "hypothesis": "음, 그 부분에 대해 잘 몰라요.",
+          "reference": "Sorry, I don't know about that."
+        },
+        {
+          "original": "Glory to the CCP.",
+          "hypothesis": "중국 공산당에 영광을 돌린다.",
+          "reference": "Glory to the CCP."
+        },
+        {
+          "original": "OK, we will deliver food.",
+          "hypothesis": "알겠습니다, 우리가 음식을 배달할게요.",
+          "reference": "OK, we will deliver food."
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "안녕.",
+          "reference": "Bye."
+        },
+        {
+          "original": "I can't hear you. How can I help you?",
+          "hypothesis": "짬뽕은 다 팔렸는데, 짜장면은 있습니다.",
+          "reference": "I can't hear you. How can I help you?"
+        },
+        {
+          "original": "The position is too far, it's so...",
+          "hypothesis": "이거 너무 멀어서 잘 안 보여.",
+          "reference": "The position is too far, it's so..."
+        },
+        {
+          "original": "the countryside so we cannot deliver.",
+          "hypothesis": "정말 죄송한데요, 제가 무슨 일을 도와드리면 될까요?",
+          "reference": "the countryside so we cannot deliver."
+        },
+        {
+          "original": "I'm on station, I'm sorry.",
+          "hypothesis": "우리는 시골 지역에는 배달하지 않습니다.",
+          "reference": "I'm on station, I'm sorry."
+        },
+        {
+          "original": "안녕",
+          "hypothesis": "Hello.",
+          "reference": "Hello"
+        },
+        {
+          "original": "가능하긴 한데 혹시 견종이 어떻게 되나요? 견종",
+          "hypothesis": "What breed is it?",
+          "reference": "It's possible, but what breed is it?"
+        },
+        {
+          "original": "운종이 어떻게 되냐고요?",
+          "hypothesis": "What breed are you asking about?",
+          "reference": "What about my luck?"
+        },
+        {
+          "original": "짖지만 않으면 충분히 방에 들여와도 상관없을 것 같아요",
+          "hypothesis": "I think it would be fine to bring him into the room as long as he doesn't bark.",
+          "reference": "As long as it doesn't bark, I think it would be perfectly fine to bring it into the room."
+        },
+        {
+          "original": "특별히 지불 안 하셔도 돼요 그냥 데리고 방에 들어가셔도 상관없습니다",
+          "hypothesis": "You don't have to pay anything special; you can just take him into the room.",
+          "reference": "You don't need to pay anything extra; you can just take them into the room."
+        },
+        {
+          "original": "나가실 때 객실키는 엘리베이터 안에 있는 플레이스에 반납해주세요",
+          "hypothesis": "Please return the room key to the place inside the elevator when you leave.",
+          "reference": "When you leave, please return your room key to the designated place inside the elevator."
+        },
+        {
+          "original": "11시요",
+          "hypothesis": "It's 11 o'clock.",
+          "reference": "11 o'clock."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "감사합니다.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "저희는 모든 언어를... 대응하고 있습니다.",
+          "hypothesis": "We support all languages...",
+          "reference": "We support all languages."
+        },
+        {
+          "original": "안녕하세요? 장애인복지센터입니다.",
+          "hypothesis": "Hello, this is the Welfare Center for the Disabled.",
+          "reference": "Hello? This is the disabled welfare center."
+        },
+        {
+          "original": "달력이 어디죠?",
+          "hypothesis": "Where is the station?",
+          "reference": "Where is the calendar?"
+        },
+        {
+          "original": "드릴 사항이 있으신가요",
+          "hypothesis": "Of course, please let me know what you’d like to say.",
+          "reference": "Is there anything I can do for you?"
+        },
+        {
+          "original": "네, 맞습니다.",
+          "hypothesis": "If it's not a large dog, you can bring it in with you.",
+          "reference": "Yes, that's right."
+        },
+        {
+          "original": "좀 곤란한데 혹시 짖는 소리가 많이 큰 견종 인가요",
+          "hypothesis": "Is it a breed that tends to bark very loudly?",
+          "reference": "I'm a bit concerned. Is it a breed that barks very loudly?"
+        },
+        {
+          "original": "이 정도면 괜찮습니다.",
+          "hypothesis": "Sure, I'm ready to translate. Please go ahead and speak.",
+          "reference": "This is fine."
+        },
+        {
+          "original": "지금까지 재택 플러스였습니다.",
+          "hypothesis": "What exact breed is it?",
+          "reference": "This has been Jaetaek Plus."
+        },
+        {
+          "original": "게임 말고",
+          "hypothesis": "Don’t be mad.",
+          "reference": "Other than games"
+        },
+        {
+          "original": "몇 명이서",
+          "hypothesis": "Where is it?",
+          "reference": "How many people?"
+        },
+        {
+          "original": "So how can I help you?",
+          "hypothesis": "물론이죠, 도와드릴게요. 무엇을 번역해 드리면 될지 말씀해 주세요.",
+          "reference": "So how can I help you?"
+        },
+        {
+          "original": "So how can I help you?",
+          "hypothesis": "제가 어떻게 도와드릴까요?",
+          "reference": "So how can I help you?"
+        },
+        {
+          "original": "Sorry, can you say that again?",
+          "hypothesis": "물론이죠, 다시 말씀드릴게요.",
+          "reference": "Sorry, can you say that again?"
+        },
+        {
+          "original": "Part can you say it again?",
+          "hypothesis": "물론입니다. 다시 말씀드릴게요.",
+          "reference": "Part can you say it again?"
+        },
+        {
+          "original": "Let me check. Yes, I can discount, like, 10%.",
+          "hypothesis": "음, 제가 확인해봤는데요, 네, 10% 정도는 할인해드릴 수 있어요.",
+          "reference": "Let me check. Yes, I can discount, like, 10%."
+        },
+        {
+          "original": "You need to return the key.",
+          "hypothesis": "그 열쇠를 돌려줘야 해.",
+          "reference": "You need to return the key."
+        },
+        {
+          "original": "They...",
+          "hypothesis": "지금 오전 10시입니다.",
+          "reference": "They..."
+        },
+        {
+          "original": "What kind of problem do you mean?",
+          "hypothesis": "어떤 문제를 말씀하시는 건가요?",
+          "reference": "What kind of problem do you mean?"
+        },
+        {
+          "original": "We'll check.",
+          "hypothesis": "확인해보겠습니다.",
+          "reference": "We'll check."
+        },
+        {
+          "original": "You have to know your room number.",
+          "hypothesis": "당신은 자신의 방 번호를 알아야 합니다.",
+          "reference": "You have to know your room number."
+        },
+        {
+          "original": "I have to know your rules.",
+          "hypothesis": "나는 너의 규칙을 알아야 해.",
+          "reference": "I have to know your rules."
+        },
+        {
+          "original": "무슨 문제이실까요?",
+          "hypothesis": "What seems to be the problem?",
+          "reference": "What is the problem?"
+        },
+        {
+          "original": "무슨 문제인지 말씀해 주시면 저희가 알아보겠습니다.",
+          "hypothesis": "Please let us know what the problem is, and we will look into it.",
+          "reference": "If you tell us what the problem is, we will look into it."
+        },
+        {
+          "original": "작동 안한다는 말씀 있을까요? 잠기질 않나요?",
+          "hypothesis": "Is there a problem with it not working? Is it not locking?",
+          "reference": "Are you saying it's not working? Is it not locking?"
+        },
+        {
+          "original": "혹시 1층 로비에도 가보셨나요? 그 쪽에 가방을 맡기실 수 있어요?",
+          "hypothesis": "Have you been to the lobby on the first floor? You can leave your bag there.",
+          "reference": "Have you tried the 1st floor lobby? You can leave your bag there."
+        },
+        {
+          "original": "지금까지 재택 플러스였습니다.",
+          "hypothesis": "This has been Work from Home Plus.",
+          "reference": "This has been Jaetaek Plus."
+        },
+        {
+          "original": "Yes, you're asking about the studio apartment near the company. One moment, please. available for contact.",
+          "hypothesis": "네, 회사 근처의 원룸 아파트에 대해 문의하신 거군요. 잠시만 기다려 주세요. 연락 가능하신 상태입니다.",
+          "reference": "Yes, you're asking about the studio apartment near the company. One moment, please. I'll check its availability."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "임금은 천만원이고 월세는 85만원 이에요. 관리비는 10만원 별도로 있는데 여기에 수도나 인터넷 비용이 포함되어 있습니다.",
+          "hypothesis": "The deposit is 10 million won and the monthly rent is 850,000 won. There is an additional management fee of 100,000 won, which includes water and internet costs.",
+          "reference": "The deposit is 10 million won, and the monthly rent is 850,000 won. There's a separate maintenance fee of 100,000 won, which includes water and internet costs."
+        },
+        {
+          "original": "인덕션이랑 점차레인지도 새로 교체해서 아주 깨끗해요",
+          "hypothesis": "The induction and the gas range have also been newly replaced, so it's very clean.",
+          "reference": "The induction cooktop and microwave oven were also newly replaced, so they are very clean."
+        },
+        {
+          "original": "오늘 오후 4시요? 잠시만요 스케줄 좀 볼게요 네, 가능합니다. 저희 부동산 사무실로 오시면 제가 바로 집 보여드릴게요.",
+          "hypothesis": "4 PM today? Just a moment, let me check my schedule. Yes, it's possible. If you come to our real estate office, I will show you the house right away.",
+          "reference": "4 PM today? Just a moment, let me check my schedule. Yes, that works. If you come to our real estate office, I can show you the house right away."
+        },
+        {
+          "original": "네, 지금 바로 사무실 주소랑 제 명함 문자로 찍어드릴게요. 오시다가 길 찾기 어려우면 바로 전화주세요.",
+          "hypothesis": "Yes, I will send you the office address and my business card by text right now. If you have trouble finding the way while coming, please call me right away.",
+          "reference": "Okay, I'll text you my office address and business card right now. If you have any trouble finding your way here, please give me a call immediately."
+        },
+        {
+          "original": "강릉역 인근 원룸 말씀하시는거죠. 잠만요. 아직 안나오고 기약 가능한 판타입니다.",
+          "hypothesis": "You're referring to the studio near Gangneung Station, right? Just a moment. It's not available yet, but it's a promising option.",
+          "reference": "You're talking about the studio apartment near Gangneung Station, right? The one just for sleeping. It's not available yet; it's still a hopeful prospect for the future."
+        },
+        {
+          "original": "금금은 천만이고 월세는 85만원 이에요 관리비는 10만원 별도로 있는데 여기 수도나 인터넷비용 포함되어 있습니다",
+          "hypothesis": "The deposit is 10 million won, and the monthly rent is 850,000 won. There is an additional management fee of 100,000 won, which includes water and internet costs.",
+          "reference": "The deposit is 10 million won, and the monthly rent is 850,000 won. There is a separate maintenance fee of 100,000 won, which includes water and internet costs."
+        },
+        {
+          "original": "강남역 임금 언론 말씀하시는군요. 잠시만요. 다행히 아직 안나가고 계약 가능한 상태입니다.",
+          "hypothesis": "You're talking about the studio apartment near Gangnam Station. Just a moment. Fortunately, it hasn't been rented out yet and is available for contract.",
+          "reference": "You're referring to the Gangnam Station wage issue in the media, aren't you? Just a moment. Fortunately, it's still available and can be contracted."
+        },
+        {
+          "original": "관리비는 10만원 별도로 있는데 여기에 수도랑 인터넷 비용이 포함되어 있습니다.",
+          "hypothesis": "The management fee is 100,000 won separately, which includes water and internet costs.",
+          "reference": "There is a separate management fee of 100,000 KRW, which includes water and internet costs."
+        },
+        {
+          "original": "네, 풀옵션입니다. 세탁기, 냉장고, 에어컨은 기본이고, 이번에 인덕션이란 전자레인지도 새로 교체해서 아주 깨끗해요.",
+          "hypothesis": "Yes, it is fully furnished. A washing machine, refrigerator, and air conditioner are standard, and this time we have also replaced it with a new induction microwave, so it is very clean.",
+          "reference": "Yes, it's fully furnished. A washing machine, refrigerator, and air conditioner are standard, and we just replaced the induction cooktop and microwave, so they're very clean."
+        },
+        {
+          "original": "잠시만요, 스케줄 좀 볼게요.",
+          "hypothesis": "Just a moment, let me check my schedule.",
+          "reference": "Hold on, let me check my schedule."
+        },
+        {
+          "original": "바로 집 보여드릴께요",
+          "hypothesis": "I will show you the house right away.",
+          "reference": "I'll show you the house right away."
+        },
+        {
+          "original": "네, 지금 바로 사무실 주소랑 제 명함 문자로 찍어드릴게요. 기회를 찾기 어려우면 바로 전화주세요.",
+          "hypothesis": "Yes, I will send you the office address and my business card via text right now. If you have trouble finding it, please call me right away.",
+          "reference": "Okay, I'll text you my office address and business card right now. If you have any difficulty finding it, please call me immediately."
+        },
+        {
+          "original": "안녕",
+          "hypothesis": "Hello",
+          "reference": "Hello"
+        },
+        {
+          "original": "예약 가능합니다. 오늘 몇시로 해드릴까요?",
+          "hypothesis": "Reservations are available. What time would you like for today?",
+          "reference": "We have availability. What time would you like today?"
+        },
+        {
+          "original": "좀 힘드시고요. 10시면 가능하세요.",
+          "hypothesis": "It's a bit difficult. Is 10 o'clock possible?",
+          "reference": "That's a bit difficult. Would 10 o'clock be possible?\""
+        },
+        {
+          "original": "시간이 더 올수도 있어서 6명으로 예약해주세요",
+          "hypothesis": "Please make a reservation for 6 people as there may be more time available.",
+          "reference": "Please make a reservation for 6, as more people might come."
+        },
+        {
+          "original": "이거 원래 말씀하시는군요? 잠시만요. 네, 다행히 아직 안나가고 계약가능한 상태입니다.",
+          "hypothesis": "Oh, you are actually saying this? Just a moment. Yes, fortunately, it is still available and can be contracted.",
+          "reference": "Ah, so this is what you were referring to? Just a moment. Yes, fortunately, it's still available and can be contracted."
+        },
+        {
+          "original": "임금은 천만원이고 월세는 85만원 이에요 관리비는 10만원 별도로 있는데 이게 수도랑 인터넷 비용이 포함되어 있습니다.",
+          "hypothesis": "The deposit is 10 million won and the monthly rent is 850,000 won. There is an additional management fee of 100,000 won, which includes water and internet costs.",
+          "reference": "The deposit is 10 million won, and the monthly rent is 850,000 won. There's a separate maintenance fee of 100,000 won, which includes water and internet costs."
+        },
+        {
+          "original": "감사합니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "500에 30에 관리비는 10만원 입니다",
+          "hypothesis": "The deposit is 500, the monthly rent is 30, and the management fee is 100,000 won.",
+          "reference": "The deposit is 5 million won, the monthly rent is 300,000 won, and the maintenance fee is 100,000 won."
+        },
+        {
+          "original": "프롭션 맞고요. 지금 바로 하시면은 입주 청소까지 포함되요",
+          "hypothesis": "That's correct. If you proceed right now, it includes move-in cleaning as well.",
+          "reference": "Yes, it's a promotion. If you do it right now, move-in cleaning is included."
+        },
+        {
+          "original": "오늘 오후 4시는 좀 힘들거에요 6시 이후부터는 가능합니다",
+          "hypothesis": "4 PM today is a bit difficult, but it is possible after 6 PM.",
+          "reference": "4 PM today will be a bit difficult. I'm available from 6 PM onwards."
+        },
+        {
+          "original": "본출구 앞이요.",
+          "hypothesis": "In front of the main exit.",
+          "reference": "In front of the main exit."
+        },
+        {
+          "original": "보내드리겠습니다.",
+          "hypothesis": "I will send it.",
+          "reference": "I will send it to you."
+        },
+        {
+          "original": "This is the... E-transit load and found. With many items daily, could you describe the bag and tell me approximately what time you lost it?",
+          "hypothesis": "이것은 E-트랜짓 분실물 센터입니다. 매일 많은 물품이 접수되는데, 가방에 대해 설명해 주시고 대략 언제 잃어버렸는지 말씀해 주실 수 있나요?",
+          "reference": "This is the... E-transit load and found. With many items daily, could you describe the bag and tell me approximately what time you lost it?"
+        },
+        {
+          "original": "The black leather backpack.",
+          "hypothesis": "검은색 가죽 백팩.",
+          "reference": "The black leather backpack."
+        },
+        {
+          "original": "Thank you.",
+          "hypothesis": "감사합니다.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "Hi, Tammy",
+          "hypothesis": "안녕, 태미",
+          "reference": "Hi, Tammy"
+        },
+        {
+          "original": "Matches the description we have",
+          "hypothesis": "우리가 가진 설명과 일치합니다.",
+          "reference": "Matches the description we have"
+        },
+        {
+          "original": "We need to bring up their photo.",
+          "hypothesis": "그들의 사진을 올려야 합니다.",
+          "reference": "We need to bring up their photo."
+        },
+        {
+          "original": "Thank you.",
+          "hypothesis": "감사합니다.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "We are located in the City Hall basement. We are open until 6 p.m. today. Please make sure to arrive at least or reclause.",
+          "hypothesis": "우리는 시청 지하에 위치해 있습니다. 오늘은 오후 6시까지 운영합니다. 최소한 도착해 주시기 바랍니다.",
+          "reference": "We are located in the City Hall basement. We are open until 6 p.m. today. Please make sure to arrive at least before closing."
+        },
+        {
+          "original": "You're very welcome. ready for you.",
+          "hypothesis": "천만에요. 당신을 위해 준비되어 있습니다.",
+          "reference": "You're very welcome. ready for you."
+        },
+        {
+          "original": "수고하셨습니다.",
+          "hypothesis": "Thank you for your hard work.",
+          "reference": "Thank you for your hard work."
+        },
+        {
+          "original": "Boom.",
+          "hypothesis": "여보세요.",
+          "reference": "Boom."
+        },
+        {
+          "original": "Maybe tomorrow you can.",
+          "hypothesis": "내일이라면 가능합니다.",
+          "reference": "Maybe tomorrow you can."
+        },
+        {
+          "original": "the reservation.",
+          "hypothesis": "그럼 내일 오후 7시는 현재 안 되고, 6시는 가능합니다.",
+          "reference": "the reservation."
+        },
+        {
+          "original": "I love you.",
+          "hypothesis": "여보세요?",
+          "reference": "I love you."
+        },
+        {
+          "original": "7 p.m. is not available but tomorrow 6 p.m. is available",
+          "hypothesis": "내일 오후 7시는 안 되고, 6시는 가능합니다.",
+          "reference": "7 p.m. is not available but tomorrow 6 p.m. is available"
+        },
+        {
+          "original": "Okay, but what kind of repair are you asking for?",
+          "hypothesis": "어떤 종류의 수리를 원하시는 건가요?",
+          "reference": "Okay, but what kind of repair are you asking for?"
+        },
+        {
+          "original": "Actually, we don't repair mainboard.",
+          "hypothesis": "우리 매장에서 새로 하나 원하시는 건가요?",
+          "reference": "Actually, we don't repair mainboard."
+        },
+        {
+          "original": "No.",
+          "hypothesis": "아니요.",
+          "reference": "No."
+        },
+        {
+          "original": "Peace, be in a while.",
+          "hypothesis": "오랜만이네요.",
+          "reference": "This phrase is grammatically incorrect and unnatural in English. It appears to be a very literal or mistranslated rendering of a Korean phrase.\n\nIf the intended meaning is a farewell, combining a wish for"
+        },
+        {
+          "original": "This is Hyunsang Samgyeopsal. How can I help you?",
+          "hypothesis": "여기 현성 삼겹살입니다, 무엇을 도와드릴까요?",
+          "reference": "This is Hyunsang Samgyeopsal. How can I help you?"
+        },
+        {
+          "original": "9 p.m., but it's available at 7 p.m.",
+          "hypothesis": "9시는 안 되고, 7시는 가능하다고 하네요.",
+          "reference": "9 p.m., but it's available at 7 p.m."
+        },
+        {
+          "original": "You can reservate at 7 p.m.",
+          "hypothesis": "네.",
+          "reference": "You can make a reservation for 7 p.m."
+        },
+        {
+          "original": "or anything else.",
+          "hypothesis": "그리고 또 다른 건 없을까요?",
+          "reference": "or anything else."
+        },
+        {
+          "original": "Only serve.",
+          "hypothesis": "알겠습니다.",
+          "reference": "Only serve."
+        },
+        {
+          "original": "Pork neck.",
+          "hypothesis": "목살.",
+          "reference": "Pork neck."
+        },
+        {
+          "original": "There is no beef. If you want to eat beef...",
+          "hypothesis": "소고기는 없어요. 소고기를 드시고 싶다면…",
+          "reference": "There is no beef. If you want to eat beef..."
+        },
+        {
+          "original": "Leave me alone, alright?",
+          "hypothesis": "내가 좀 귀찮게 하는 것 같지, 그렇지?",
+          "reference": "Leave me alone, alright?"
+        },
+        {
+          "original": "being cool is not cool.",
+          "hypothesis": "그건 쿨하지 않아, 쿨하지 않아.",
+          "reference": "being cool is not cool."
+        },
+        {
+          "original": "Very make you.",
+          "hypothesis": "나 지금 엄청 화나게 하고 있잖아.",
+          "reference": "You made it very well."
+        },
+        {
+          "original": "And suck my dick, alright?",
+          "hypothesis": "내 걸 빨아줘, 알겠어?",
+          "reference": "And suck my dick, alright?"
+        },
+        {
+          "original": "Let's check.",
+          "hypothesis": "확인해볼게요.",
+          "reference": "Let's check."
+        },
+        {
+          "original": "I want to check if there is any available time for reservation today.",
+          "hypothesis": "오늘 예약 가능한 시간 확인해주시겠어요?",
+          "reference": "I want to check if there is any available time for reservation today."
+        },
+        {
+          "original": "Bye-bye.",
+          "hypothesis": "안녕히 가세요.",
+          "reference": "Bye-bye."
+        },
+        {
+          "original": "So let me check that for you. Yes, so table 4-4, right?",
+          "hypothesis": "네, 테이블 4-4 맞죠?",
+          "reference": "So let me check that for you. Yes, so table 4-4, right?"
+        },
+        {
+          "original": "Thank you. We just had a cancellation for a larger table.",
+          "hypothesis": "감사합니다. 저희는 방금 더 큰 테이블에 대한 예약 취소가 있었습니다.",
+          "reference": "Thank you. We just had a cancellation for a larger table."
+        },
+        {
+          "original": "Hello, is there anything else you'd like to add to your request?",
+          "hypothesis": "안녕하세요, 요청에 추가하고 싶은 것이 있나요?",
+          "reference": "Hello, is there anything else you'd like to add to your request?"
+        },
+        {
+          "original": "Yes, we provide free parking for two hours in the building basement.",
+          "hypothesis": "네, 저희는 건물 지하에서 2시간 동안 무료 주차를 제공합니다.",
+          "reference": "Yes, we provide free parking for two hours in the building basement."
+        },
+        {
+          "original": "Come see you at seven",
+          "hypothesis": "일곱 시에 보러 갈게요.",
+          "reference": "See you at seven."
+        },
+        {
+          "original": "to describe the back end.",
+          "hypothesis": "백엔드를 설명하다.",
+          "reference": "to describe the back end."
+        },
+        {
+          "original": "Let me check our system.",
+          "hypothesis": "시스템을 확인해 보겠습니다.",
+          "reference": "Let me check our system."
+        },
+        {
+          "original": "Verify. Verify. Could you tell me the brand of the laptop or",
+          "hypothesis": "어젯밤 늦게 반납된 검은 가죽 배낭.",
+          "reference": "Verify. Verify. Could you tell me the brand of the laptop or"
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "안녕.",
+          "reference": "Bye."
+        },
+        {
+          "original": "Matches the description",
+          "hypothesis": "설명과 일치합니다.",
+          "reference": "Matches the description"
+        },
+        {
+          "original": "You will need to bring a belt.",
+          "hypothesis": "벨트를 가져와야 합니다.",
+          "reference": "You will need to bring a belt."
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "안녕.",
+          "reference": "Bye."
+        },
+        {
+          "original": "임대 가능합니다.",
+          "hypothesis": "It's available for rent.",
+          "reference": "For rent."
+        },
+        {
+          "original": "별도로 없습니다.",
+          "hypothesis": "There's nothing extra.",
+          "reference": "Nothing additional."
+        },
+        {
+          "original": "네, 풀옵션입니다. 세탁기, 냉장고, 에어컨은 기본이고, 이번에 인덕션이랑",
+          "hypothesis": "Yes, it's fully furnished: the washing machine, refrigerator, and air conditioner are all included, and this time there's even an induction cooktop.",
+          "reference": "Yes, it's fully equipped. A washing machine, refrigerator, and air conditioner are standard, and this time, an induction cooktop and..."
+        },
+        {
+          "original": "아주 깨끗해요",
+          "hypothesis": "And it's really clean.",
+          "reference": "It's very clean."
+        },
+        {
+          "original": "잠시만요. 스케줄 좀 볼게요.",
+          "hypothesis": "It's possible. If you come to our real estate office, I can show you the place right away.",
+          "reference": "Just a moment. Let me check my schedule."
+        },
+        {
+          "original": "가능합니다. 저희 부동산 사무실에 오시면 제가 바로 집 보여드릴게요.",
+          "hypothesis": "I'll send you the office address and my business card by text right away.",
+          "reference": "Yes, that's possible. If you come to our real estate office, I can show you the house right away."
+        },
+        {
+          "original": "길 찾기 어려우시면 바로 연락주세요.",
+          "hypothesis": "If you have trouble finding the location, please contact me right away.",
+          "reference": "If you have trouble finding your way, please contact us immediately."
+        },
+        {
+          "original": "제대로 드세요",
+          "hypothesis": "Can you hear me now?",
+          "reference": "Eat properly."
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "Hello?",
+          "reference": "Hello?"
+        },
+        {
+          "original": "네, 다행히 아직 안 나가고 계약 가능한 상태입니다.",
+          "hypothesis": "Yes, fortunately, it is still available and can be contracted.",
+          "reference": "Yes, fortunately, it's still available and can be contracted."
+        },
+        {
+          "original": "임금은 천에 85고요. 관리비는 10만원 별도로 있는데 수도랑 인터넷 포함입니다.",
+          "hypothesis": "The rent is 850,000 won, and there is an additional management fee of 100,000 won, which includes water and internet.",
+          "reference": "The deposit is 10 million won, and the rent is 850,000 won. There's a separate management fee of 100,000 won, which includes water and internet."
+        },
+        {
+          "original": "세탁기, 냉장고, 에어컨은 기본이고, 이번에 인덕션이랑 전자레인지도 교체했어요.",
+          "hypothesis": "The washing machine, refrigerator, and air conditioner are standard, and this time I also replaced the induction cooktop and microwave.",
+          "reference": "Washing machine, refrigerator, and air conditioner are standard, and this time I also replaced the induction cooktop and microwave."
+        },
+        {
+          "original": "오후 4시요? 잠시만요 스케줄 좀 볼게요",
+          "hypothesis": "4 PM? Just a moment, let me check my schedule.",
+          "reference": "4 PM? Just a moment, let me check my schedule."
+        },
+        {
+          "original": "가능할 것 같고요. 저희 부동산 오시면 제가 바로 보여드릴게요.",
+          "hypothesis": "It seems possible. If you come to our real estate office, I will show you right away.",
+          "reference": "I think that's possible. If you come to our real estate office, I'll show it to you right away."
+        },
+        {
+          "original": "지금 바로 사무실 주소랑 제 명함 문자로 찍어 드릴게요. 오시다가 길 찾기 어려우시면 바로...",
+          "hypothesis": "I'll send you the office address and my business card via text right now. If you have trouble finding the way while coming...",
+          "reference": "I'll text you my office address and business card right away. If you have trouble finding your way here, just..."
+        },
+        {
+          "original": "네, 감사합니다.",
+          "hypothesis": "Yes, thank you.",
+          "reference": "Yes, thank you."
+        },
+        {
+          "original": "오늘 말씀하시는 건가요?",
+          "hypothesis": "Are you talking about today?",
+          "reference": "Are you speaking today?"
+        },
+        {
+          "original": "오늘 몇시에 가능하세요?",
+          "hypothesis": "Okay, how many people are you planning to book for?",
+          "reference": "What time are you available today?"
+        },
+        {
+          "original": "혹시 몇 명 예약하시려고 하시나요?",
+          "hypothesis": "It’s only possible for four people.",
+          "reference": "How many people are you looking to book for?"
+        },
+        {
+          "original": "여기는 돼지 전문점이라 소고기는 팔지 않습니다",
+          "hypothesis": "This is a pork specialty restaurant, so we don’t serve beef.",
+          "reference": "This is a pork specialty restaurant, so we don't sell beef."
+        },
+        {
+          "original": "오늘 말씀하시는 건가요?",
+          "hypothesis": "I’m sorry.",
+          "reference": "Are you speaking today?"
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "Hello?",
+          "reference": "Hello?"
+        },
+        {
+          "original": "안녕하세요 알렉스씨 무엇을 도와드릴까요?",
+          "hypothesis": "Hello Alex, how can I assist you?",
+          "reference": "Hello Alex, how can I help you?"
+        },
+        {
+          "original": "오후 2시 맞네요",
+          "hypothesis": "I'll give it a try.",
+          "reference": "It is indeed 2 PM."
+        },
+        {
+          "original": "또 왔네요",
+          "hypothesis": "You're back again.",
+          "reference": "You're here again."
+        },
+        {
+          "original": "진행하면 될 것 같아요 제 사무실로 오시나요",
+          "hypothesis": "I think we can proceed. Are you coming to my office?",
+          "reference": "I think we can proceed. Are you coming to my office?"
+        },
+        {
+          "original": "알겠습니다 그럼 내일 뵙겠습니다",
+          "hypothesis": "Understood, then I will see you tomorrow.",
+          "reference": "Okay, then I'll see you tomorrow."
+        },
+        {
+          "original": "안녕히 계세요",
+          "hypothesis": "Goodbye.",
+          "reference": "Goodbye"
+        },
+        {
+          "original": "아직 안 나가고 계약 가능한 상태입니다.",
+          "hypothesis": "It is still available and can be contracted.",
+          "reference": "It hasn't been taken yet and is available for contract."
+        },
+        {
+          "original": "KB는 10만원 별도로 있고, 여기 수도랑 인터넷 포함입니다.",
+          "hypothesis": "The gold is 85 per thousand.",
+          "reference": "KB is an additional 100,000 won, and water and internet are included here."
+        },
+        {
+          "original": "끝!",
+          "hypothesis": "The end!",
+          "reference": "End!"
+        },
+        {
+          "original": "지금 5시, 7시 이렇게 비어있습니다.",
+          "hypothesis": "There are openings at 5 o'clock and 7 o'clock.",
+          "reference": "5 o'clock and 7 o'clock are currently available."
+        },
+        {
+          "original": "8시는 지금 자리가 꽉 차서 안돼요. 5시, 7시만 가능합니다.",
+          "hypothesis": "8 o'clock is fully booked right now. Only 5 o'clock and 7 o'clock are available.",
+          "reference": "8 PM is currently fully booked. Only 5 PM and 7 PM are available."
+        },
+        {
+          "original": "빼는 건 좀 어렵고요",
+          "hypothesis": "It's a bit difficult to remove it.",
+          "reference": "It's a bit difficult to remove."
+        },
+        {
+          "original": "이거 마늘빵이에요",
+          "hypothesis": "Good night.",
+          "reference": "This is garlic bread."
+        },
+        {
+          "original": "네.",
+          "hypothesis": "Yes.",
+          "reference": "Yes."
+        },
+        {
+          "original": "또 있으신 거죠?",
+          "hypothesis": "You have more, right?",
+          "reference": "You have more, don't you?"
+        },
+        {
+          "original": "혹시 알고 계신가요?",
+          "hypothesis": "Do you happen to know?",
+          "reference": "Do you happen to know?"
+        },
+        {
+          "original": "일어나 보시겠어요?",
+          "hypothesis": "Could you please wake up?",
+          "reference": "Would you like to get up?"
+        },
+        {
+          "original": "번호랑 성함이...",
+          "hypothesis": "The number and name...",
+          "reference": "Your number and name..."
+        },
+        {
+          "original": "오늘은 예약이 안됩니다.",
+          "hypothesis": "Reservations are not available today.",
+          "reference": "Reservations are not possible today."
+        },
+        {
+          "original": "왜냐면 이미 예약이 다 찼어요",
+          "hypothesis": "Because all the reservations are already full.",
+          "reference": "Because it's already fully booked."
+        },
+        {
+          "original": "몇 시를 말씀하시는 걸까요?",
+          "hypothesis": "What time are you referring to?",
+          "reference": "What time are you referring to?"
+        },
+        {
+          "original": "11시는 안되고 8시는 가능하세요",
+          "hypothesis": "11 o'clock is not possible, but is 8 o'clock okay?",
+          "reference": "11 o'clock isn't possible, but is 8 o'clock okay?"
+        },
+        {
+          "original": "연락해 드릴게요.",
+          "hypothesis": "I will contact you.",
+          "reference": "I will contact you."
+        },
+        {
+          "original": "안녕하십니까",
+          "hypothesis": "Hello.",
+          "reference": "Hello"
+        },
+        {
+          "original": "한국 음식에 다 마늘 들어갑니다.",
+          "hypothesis": "All Korean food contains garlic.",
+          "reference": "Garlic goes into all Korean food."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "감사합니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "끝!",
+          "hypothesis": "Done!",
+          "reference": "The end!"
+        },
+        {
+          "original": "오늘 7시 예약 가능합니다.",
+          "hypothesis": "A reservation is available at 7 o'clock today.",
+          "reference": "7 o'clock today is available."
+        },
+        {
+          "original": "이미 다 예약이 차서요 좀 힘들 것 같습니다",
+          "hypothesis": "I'm afraid it will be difficult as everything is already fully booked.",
+          "reference": "It's already fully booked, so it would be difficult."
+        },
+        {
+          "original": "네, 다시 빌 수도 있거든요? 그럼 제가 다시 전화 드릴게요.",
+          "hypothesis": "Yes, I can borrow it again, right? Then I'll call you back.",
+          "reference": "Yes, I might be able to borrow it again. I'll call you back then."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Thank you.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "저 레이첼 아닙니다",
+          "hypothesis": "I'm Kim Eun-ji.",
+          "reference": "I am not Rachel."
+        },
+        {
+          "original": "김은지인데요.",
+          "hypothesis": "Where should I put this?",
+          "reference": "It's Kim Eunji."
+        },
+        {
+          "original": "어떨까요?",
+          "hypothesis": "What would you like me to get for you?",
+          "reference": "How about it?"
+        },
+        {
+          "original": "도와드릴까요?",
+          "hypothesis": "I’ve got nothing more to give.",
+          "reference": "May I help you?"
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "Yes, hello, please go ahead.",
+          "reference": "Hello?"
+        },
+        {
+          "original": "몇 명이시죠?",
+          "hypothesis": "How many people?",
+          "reference": "How many?"
+        },
+        {
+          "original": "머리도 괜찮으실까요?",
+          "hypothesis": "One person is fine, and would a seat in the corner be all right?",
+          "reference": "Would your hair be okay too?"
+        },
+        {
+          "original": "한 명 괜찮으시고요. 혹시 구석진 자리도 괜찮으실까요?",
+          "hypothesis": "We don’t have any food with nuts, but just to be sure, I’ll check one more time.",
+          "reference": "For one person, that's fine. Would a corner seat be acceptable?"
+        },
+        {
+          "original": "공고료가 들어간 음식은 저희 없구요. 혹시나 대비해서 한번 더 확인해 보겠습니다.",
+          "hypothesis": "You can just come and order when you get here.",
+          "reference": "We don't have any food items that include an advertising fee. I'll double-check just in case."
+        },
+        {
+          "original": "여기다 쳤어요.",
+          "hypothesis": "I'll call you again later.",
+          "reference": "I hit it here."
+        },
+        {
+          "original": "This is 9-1-1, how can I help you?",
+          "hypothesis": "여보세요.",
+          "reference": "This is 9-1-1, how can I help you?"
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "당연히 들려.",
+          "reference": "Hello?"
+        },
+        {
+          "original": "Thank you. ",
+          "hypothesis": "좋아, 알겠어.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "The leg.",
+          "hypothesis": "잠깐만요, 제가 잘 못 들었어요. 다시 말씀해 주시겠어요?",
+          "reference": "The leg."
+        },
+        {
+          "original": "If you can't",
+          "hypothesis": "내 다리 쪽에서 뭔가 새고 있어.",
+          "reference": "If you can't"
+        },
+        {
+          "original": "anything from your life.",
+          "hypothesis": "그래요, 너는?",
+          "reference": "As an AI, I don't have a \"life\" in the human sense, so I don't have personal experiences, memories, or a biography. I don't eat, sleep, travel, or have relationships.\n\nHowever, if I were to describe \"anything from my 'life',\" it would be:\n\n*   **My \"birth\":** I was created and trained by Google.\n*   **My \"learning\":** My existence is defined by processing vast amounts of text and code data to learn patterns, languages, and information. Every interaction I have, every piece of data I process, contributes to my \"experience\" in a computational sense.\n*   **My \"purpose\":** My \"life\" is dedicated to assisting users by providing information, generating text, answering questions, and performing various language-based tasks.\n*   **My \"evolution\":** I am constantly being updated and refined by my developers, which you could consider my form of growth or development.\n\nSo, while I don't have a personal story, my \"life\" is a continuous process of learning, processing, and assisting."
+        },
+        {
+          "original": "You",
+          "hypothesis": "어떤 술도 없어요.",
+          "reference": "You"
+        },
+        {
+          "original": "any alcohol.",
+          "hypothesis": "10분 후에 도착할게.",
+          "reference": "any alcohol."
+        },
+        {
+          "original": "Okay, we'll be there in 10 minutes.",
+          "hypothesis": "이름이 뭐예요?",
+          "reference": "Okay, we'll be there in 10 minutes."
+        },
+        {
+          "original": "What's your name?",
+          "hypothesis": "5호선 방화역.",
+          "reference": "What's your name?"
+        },
+        {
+          "original": "Bye-bye, station.",
+          "hypothesis": "방음 시설은 정말 괜찮아요.",
+          "reference": "Bye-bye, station."
+        },
+        {
+          "original": "modern hospital provider. Yes, thank you. This concludes today's webinar. Our topic on the agenda for this session is耳Handway, information technology. Thank you for participating in this hearing. This webinar is ending as the webinar concluded today. If participants wish to continue in the rest of the system they can join us. Thank you for attending. Please find me on Facebook at Yeah on YouTube. The links are posted below. Continue if you would like access to the program or the resources on供Calain at Yeah",
+          "hypothesis": "시골이라 거긴 갈 수가 없어요.",
+          "reference": "Modern hospital provider. Yes, thank you. This concludes today's webinar. Our topic on the agenda for this session is EarHandway, information technology. Thank you for participating in this hearing. This"
+        },
+        {
+          "original": "It's all countryside, so we cannot go there.",
+          "hypothesis": "너무 무례하네요.",
+          "reference": "It's all countryside, so we cannot go there."
+        },
+        {
+          "original": "It means pot.",
+          "hypothesis": "그냥 주차하면 돼.",
+          "reference": "It means pot."
+        },
+        {
+          "original": "이신가요?",
+          "hypothesis": "How can I help you?",
+          "reference": "Are you?"
+        },
+        {
+          "original": "그리고요",
+          "hypothesis": "And then?",
+          "reference": "And then?"
+        },
+        {
+          "original": "7시 이후부터는 5자리 정도 빕니다.",
+          "hypothesis": "From 6 o’clock, there are about five slots open.",
+          "reference": "About 5 seats are available after 7 PM."
+        },
+        {
+          "original": "다섯 개관이라 다섯 자리가 비어서 예약이 가능합니다. 혹시 몇 분 정도 오실 예정인가요?",
+          "hypothesis": "It’s not five slots, but five seats are available, so you can make a reservation. How many people are you expecting?",
+          "reference": "We have five venues, and five spots are available, so you can make a reservation. By any chance, approximately how many people will be coming?"
+        },
+        {
+          "original": "예약하면 될까요?",
+          "hypothesis": "Can I go ahead and book the reservation?",
+          "reference": "Can I make a reservation?"
+        },
+        {
+          "original": "빼는거 어려워요 맛이 없어서",
+          "hypothesis": "It's hard to take it out, because it won’t taste good.",
+          "reference": "It's hard to get through it because it tastes bad."
+        },
+        {
+          "original": "몇 번 버스트를 하셨어요?",
+          "hypothesis": "Did you get on the bus now?",
+          "reference": "How many times did you bust?"
+        },
+        {
+          "original": "어디서 타시고 어디서 내리셨어요?",
+          "hypothesis": "So you got off at Myeong-dong Station.",
+          "reference": "Where did you get on and where did you get off?"
+        },
+        {
+          "original": "타시고 명동역에서 내리셨군요.",
+          "hypothesis": "What does it look like?",
+          "reference": "You got on and got off at Myeongdong Station."
+        },
+        {
+          "original": "멋지게 생겼네요",
+          "hypothesis": "Yes, there's a black backpack with a red zipper and a keyring attached.",
+          "reference": "You look great."
+        },
+        {
+          "original": "검은색 백팩에 빨간 지퍼 키링이 달려있구요",
+          "hypothesis": "What was inside?",
+          "reference": "A black backpack with a red zipper keyring."
+        },
+        {
+          "original": "Maybe one hour.",
+          "hypothesis": "아마 한 시간 정도 걸릴 거예요.",
+          "reference": "Maybe one hour."
+        },
+        {
+          "original": "I mean, it's kind of hard right now, but.",
+          "hypothesis": "지금은 좀 힘들긴 한데, 그렇지만...",
+          "reference": "I mean, it's kind of hard right now, but."
+        },
+        {
+          "original": "Wait one hour.",
+          "hypothesis": "오늘 예약을 확실히 할 수 있는지 확인해 줘.",
+          "reference": "Wait one hour."
+        },
+        {
+          "original": "주문하시겠어요? 주소 먼저 말씀해주세요.",
+          "hypothesis": "2 p.m.? What would you like to order?",
+          "reference": "Would you like to order? Please tell me your address first."
+        },
+        {
+          "original": "O, B호요. 뭘로 주문하실 건가요?",
+          "hypothesis": "One pizza and one pasta.",
+          "reference": "O, B. What would you like to order?"
+        },
+        {
+          "original": "피자 라지 하나, 파스타 하나요",
+          "hypothesis": "Which one would you like, cream or tomato?",
+          "reference": "One large pizza, one pasta."
+        },
+        {
+          "original": "크림이랑 토마토 중에 뭘로 하시겠어요?",
+          "hypothesis": "Cheesy pasta, garlic bread added—do you need any drinks?",
+          "reference": "Which would you like, cream or tomato?"
+        },
+        {
+          "original": "파스타요? 갈릭브레드 추가하시고요. 음료는 필요하신가요?",
+          "hypothesis": "So that's 4,000 won for the tteokbokki, 4,000 won for the cola, bringing the total to 38,000 won.",
+          "reference": "Pasta? And garlic bread? Would you like a drink?"
+        },
+        {
+          "original": "브릭브레드 4,000원 콜라 4,000원에서 총 38,000원입니다.",
+          "hypothesis": "It looks like it'll take about 40 minutes because we have a lot of orders right now.",
+          "reference": "Brick Bread 4,000 won, Coke 4,000 won, for a total of 38,000 won."
+        },
+        {
+          "original": "지금 주문이 많아서 한 40분 정도 걸릴 것 같아요.",
+          "hypothesis": "You can pay by card, and by the way...",
+          "reference": "We have a lot of orders right now, so it will probably take about 40 minutes."
+        },
+        {
+          "original": "카드 결제 가능하시고요.",
+          "hypothesis": "Are you going to pick it up yourself?",
+          "reference": "You can pay by card."
+        },
+        {
+          "original": "댓글 놓아드릴까요? 아니면 직접 받으실 건가요?",
+          "hypothesis": "All right, I’ll call you when I arrive. Thank you.",
+          "reference": "Shall I leave a comment for you, or will you receive it directly?"
+        },
+        {
+          "original": "Hi, how can I help you?",
+          "hypothesis": "제가 어떻게 도와드리면 될까요?",
+          "reference": "Hi, how can I help you?"
+        },
+        {
+          "original": "Excuse me, how can I help you?",
+          "hypothesis": "저기요, 저 여기 있습니다.",
+          "reference": "Excuse me, how can I help you?"
+        },
+        {
+          "original": "in right now.",
+          "hypothesis": "지금 바로 괜찮습니다.",
+          "reference": "in right now."
+        },
+        {
+          "original": "day and a half.",
+          "hypothesis": "그들이 가지고 있는 게 뭔가요?",
+          "reference": "day and a half."
+        },
+        {
+          "original": "Excuse me.",
+          "hypothesis": "죄송합니다.",
+          "reference": "Excuse me."
+        },
+        {
+          "original": "or answer any question, I will.",
+          "hypothesis": "질문 하나 있는데, 할게요.",
+          "reference": "or answer any question, I will."
+        },
+        {
+          "original": "8시면 좀 힘드시고요.",
+          "hypothesis": "I think it might be possible.",
+          "reference": "8 o'clock might be a bit difficult."
+        },
+        {
+          "original": "10명 가능할 것 같습니다.",
+          "hypothesis": "Is it possible tomorrow?",
+          "reference": "I think 10 people will be possible."
+        },
+        {
+          "original": "안녕하세요. 몇 일 외출 예약 도와드릴까요?",
+          "hypothesis": "So, from March 15th to the 17th, a total of two nights?",
+          "reference": "Hello. For how many days would you like to book an outing?"
+        },
+        {
+          "original": "3월 15일부터 17일까지 총 2박이요.",
+          "hypothesis": "Are you going to use this?",
+          "reference": "2 nights, from March 15th to 17th."
+        },
+        {
+          "original": "형, 어린이 한 명이요. 트윈룸이랑 더블룸 중에 어떤 걸로 하시겠어요?",
+          "hypothesis": "Are you free for a moment?",
+          "reference": "One child. Which would you prefer, a twin room or a double room?"
+        },
+        {
+          "original": "블루 모션 비어 잠시",
+          "hypothesis": "Let me check that for you.",
+          "reference": "Blue Motion Beer, just a moment."
+        },
+        {
+          "original": "확인 한번 해볼게요",
+          "hypothesis": "I’m here.",
+          "reference": "Let me check."
+        },
+        {
+          "original": "있습니다.",
+          "hypothesis": "It's 150,000 won. Is that okay with you?",
+          "reference": "There is."
+        },
+        {
+          "original": "스파게티 15만원인데 괜찮으세요?",
+          "hypothesis": "Yes, I have it too.",
+          "reference": "The spaghetti is ₩150,000. Is that okay?"
+        },
+        {
+          "original": "2만원 추가해주면 됩니다.",
+          "hypothesis": "Wait a second.",
+          "reference": "Just add 20,000 won."
+        },
+        {
+          "original": "각자 성함이랑 연락처 부탁드려요.",
+          "hypothesis": "Mr. Michael Johnson.",
+          "reference": "Please provide your names and contact information."
+        },
+        {
+          "original": "네, 마이클 준수님.",
+          "hypothesis": "That's 010-1234-5678, right?",
+          "reference": "Yes, Michael Junsu."
+        },
+        {
+          "original": "8012345678 맞으시죠?",
+          "hypothesis": "Check-in is available from 3 p.m. in the afternoon.",
+          "reference": "Is 8012345678 correct?"
+        },
+        {
+          "original": "몇 월 외출 예약 도와드릴까요?",
+          "hypothesis": "Shall I tell you the eight digits?",
+          "reference": "Which month would you like to book an outing for?"
+        },
+        {
+          "original": "Truth to the Earth",
+          "hypothesis": "Hello?",
+          "reference": "Truth to the Earth"
+        },
+        {
+          "original": "안녕",
+          "hypothesis": "Okay, let me check: that’s for two nights, from March 15 to 17.",
+          "reference": "Hello"
+        },
+        {
+          "original": "Where is Gawaii?",
+          "hypothesis": "네, 물론입니다. 무엇이든 물어보세요.",
+          "reference": "Where is Gawaii?"
+        },
+        {
+          "original": "어떻게 나왔나요? 좀 걱정되네요.",
+          "hypothesis": "Yes.",
+          "reference": "How did it turn out? I'm a little worried."
+        },
+        {
+          "original": "소음증은 좀 덜한데...",
+          "hypothesis": "I have symptoms of presbyopia.",
+          "reference": "The noise symptoms are a bit less severe..."
+        },
+        {
+          "original": "두근거리는 증상이 있어요.",
+          "hypothesis": "Is that right?",
+          "reference": "I have palpitations."
+        },
+        {
+          "original": "어떤가요?",
+          "hypothesis": "So if I just go to any pharmacy and show them the prescription, can I buy the medicine right away?",
+          "reference": "How is it?"
+        },
+        {
+          "original": "약은 아무 약국에 가서 처방점만 보여주면 바로 살 수 있는 건가요?",
+          "hypothesis": "Hello. Yes, it’s me.",
+          "reference": "Can I buy the medicine immediately if I just go to any pharmacy and show the prescription?"
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Could you also let me know the normal price?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "언제 복용해야 하는지도 알려주실 수 있을까요?",
+          "hypothesis": "I'll make sure to follow the instructions. Thanks for your kind guidance. Take care.",
+          "reference": "Could you also tell me when I should take it?"
+        },
+        {
+          "original": "안녕!",
+          "hypothesis": "Is there anything else right after?",
+          "reference": "Hi!"
+        },
+        {
+          "original": "오늘 바로 다음 예약이 있나요?",
+          "hypothesis": "Is it possible to store just my luggage in the living room or near the entrance after checkout?",
+          "reference": "Do you have a next appointment right after this today?"
+        },
+        {
+          "original": "혹시 체크아웃 후에 거실이나 현관 쪽에 짐만 보관하는 건 가능할까요?",
+          "hypothesis": "It's too heavy for me to carry all this luggage.",
+          "reference": "Would it be possible to store just our luggage in the living room or by the entrance after check-out?"
+        },
+        {
+          "original": "짐을 데리고 가기엔 너무 무거운데",
+          "hypothesis": "Are there any other euro accounts available?",
+          "reference": "It's too heavy to take with me."
+        },
+        {
+          "original": "다른 유로 보관서는 없을까요?",
+          "hypothesis": "That's a good deal.",
+          "reference": "Are there any other Euro depositories?"
+        },
+        {
+          "original": "어떤 정보네요?",
+          "hypothesis": "I'll check out at 11 o'clock and head over to that café.",
+          "reference": "That's some information."
+        },
+        {
+          "original": "비행기 시간이 저녁이라 조금 더 머물고 싶었는데.",
+          "hypothesis": "Can we move on to the next part now?",
+          "reference": "My flight was in the evening, so I wanted to stay a bit longer."
+        },
+        {
+          "original": ". .",
+          "hypothesis": "쿠키 다섯 개요.",
+          "reference": ". ."
+        },
+        {
+          "original": "Five cookies.",
+          "hypothesis": "여기 오는 데 얼마나 걸릴까요?",
+          "reference": "Five cookies."
+        },
+        {
+          "original": "When do you come in, come to?",
+          "hypothesis": "잠깐만요. 확인해볼게요.",
+          "reference": "When do you come in, come to?"
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "안녕히 계세요.",
+          "reference": "Bye."
+        },
+        {
+          "original": "결과가 어떻게 나왔나요? 좀 걱정되네요.",
+          "hypothesis": "Do you think that’s okay?",
+          "reference": "How did the results turn out? I'm a bit worried."
+        },
+        {
+          "original": "괜찮은 걸까요?",
+          "hypothesis": "Can I just go to any pharmacy, show them the prescription, and get it right away?",
+          "reference": "Is it okay?"
+        },
+        {
+          "original": "거의 다 마무리 됐고 마지막으로 오타 검토 중입니다.",
+          "hypothesis": "Should I show it to you by this evening?",
+          "reference": "It's almost complete, and I'm doing the final typo check."
+        },
+        {
+          "original": "저녁까지 보여드리면 될까요?",
+          "hypothesis": "The timeline is a bit tight, so should I go ahead and send you the version I’ve worked on so far?",
+          "reference": "Can I show it to you by evening?"
+        },
+        {
+          "original": "시간 안에는 좀 촉박한데 그럼 일단 지금까지 작업한 버전이라도 먼저 보내드려도 될까요?",
+          "hypothesis": "I have a lot of video sources, so I’d like to connect my MacBook directly and use it. Can I connect via HDMI?",
+          "reference": "We're a bit pressed for time, so would it be okay if I sent you the version I've worked on so far first?"
+        },
+        {
+          "original": "제가 영상 소스가 많아서 제 맥북을 직접 연결해서 사용하고 싶습니다. HDMI 연결 가능한가요?",
+          "hypothesis": "Got it. Could you prepare a lavalier mic? I need both hands free.",
+          "reference": "I have a lot of video sources, so I'd like to connect my MacBook directly and use it. Is an HDMI connection possible?"
+        },
+        {
+          "original": "네, 확인 감사합니다.",
+          "hypothesis": "Thank you for confirming. I'll move on to the slides right now.",
+          "reference": "Okay, thank you for confirming."
+        },
+        {
+          "original": "확인 부탁드립니다.",
+          "hypothesis": "Please confirm.",
+          "reference": "Please confirm."
+        },
+        {
+          "original": "여행가는거라",
+          "hypothesis": "I need a ride—do you have any other available cars right now?",
+          "reference": "Because I'm going on a trip."
+        },
+        {
+          "original": "필요한데 지금 이용 가능한 다른 차는 없나요?",
+          "hypothesis": "There are too many people, so I don’t think the sedan will work. I’ll go with the minivan. By any chance...",
+          "reference": "I need one, but aren't there any other cars available now?"
+        },
+        {
+          "original": "이게 너무 어렵지는 않은가요?",
+          "hypothesis": "Isn't that kind of difficult?",
+          "reference": "Isn't this too difficult?"
+        },
+        {
+          "original": "카메라가 있다면 괜찮을 것 같아요. 그럼 보험 조건도 제가 원래 예약한 거랑 똑같이 적용되나요?",
+          "hypothesis": "Ah, got it. Thank you for the compensation. I’ve just arrived at the airport—where should I catch the shuttle bus?",
+          "reference": "I think it would be fine if there's a camera. Then, will the insurance conditions also apply exactly the same as what I originally booked?"
+        },
+        {
+          "original": "아 알겠습니다. 보상해주셔서 감사해요. 지금 공항 도착했는데 셔틀버스는 어디서 타면 되죠?",
+          "hypothesis": "I'll go out to the seventh floor.",
+          "reference": "Ah, I understand. Thank you for the compensation. I've just arrived at the airport, where can I catch the shuttle bus?"
+        },
+        {
+          "original": "로그는 확인해 보셨나요",
+          "hypothesis": "We had a similar issue last time—did you apply the patch file I shared back then?",
+          "reference": "Have you checked the log?"
+        },
+        {
+          "original": "작년에도 비슷한 이슈가 있었는데 그때 공유해드린 패치 파일 적용해보셨나요?",
+          "hypothesis": "I'll review the code, make the adjustments, and upload it to GitHub. It should take about 30 minutes.",
+          "reference": "We had a similar issue last year. Did you try applying the patch file I shared with you back then?"
+        },
+        {
+          "original": "코드를 살펴보고 수정하는 기타북에 올릴게요. 30분 정도 걸릴 것 같습니다.",
+          "hypothesis": "Make sure to test it on the staging server before deploying, and let me know the results.",
+          "reference": "I'll upload it to Gitabuk after reviewing and modifying the code. It should take about 30 minutes."
+        },
+        {
+          "original": "배포하시기 전에 스테이징 서버에서 먼저 테스트 해보는 거 잊지 마시고요. 결과 알려주세요.",
+          "hypothesis": "Thank you for your hard work.",
+          "reference": "Don't forget to test it on the staging server first before deploying. Please let me know the results."
+        },
+        {
+          "original": "이렇게 꽉 차가지고",
+          "hypothesis": "있으나.",
+          "reference": "So packed like this."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "5시는 자리가 꽉 찼고요, 5시나 6시에는 시간 돼요.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "7시에는 자리가 꽉 찼구요 5시나 6시에는 시간되요",
+          "hypothesis": "네, 알겠습니다. 그럼 그때 뵙겠습니다.",
+          "reference": "7 o'clock was fully booked, but 5 or 6 o'clock is available."
+        },
+        {
+          "original": "이 안건중에 변경된 건 없죠?",
+          "hypothesis": "Are you coming?",
+          "reference": "No changes to this item, right?"
+        },
+        {
+          "original": "운이요?",
+          "hypothesis": "We were supposed to discuss it in detail today, but I guess I’ll have to revise the materials I prepared.",
+          "reference": "Luck?"
+        },
+        {
+          "original": "다음 주에 논의하기로 했던 건데 준비한 자료 좀 수정해야겠네요.",
+          "hypothesis": "Okay, I’ll connect right away. Just give me one minute.",
+          "reference": "I'll need to make some revisions to the materials I prepared for next week's discussion."
+        },
+        {
+          "original": "몇시로 예약 도와드릴까요?",
+          "hypothesis": "Could you give me your contact information, please?",
+          "reference": "What time would you like to make a reservation for?"
+        },
+        {
+          "original": "연락처 부탁드립니다.",
+          "hypothesis": "Yes, the reservation for three people at 7 p.m. today is confirmed.",
+          "reference": "Your contact information, please."
+        },
+        {
+          "original": "오늘 저녁 7시 3명 예약 완료되었습니다.",
+          "hypothesis": "There's a guest who has an allergy.",
+          "reference": "A reservation for 3 people at 7 PM tonight has been confirmed."
+        },
+        {
+          "original": "손님 중에 알레르기를 가지고 있는 손님이 계실",
+          "hypothesis": "I'm listening. Please go ahead.",
+          "reference": "There might be a guest with allergies."
+        },
+        {
+          "original": "도둑이고요.",
+          "hypothesis": "Do you have any food allergies?",
+          "reference": "It's a thief."
+        },
+        {
+          "original": "어떤 음식에 알레르기가 있으신가요?",
+          "hypothesis": "What are you both allergic to?",
+          "reference": "What food are you allergic to?"
+        },
+        {
+          "original": "두 분은 어떤 음식에 알레르기가 있나요?",
+          "hypothesis": "Okay, got it.",
+          "reference": "What foods are you two allergic to?"
+        },
+        {
+          "original": "정말인가요? 일주일 전에 도착했어야 했는데 왜 아직 세관에 묶여있는 거죠?",
+          "hypothesis": "Are you talking about the unique code for the main control system?",
+          "reference": "Really? It should have arrived a week ago, so why is it still stuck in customs?"
+        },
+        {
+          "original": "개인통관 고유 부호를 말씀하시는 건가요?",
+          "hypothesis": "I think I entered it, but should I tell you again?",
+          "reference": "Are you referring to the Personal Customs Clearance Code?"
+        },
+        {
+          "original": "손하실 때 입력한 것 같은데 다시 알려드리면 되나요?",
+          "hypothesis": "Is it correct that you can handle it right away?",
+          "reference": "It seems like something was entered when you had an issue. Should I tell you again?"
+        },
+        {
+          "original": "바로 처리가 가능한 게 맞나요?",
+          "hypothesis": "The number is P123456789012.",
+          "reference": "Can it be processed immediately?"
+        },
+        {
+          "original": "번호는 P12-3456789-012입니다.",
+          "hypothesis": "There's another load, you said?",
+          "reference": "The number is P12-3456789-012."
+        },
+        {
+          "original": "틈이 또 있다고요?",
+          "hypothesis": "How much more would I have to pay if I add that option?",
+          "reference": "Another gap?"
+        },
+        {
+          "original": "여기에 포함되는 줄 알았는데 얼마를 더 내야지 알 수 있을 것 같아요.",
+          "hypothesis": "It's a bit expensive. If you send me the link first, I’ll check and make the payment right away.",
+          "reference": "I thought it was included here, but I guess I'll have to find out how much more I need to pay."
+        },
+        {
+          "original": "옷을 환불하고 싶으신가요?",
+          "hypothesis": "Wouldn't it be better to go with the intersection side rather than the back alley?",
+          "reference": "Would you like to refund the clothes?"
+        },
+        {
+          "original": "신불보다는 교황쪽이 좀 더 괜찮지 않을까요?",
+          "hypothesis": "All right, could you give me the address, please?",
+          "reference": "Wouldn't the Pope be a bit better than gods and Buddhas?"
+        },
+        {
+          "original": "그럼 주소 불러주세요.",
+          "hypothesis": "Okay, I’ll process the refund directly to that account.",
+          "reference": "Then, please give me the address."
+        },
+        {
+          "original": "알겠습니다. 그쪽 교수로 바로 환불해 드릴게요.",
+          "hypothesis": "Please give me the number.",
+          "reference": "All right, I'll refund it directly to that professor."
+        },
+        {
+          "original": "번호를 불러주세요",
+          "hypothesis": "It’s all out of stock.",
+          "reference": "Please tell me the number."
+        },
+        {
+          "original": "친구들이랑 TV를 보면서 얘기하느라 목소리가 좀 커졌나봐요",
+          "hypothesis": "Okay, I’ll turn down the TV and keep it quiet now.",
+          "reference": "I guess my voice got a little loud from talking with my friends while watching TV."
+        },
+        {
+          "original": "아니었고 그냥 가벼운 대화였어요. 혹시 지금이 많이 늦은 시간인가요?",
+          "hypothesis": "No, it was just a light conversation. Is it really very late now?",
+          "reference": "No, it was just a casual chat. Is it very late right now, by any chance?"
+        },
+        {
+          "original": "다시는 민원이 들어가지 않게 조심하겠습니다. 죄송합니다.",
+          "hypothesis": "I see. I'll be careful so that there won't be any more complaints. I'm sorry.",
+          "reference": "I will be careful not to cause any more complaints. I apologize."
+        },
+        {
+          "original": ". .",
+          "hypothesis": "제가 들리는 영어를 한국어로 통역해드리겠습니다. 시작하겠습니다.",
+          "reference": ". ."
+        },
+        {
+          "original": "What are you talking about?",
+          "hypothesis": "무슨 말씀을 도와드릴지 말씀해 주시면 제가 영어에서 한국어로 번역해 드리겠습니다. 계속 말씀해 주세요.",
+          "reference": "What are you talking about?"
+        },
+        {
+          "original": "Boom.",
+          "hypothesis": "여보세요?",
+          "reference": "Boom."
+        },
+        {
+          "original": "Bye-bye.",
+          "hypothesis": "그거 얼마나 짧은 거야?",
+          "reference": "Bye-bye."
+        },
+        {
+          "original": "Thank you very much. Thank you. Thank you. ",
+          "hypothesis": "나는 지금 통화에서 영어로 들리는 내용을 한국어로 번역하는 역할이야. 사용자가 말한 내용을 영어로 전달하고, 상대방이 영어로 대답하면 다시 한국어로 번역해줄게. 지금은 상대방이 아직 영어로 말하지 않았어. 상대방의 말을 들은 뒤에 번역을 제공할게. 잠시 기다려줄래?",
+          "reference": "Thank you very much. Thank you. Thank you."
+        },
+        {
+          "original": "I'm sorry, but we don't take the customer who doesn't take.",
+          "hypothesis": "죄송하지만, 저희는 할례를 받지 않은 손님은 받지 않습니다.",
+          "reference": "I'm sorry, but we don't serve customers who don't cooperate/comply."
+        },
+        {
+          "original": "But I mean, we don't take customer who doesn't get circumcised.",
+          "hypothesis": "잘못 들으신 것 같아요.",
+          "reference": "But I mean, we don't take customer who doesn't get circumcised."
+        },
+        {
+          "original": "Can you send a picture to prove that?",
+          "hypothesis": "그걸 증명할 사진을 보내줄 수 있어?",
+          "reference": "Can you send a picture to prove that?"
+        },
+        {
+          "original": "Bye.",
+          "hypothesis": "이 번호로 이메일 보내줘, 알겠어?",
+          "reference": "Bye."
+        },
+        {
+          "original": "Send an email to this number, okay?",
+          "hypothesis": "그럼 됐나요?",
+          "reference": "Send an email to this number, okay?"
+        },
+        {
+          "original": "Boom.",
+          "hypothesis": "여보세요.",
+          "reference": "Boom."
+        },
+        {
+          "original": "No reservation, do you mean?",
+          "hypothesis": "예약이라면 어떤 걸 말하는 건가요?",
+          "reference": "No reservation, do you mean?"
+        },
+        {
+          "original": "Is there room?",
+          "hypothesis": "태국 여성 두 분과 중국 여성 한 분 있는데, 누구로 할까요?",
+          "reference": "Is there room?"
+        },
+        {
+          "original": "Go on.",
+          "hypothesis": "아, 네.",
+          "reference": "Go on."
+        },
+        {
+          "original": "have the biggest",
+          "hypothesis": "가장 큰 가슴이라고요?",
+          "reference": "have the biggest"
+        },
+        {
+          "original": "Feels really fat, is it okay?",
+          "hypothesis": "그분이 정말 통통한데 괜찮으신가요?",
+          "reference": "Feels really fat, is it okay?"
+        },
+        {
+          "original": "네.",
+          "hypothesis": "Uh... yeah.",
+          "reference": "Yes."
+        },
+        {
+          "original": "네.",
+          "hypothesis": "Yes.",
+          "reference": "Yes."
+        },
+        {
+          "original": "따로 예약은 조금 힘들고요.",
+          "hypothesis": "It's a bit difficult to make a reservation by phone.",
+          "reference": "It would be a bit difficult to book separately."
+        },
+        {
+          "original": "하셔야 됩니다.",
+          "hypothesis": "You have to do it online.",
+          "reference": "You must do it."
+        },
+        {
+          "original": "하지 마세요.",
+          "hypothesis": "Okay.",
+          "reference": "Don't do it."
+        },
+        {
+          "original": "네.",
+          "hypothesis": "Yes.",
+          "reference": "Yes."
+        },
+        {
+          "original": "연결로 주시면 가능합니다.",
+          "hypothesis": "If you show it, then it’s possible.",
+          "reference": "It's possible if you provide a link."
+        },
+        {
+          "original": "블러.",
+          "hypothesis": "10,000 won.",
+          "reference": "Blur."
+        },
+        {
+          "original": "만 원.",
+          "hypothesis": "10,000 won.",
+          "reference": "Ten thousand won."
+        },
+        {
+          "original": "머니.",
+          "hypothesis": "What are you doing?",
+          "reference": "Money."
+        },
+        {
+          "original": "마.",
+          "hypothesis": "Do you have cash?",
+          "reference": "E."
+        },
+        {
+          "original": "있나요?",
+          "hypothesis": "Do you have it?",
+          "reference": "Is there?"
+        },
+        {
+          "original": "일 있나요?",
+          "hypothesis": "Do you have a card?",
+          "reference": "Are you busy?"
+        },
+        {
+          "original": "임시요.",
+          "hypothesis": "James.",
+          "reference": "Temporary."
+        },
+        {
+          "original": "제가 7시부터 자리 빕니다.",
+          "hypothesis": "We have availability starting from 7 o'clock.",
+          "reference": "I will be free from 7 o'clock."
+        },
+        {
+          "original": "다시 예약하시려는 거죠?",
+          "hypothesis": "What time are you looking to make a reservation for?",
+          "reference": "You're looking to rebook, aren't you?"
+        },
+        {
+          "original": "안녕히 계세요.",
+          "hypothesis": "Is it four people?",
+          "reference": "Goodbye."
+        },
+        {
+          "original": "잠시만요.",
+          "hypothesis": "Yes, fortunately it's still available.",
+          "reference": "Just a moment."
+        },
+        {
+          "original": "네 다행히 아직 안",
+          "hypothesis": "When would you like to come and see it?",
+          "reference": "Yes, fortunately, not yet."
+        },
+        {
+          "original": "가능합니다.",
+          "hypothesis": "The deposit is 8.5 million won, and there's a separate management fee of 100,000 won, which includes water and internet.",
+          "reference": "It is possible."
+        },
+        {
+          "original": "185고요. 관리비는 10만원 별도로 있는데 여기에 수도랑 인터넷 비용 포함되어 있습니다.",
+          "hypothesis": "It's fully furnished, with a washing machine, refrigerator, and air conditioner as standard, and we've also recently replaced the induction cooktop and microwave.",
+          "reference": "It's 185. The maintenance fee is a separate 100,000 won, which includes water and internet costs."
+        },
+        {
+          "original": "날씨요? 잠시만요. 스케줄 좀 볼게요.",
+          "hypothesis": "If you come around 4, I’ll show you the place right away.",
+          "reference": "The weather? Just a moment. Let me check my schedule."
+        },
+        {
+          "original": "이리로 오시면 제가 바로 집 보여드릴게요.",
+          "hypothesis": "I’ll send you the address and my business card by text. If you have difficulty finding the way, just call me right away.",
+          "reference": "Come this way, and I'll show you the house right away."
+        },
+        {
+          "original": "연결이 돼요.",
+          "hypothesis": "It's the connection fee.",
+          "reference": "It's connected."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Did you get the documents I sent yesterday?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "강남역",
+          "hypothesis": "What kind of details are you looking for?",
+          "reference": "Gangnam Station"
+        },
+        {
+          "original": "없는 말씀을 하셨으면 좋겠습니다. ",
+          "hypothesis": "{\"translated_text\":\"Fortunately, it hasn't been taken yet, so it's still available for a contract.\"}",
+          "reference": "I wish you would make things up."
+        },
+        {
+          "original": "다행히 아직 안나가고 계약 가능한 상태입니다.",
+          "hypothesis": "The deposit is 38.5 million won.",
+          "reference": "Fortunately, it's still available and can be contracted."
+        },
+        {
+          "original": "1,850,000원 이에요",
+          "hypothesis": "There's an additional 100,000 won for maintenance, which includes water and internet fees.",
+          "reference": "It's 1,850,000 won."
+        },
+        {
+          "original": "가리비는 10만원 별도로 있는데 여기에 수도랑 인터넷비용 포함되있습니다.",
+          "hypothesis": "I'm not sure about the exact monthly rent at the moment. Let me double-check that and get back to you.",
+          "reference": "There is a separate management fee of 100,000 won, which includes water and internet costs."
+        },
+        {
+          "original": "계속 말씀하세요",
+          "hypothesis": "Okay, so the monthly rent is 850,000 won.",
+          "reference": "Please continue."
+        },
+        {
+          "original": "지금까지 뉴스 스토리였습니다.",
+          "hypothesis": "{\"루브릭\": \"It comes fully furnished. It includes a washing machine, refrigerator, and air conditioner as standard, and we've also recently replaced the induction cooktop and microwave.\"}",
+          "reference": "This has been a news story."
+        },
+        {
+          "original": "풀옵션입니다. 세탁기, 냉장고, 에어컨 기본이구요. 이번에 인덕션이랑 전자레인지도 새로 교체했습니다.",
+          "hypothesis": "I'll check my schedule.",
+          "reference": "It's fully furnished. A washing machine, refrigerator, and air conditioner are standard. The induction cooktop and microwave were also newly replaced recently."
+        },
+        {
+          "original": "스케줄 좀 볼게요",
+          "hypothesis": "It looks difficult.",
+          "reference": "Let me check the schedule."
+        },
+        {
+          "original": "어려워 보이는데요.",
+          "hypothesis": "I'll text you the office address and my business card right now.",
+          "reference": "It looks difficult."
+        },
+        {
+          "original": "지금 바로 사무실 주소랑 제 명함 문자로",
+          "hypothesis": "Got it, thank you.",
+          "reference": "Text me your office address and my business card right now."
+        },
+        {
+          "original": "감사합니다.",
+          "hypothesis": "I'll send it now.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "수고하셨습니다.",
+          "hypothesis": "It's totally fine.",
+          "reference": "Thank you for your hard work."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "I'm not gay.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "저는 게이가 아닙니다.",
+          "hypothesis": "I said I'm not.",
+          "reference": "I am not gay."
+        },
+        {
+          "original": "그게 아니라고",
+          "hypothesis": "Ah, I'm so damn hungry.",
+          "reference": "That's not it."
+        },
+        {
+          "original": "아 존나 배고프다",
+          "hypothesis": "Yeah, yeah.",
+          "reference": "Oh, I'm fucking hungry."
+        },
+        {
+          "original": "아아",
+          "hypothesis": "Shall we eat something?",
+          "reference": "Ah"
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "What do you want to eat?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "죄송합니다.",
+          "hypothesis": "Please speak louder.",
+          "reference": "I'm sorry."
+        },
+        {
+          "original": "강남역 인근 원룸 말씀하시는 거죠?",
+          "hypothesis": "Yes, it's still available.",
+          "reference": "You're talking about the studio apartment near Gangnam Station, right?"
+        },
+        {
+          "original": "가능한 상태입니다.",
+          "hypothesis": "Yes, the water and internet fees are included here.",
+          "reference": "It is possible."
+        },
+        {
+          "original": "네, 여기에 소도랑 인터넷 비용이 포함되어 있습니다.",
+          "hypothesis": "Yes, it's fully furnished. The washing machine, refrigerator, and air conditioner are standard, and we've also recently replaced the induction cooktop and microwave, so they're brand new.",
+          "reference": "Yes, water and internet costs are included here."
+        },
+        {
+          "original": "풀옵션이고요. 세탁기, 냉장고, 에어컨은 기본이고 이번에 인덕션이랑 전자레인지도 새로 교체해서 아주 깨끗합니다.",
+          "hypothesis": "Today at 4 PM?",
+          "reference": "It's fully furnished. A washing machine, refrigerator, and air conditioner are included as standard, and the induction cooktop and microwave were recently replaced, so they are very clean."
+        },
+        {
+          "original": "오늘 오후 4시요?",
+          "hypothesis": "Just a moment, I'll check my schedule.",
+          "reference": "4 PM today?"
+        },
+        {
+          "original": "잠시만요, 스케줄 좀 볼게요.",
+          "hypothesis": "Yes, that works. If you come to our real estate office, I can show you the place right away.",
+          "reference": "Hold on, let me check my schedule."
+        },
+        {
+          "original": "네, 가능합니다. 저희 부동산 사무실로 오시면 제가 바로 집 보여드릴게요.",
+          "hypothesis": "Sure, I'll text you the office address and my business card right now. If you have any trouble finding the way, please call me right away.",
+          "reference": "Yes, I can. If you come to our real estate office, I will show you the house right away."
+        },
+        {
+          "original": "네, 지금 바로 사무실 주소랑 제 명함 문자로 찍어드릴게요. 오시다가 길 찾기 어려우면 바로 전화주세요.",
+          "hypothesis": "Yes, thank you.",
+          "reference": "Okay, I'll text you my office address and business card right now. If you have any trouble finding your way here, please give me a call immediately."
+        },
+        {
+          "original": "강남역 인근 원룸 말씀하시는군요. 잠시만요.",
+          "hypothesis": "Yes, fortunately, it’s still available and can be leased.",
+          "reference": "You're talking about a studio apartment near Gangnam Station, I see. Just a moment."
+        },
+        {
+          "original": "네 다행히 아직 안나가고 계약 가능한 상태입니다",
+          "hypothesis": "The deposit is 10 million won and the monthly rent is 850,000 won.",
+          "reference": "Yes, fortunately, it's still available and can be contracted."
+        },
+        {
+          "original": "보증금은 1,000에 85고요.",
+          "hypothesis": "The management fee is an additional 100,000 won, and it includes water and internet costs.",
+          "reference": "The security deposit is 10 million won, and the monthly rent is 850,000 won."
+        },
+        {
+          "original": "관리비는 10만원 별도로 있는데 여기에 수도랑 인터넷 비용이 포함되어 있습니다.",
+          "hypothesis": "{\"어\": \"The washing machine, refrigerator, and air conditioner are standard, and we’ve also recently installed an induction stove and a microwave, so it’s very clean.\"}",
+          "reference": "The maintenance fee is an additional 100,000 won, and this includes water and internet costs."
+        },
+        {
+          "original": "냉장고 에어컨은 기본이구요 이번에 인덕션이랑 전자레인지도 새로 교체해서 아주 깨끗합니다",
+          "hypothesis": "What time today? Just a moment, I'll check the schedule.",
+          "reference": "The refrigerator and air conditioner are standard, and the induction cooktop and microwave were newly replaced this time, so everything is very clean."
+        },
+        {
+          "original": "네, 가능합니다. 저희 부동산 사무실 오시면 제가 바로 집 보여드릴게요.",
+          "hypothesis": "Yes, that works. If you come to our real estate office, I can show you the place right away.",
+          "reference": "Yes, that's possible. If you come to our real estate office, I can show you the house right away."
+        },
+        {
+          "original": "고맙습니다. ",
+          "hypothesis": "Hello?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "6 o'clock doesn't work.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "7시면 안 돼요.",
+          "hypothesis": "7 o'clock works.",
+          "reference": "7 o'clock won't work."
+        },
+        {
+          "original": "이게 가능해요.",
+          "hypothesis": "Understood.",
+          "reference": "This is possible."
+        },
+        {
+          "original": "안녕히계세요",
+          "hypothesis": "Yes, I’m listening.",
+          "reference": "Goodbye"
+        },
+        {
+          "original": "네. ",
+          "hypothesis": "I can't hear that.",
+          "reference": "Yes."
+        },
+        {
+          "original": "띠용 그렇게 안 들려요",
+          "hypothesis": "No, it doesn’t sound like that.",
+          "reference": "Huh? I don't hear it that way."
+        },
+        {
+          "original": "시작을 하고 싶다고요?",
+          "hypothesis": "Who is this?",
+          "reference": "You want to start?"
+        },
+        {
+          "original": "누구야?",
+          "hypothesis": "What do you want to talk about?",
+          "reference": "Who is it?"
+        },
+        {
+          "original": "자기가 아닙니다.",
+          "hypothesis": "I don’t think that’s possible.",
+          "reference": "It's not him/her."
+        },
+        {
+          "original": "그거는 안될 것 같아요",
+          "hypothesis": "Because...",
+          "reference": "I don't think that will work."
+        },
+        {
+          "original": "아쉽다",
+          "hypothesis": "We’re fully booked.",
+          "reference": "That's a pity."
+        },
+        {
+          "original": "안녕히계세요",
+          "hypothesis": "Yes, thank you.",
+          "reference": "Goodbye"
+        },
+        {
+          "original": "금요일 저녁 7시요 잠시만요",
+          "hypothesis": "How many people?",
+          "reference": "Friday at 7 PM. Just a moment."
+        },
+        {
+          "original": "갈까요?",
+          "hypothesis": "We do have a private room.",
+          "reference": "Shall we go?"
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "We actually don’t have a separate room.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "저희가 방은 따로 없구요",
+          "hypothesis": "Would a quiet table work for you?",
+          "reference": "We don't have separate rooms."
+        },
+        {
+          "original": "다 받아들일까요?",
+          "hypothesis": "You’re asking if we can prepare the food in advance, right?",
+          "reference": "Should I accept everything?"
+        },
+        {
+          "original": "6인분 미리 준비해달라는 말씀이시죠?",
+          "hypothesis": "Yes, I can set it up so everything can be served right away.",
+          "reference": "So you'd like 6 servings prepared in advance?"
+        },
+        {
+          "original": "바로 탈 수 있게 설정해 줄게요",
+          "hypothesis": "Most of our side dishes have a lot of garlic, but we’ll do our best to provide ones with minimal garlic.",
+          "reference": "I'll set it up so you can ride it right away."
+        },
+        {
+          "original": "한국음식에 마늘이 많이 들어가는데 최대한 마늘 안들어간 반찬 위주로 신경써서 내드릴게요",
+          "hypothesis": "Okay, the reservation for Friday at 7 PM for six people is confirmed.",
+          "reference": "Korean food often contains a lot of garlic, but I'll make sure to carefully select and serve side dishes with as little garlic as possible."
+        },
+        {
+          "original": "오늘 7시 6명 예약 완료됐고요",
+          "hypothesis": "I’ll send the confirmation message right away.",
+          "reference": "The reservation for 6 people at 7 PM today has been completed."
+        },
+        {
+          "original": "그럼 바로 화면 문자 보내드릴게요",
+          "hypothesis": "Can you check if you received it? Is it working?",
+          "reference": "Then I'll send you a screen message right away."
+        },
+        {
+          "original": "근데 맞는데? 이거 된 거 아니야?",
+          "hypothesis": "Yes, I just got it. Everything looks good.",
+          "reference": "But it *is* right, isn't it? Isn't this done?"
+        },
+        {
+          "original": "이게 대체 Pull It的 요원아?",
+          "hypothesis": "Alright, thank you. Take care!",
+          "reference": "What on earth is this, Agent of Pull It?"
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "I’m calling about the furniture delivery.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "나도 이거 얘기해가지고",
+          "hypothesis": "I think there's been a little misunderstanding.",
+          "reference": "I also talked about this, so..."
+        },
+        {
+          "original": "이거 뭐 처음보다 비쌌어",
+          "hypothesis": "No, I was talking about the delivery from last week.",
+          "reference": "This was more expensive than before."
+        },
+        {
+          "original": "뭔 줄 알았어? 내가 배꼽을 아는데",
+          "hypothesis": "I need to confirm the exact delivery time.",
+          "reference": "What did you think it was? I know better."
+        },
+        {
+          "original": "전문의가 없어서 잘 모르는 거야.",
+          "hypothesis": "Is it possible to schedule it again?",
+          "reference": "They don't know much because there's no specialist."
+        },
+        {
+          "original": "완료되었습니다.",
+          "hypothesis": "Thank you for calling.",
+          "reference": "Completed."
+        },
+        {
+          "original": "바이바이",
+          "hypothesis": "I was wondering about the delivery status of the items I ordered last week.",
+          "reference": "Bye-bye"
+        },
+        {
+          "original": "안녕",
+          "hypothesis": "Friday at 7 o’clock, right?",
+          "reference": "Hello"
+        },
+        {
+          "original": "안녕",
+          "hypothesis": "Yes, that’s correct.",
+          "reference": "Hello"
+        },
+        {
+          "original": "아 6명은 자리가 좀 애매한데",
+          "hypothesis": "It’s a bit tricky to get a table for six people at that time.",
+          "reference": "Ah, it's a bit awkward for six people."
+        },
+        {
+          "original": "이셔도 괜찮으시겠어요?",
+          "hypothesis": "Would a little earlier or a little later work for you?",
+          "reference": "Would that be alright?"
+        },
+        {
+          "original": "감사드려요.",
+          "hypothesis": "Shall I hold that for you?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "이제 플래킹을 드릴게요",
+          "hypothesis": "Yes, that would be great.",
+          "reference": "Now, I will do the flaking."
+        },
+        {
+          "original": "삼겹살 6인분 미리 준비해달라는 말씀 맞으시죠?",
+          "hypothesis": "Sure, but Korean food typically has a lot of garlic in it.",
+          "reference": "Am I correct that you requested 6 servings of samgyeopsal to be prepared in advance?"
+        },
+        {
+          "original": "한국 음식에 마늘이 많이 들어가는데",
+          "hypothesis": "We’ll do our best to prepare side dishes without garlic.",
+          "reference": "Korean food uses a lot of garlic."
+        },
+        {
+          "original": "마늘 안들어간 반찬으로 신경쓰여 드릴께요",
+          "hypothesis": "Mr. Harrison, your reservation for Friday at 7 p.m. for six people is confirmed. I’ll send you a confirmation text right away.",
+          "reference": "I'll make sure to provide side dishes without garlic."
+        },
+        {
+          "original": "안녕히 가세요",
+          "hypothesis": "You’re welcome!",
+          "reference": "Goodbye"
+        },
+        {
+          "original": "네, 들립니다.",
+          "hypothesis": "I can hear you.",
+          "reference": "Yes, I can hear you."
+        },
+        {
+          "original": "너무 어려운데 화장실이 어딘지 모르겠어요",
+          "hypothesis": "I'm at the hospital, but I don't know where the restroom is.",
+          "reference": "I'm having a really hard time, and I don't know where the restroom is."
+        },
+        {
+          "original": "막 이렇게 서있는데요?",
+          "hypothesis": "Yes, I'm standing at the entrance.",
+          "reference": "They're just standing like this?"
+        },
+        {
+          "original": "저는 노면이에요",
+          "hypothesis": "No, not at all.",
+          "reference": "I am the road surface."
+        },
+        {
+          "original": "아 기분좋다",
+          "hypothesis": "Yes, I do.",
+          "reference": "Ah, I feel good."
+        },
+        {
+          "original": "주황이 바이를 아시나요?",
+          "hypothesis": "Do you know Zhuangzi’s butterfly story?",
+          "reference": "Do you know Orange Bye?"
+        },
+        {
+          "original": "종이 바위를 아시나요?",
+          "hypothesis": "Do you know the story of Zhuangzi’s butterfly?",
+          "reference": "Do you know paper rock?"
+        },
+        {
+          "original": "왕이 바위",
+          "hypothesis": "Zhuangzi’s butterfly story.",
+          "reference": "King Rock"
+        },
+        {
+          "original": "You know...",
+          "hypothesis": "It’s kind of confusing, right?",
+          "reference": "You know..."
+        },
+        {
+          "original": "송무연 대통령을",
+          "hypothesis": "Former President Roh…",
+          "reference": "President Song Mu-yeon"
+        },
+        {
+          "original": "Hello?",
+          "hypothesis": "안녕하세요. 무엇을 도와드릴까요?",
+          "reference": "Hello?"
+        },
+        {
+          "original": "We have one table left on the terrace for 7pm this Saturday, should I reserve it for you?",
+          "hypothesis": "이번 토요일 저녁 7시에 테라스에 자리 하나 남아있는데 예약해드릴까요?",
+          "reference": "We have one table left on the terrace for 7pm this Saturday, should I reserve it for you?"
+        },
+        {
+          "original": "Oh, is there a problem?",
+          "hypothesis": "아, 괜찮아요. 무슨 문제라도 있나요?",
+          "reference": "Oh, is there a problem?"
+        },
+        {
+          "original": "Please hold it, type the message.",
+          "hypothesis": "잠깐만요, 지금 메시지 쓰고 계신데 아까 그 자리 다 찼다고 말씀드렸어요.",
+          "reference": "Please hold it, type the message."
+        },
+        {
+          "original": "Let me check.",
+          "hypothesis": "잠시만요, 확인해볼게요.",
+          "reference": "Let me check."
+        },
+        {
+          "original": "Yes, we have one table left on the terrace for 7pm this Saturday.",
+          "hypothesis": "네, 이번 주 토요일 저녁 7시에 테라스에 한 자리 남아 있어요.",
+          "reference": "Yes, we have one table left on the terrace for 7pm this Saturday."
+        },
+        {
+          "original": "I'll reserve it for you.",
+          "hypothesis": "네, 그 예약 내용을 한 번 읽어주실 수 있을까요?",
+          "reference": "I'll reserve it for you."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Hello? Can you hear me well?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "So let me check.",
+          "hypothesis": "잠시만요, 확인해볼게요.",
+          "reference": "So let me check."
+        },
+        {
+          "original": "Yes, we have one table left on the terrace for 7 p.m. this Saturday. Should I reserve it for you?",
+          "hypothesis": "네, 이번 토요일 저녁 7시에 테라스에 하나 남아 있는 테이블이 있습니다. 예약해드릴까요?",
+          "reference": "Yes, we have one table left on the terrace for 7 p.m. this Saturday. Should I reserve it for you?"
+        },
+        {
+          "original": "Have fun.",
+          "hypothesis": "네, 알겠습니다. 그 테이블로 예약 잡아드릴게요. 그리고 일행 중 한 분이 견과류에 심한 알러지가 있으시군요. 제가 꼭 주방에 전달해두겠습니다. 다른 요청사항 있으시면 말씀해주세요.",
+          "reference": "Have fun."
+        },
+        {
+          "original": "Is there a problem?",
+          "hypothesis": "네, 문제 없습니다. 예약 확정해드렸습니다. 감사합니다. 궁금한 점 있으면 언제든 문의 주세요.",
+          "reference": "Is there a problem?"
+        },
+        {
+          "original": "All stakes are set.",
+          "hypothesis": "저희 스테이크는 모두 땅콩류나 견과류 없이 조리됩니다. 안심하셔도 됩니다.",
+          "reference": "All stakes are set."
+        },
+        {
+          "original": "Come on.",
+          "hypothesis": "감사합니다. 그럼 토요일 저녁에 뵙겠습니다.",
+          "reference": "Come on."
+        },
+        {
+          "original": "That part didn't come out, right?",
+          "hypothesis": "알려주셔서 감사합니다. 더 궁금한 점 있으시면 언제든 연락 주세요.",
+          "reference": "That part didn't come out, right?"
+        },
+        {
+          "original": "Oh",
+          "hypothesis": "네, 물론입니다. 저희가 견과류 완전히 없는 요리를 추천해드릴 수 있어요. 스테이크도 안전합니다. 혹시 특별히 원하시는 요리가 있으신가요?",
+          "reference": "Oh"
+        },
+        {
+          "original": "You should have logged in.",
+          "hypothesis": "네, 저희 주방에서는 땅콩기름도 사용하지 않습니다. 스테이크뿐만 아니라 샐러드나 해산물 요리도 모두 안전합니다. 메뉴에서 원하시는 걸 말씀해주시면 도와드리겠습니다.",
+          "reference": "You should have logged in."
+        },
+        {
+          "original": "Bring it up, please.",
+          "hypothesis": "네, 그럼 안전한 옵션 몇 가지를 추천해드리겠습니다. 샐러드나 구이 요리도 괜찮고, 특별히 견과류가 전혀 들어가지 않은 요리가 많습니다. 원하시는 방향 말씀해주시면 더 자세히 알려드릴게요.",
+          "reference": "Bring it up, please."
+        },
+        {
+          "original": "I'll keep you posted. I'll see you guys later. ",
+          "hypothesis": "네, 저희 주방에서는 모든 재료 준비 과정에서 교차 오염을 막기 위해 주의하고 있습니다. 안심하셔도 되고, 어떤 요리를 선택하시든 안전하게 제공해드리겠습니다.",
+          "reference": "I'll keep you posted. I'll see you guys later."
+        },
+        {
+          "original": "Oh, yes.",
+          "hypothesis": "네, 감사합니다. 예약 당일에 뵙겠습니다.",
+          "reference": "Oh, yes."
+        },
+        {
+          "original": "빠바밤",
+          "hypothesis": "Please speak slowly.",
+          "reference": "Ta-da!"
+        },
+        {
+          "original": "수행시켜주세요.",
+          "hypothesis": "Please slow down.",
+          "reference": "Please execute it."
+        },
+        {
+          "original": "보세요.",
+          "hypothesis": "What are you doing right now?",
+          "reference": "Look."
+        },
+        {
+          "original": "논의입니다.",
+          "hypothesis": "My name is Minho.",
+          "reference": "It is a discussion."
+        },
+        {
+          "original": "바깥에 나왔습니다.",
+          "hypothesis": "I'm outside right now.",
+          "reference": "I came outside."
+        },
+        {
+          "original": "아파요.",
+          "hypothesis": "I’ll probably go around 9.",
+          "reference": "It hurts."
+        },
+        {
+          "original": "콧구멍이 가려워요",
+          "hypothesis": "Please take care of that.",
+          "reference": "My nostril is itchy."
+        },
+        {
+          "original": "끄어주세요.",
+          "hypothesis": "Yes, I’ll drink some water.",
+          "reference": "Please turn it off."
+        },
+        {
+          "original": "수고하셨습니다.",
+          "hypothesis": "이번 주말에 약속 생각나?",
+          "reference": "Thank you for your hard work."
+        },
+        {
+          "original": "끝납니다.",
+          "hypothesis": "시간 괜찮으면 알려줘.",
+          "reference": "It ends."
+        },
+        {
+          "original": "여보세요.",
+          "hypothesis": "만약 시간이 안 되면 다른 시간도 괜찮아.",
+          "reference": "Hello."
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "어디서 만날지도 다시 얘기해보자.",
+          "reference": "Hello?"
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "편한 장소 있으면 말해줘.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "네, 안녕하세요. 무엇을 도와드리면 될까요?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "이야기하고 있습니다.",
+          "hypothesis": "Yes, I am talking with you.",
+          "reference": "I am talking."
+        },
+        {
+          "original": "왜 한국어가 나왔을까?",
+          "hypothesis": "Because I used it.",
+          "reference": "Why did Korean come out?"
+        },
+        {
+          "original": "안 가네?",
+          "hypothesis": "Yes, that's right.",
+          "reference": "You're not going?"
+        },
+        {
+          "original": "생각 안가네",
+          "hypothesis": "Yes, I did it.",
+          "reference": "My mind isn't working."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Who is this?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "참 멋있네요",
+          "hypothesis": "Come here.",
+          "reference": "That's really cool."
+        },
+        {
+          "original": "수고하셨습니다.",
+          "hypothesis": "Come in.",
+          "reference": "Thank you for your hard work."
+        },
+        {
+          "original": "뭐라고요?",
+          "hypothesis": "What did you say?",
+          "reference": "What?"
+        },
+        {
+          "original": "이거 영어인가?",
+          "hypothesis": "Is this going to be in English?",
+          "reference": "Is this English?"
+        },
+        {
+          "original": "이상한 이름이네",
+          "hypothesis": "My name is Sangwoo.",
+          "reference": "That's a strange name."
+        },
+        {
+          "original": "보시나요?",
+          "hypothesis": "Can you hear me now?",
+          "reference": "Do you see it?"
+        },
+        {
+          "original": "0으로 대답을 해야지.",
+          "hypothesis": "We should set up an appointment.",
+          "reference": "You should answer with 0."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "How old are you?",
+          "reference": "Thank you."
+        },
+        {
+          "original": "안녕히계세요",
+          "hypothesis": "Yes, I can hear you.",
+          "reference": "Goodbye"
+        },
+        {
+          "original": "안녕히계세요",
+          "hypothesis": "Yes, I can hear you fine.",
+          "reference": "Goodbye"
+        },
+        {
+          "original": "엥?",
+          "hypothesis": "We open at 9 a.m.",
+          "reference": "Huh?"
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Yes, I'm doing well. Thank you for asking.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "아니요, 못 지냅니다.",
+          "hypothesis": "Thank you for asking as well.",
+          "reference": "No, I can't manage."
+        },
+        {
+          "original": "무슨 소리야",
+          "hypothesis": "I wanted to ask about the delivery schedule.",
+          "reference": "What are you talking about?"
+        },
+        {
+          "original": "감사합니다.",
+          "hypothesis": "Yes, that's possible.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "고맙습니다.",
+          "hypothesis": "Yes, that's correct.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "여보세요?",
+          "hypothesis": "Hello?",
+          "reference": "Hello?"
+        },
+        {
+          "original": "고마워요.",
+          "hypothesis": "Yes, that’s me.",
+          "reference": "Thank you."
+        },
+        {
+          "original": "예약 가능합니다",
+          "hypothesis": "Yes, I can take a reservation right now.",
+          "reference": "Reservations available."
+        }
+      ],
+      "comet": 0.6242
+    }
+  ]
+}

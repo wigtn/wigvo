@@ -128,8 +128,18 @@ def filter_noise_pairs(pairs: list[TranslationPair]) -> list[TranslationPair]:
     return clean
 
 
-def fetch_transcripts(call_id: str | None = None, limit: int = 10) -> list[dict]:
-    """Supabase에서 transcript_bilingual을 조회한다."""
+def fetch_transcripts(
+    call_id: str | None = None,
+    limit: int = 10,
+    since: str | None = None,
+    until: str | None = None,
+) -> list[dict]:
+    """Supabase에서 transcript_bilingual을 조회한다.
+
+    Args:
+        since: ISO date string (inclusive), e.g. "2026-02-23"
+        until: ISO date string (inclusive, end of day), e.g. "2026-02-27"
+    """
     try:
         from supabase import create_client
     except ImportError:
@@ -150,7 +160,12 @@ def fetch_transcripts(call_id: str | None = None, limit: int = 10) -> list[dict]
     if call_id:
         query = query.eq("id", call_id)
     else:
-        query = query.not_.is_("transcript_bilingual", "null").order("created_at", desc=True).limit(limit)
+        query = query.not_.is_("transcript_bilingual", "null")
+        if since:
+            query = query.gte("created_at", f"{since}T00:00:00+00:00")
+        if until:
+            query = query.lte("created_at", f"{until}T23:59:59+00:00")
+        query = query.order("created_at", desc=True).limit(limit)
 
     result = query.execute()
     return result.data
@@ -570,6 +585,8 @@ def main() -> None:
                         help="COMET-QE만 스킵 (QE 모델 1.72GB 다운로드 필요)")
     parser.add_argument("--filter-noise", action="store_true",
                         help="노이즈 데이터 필터링 (자음 스팸, 반복 패턴, 배경 소음 등)")
+    parser.add_argument("--since", help="시작 날짜 (inclusive, e.g. 2026-02-23)")
+    parser.add_argument("--until", help="종료 날짜 (inclusive, e.g. 2026-02-27)")
     args = parser.parse_args()
 
     if not args.call_id and not args.all:
@@ -586,7 +603,10 @@ def main() -> None:
 
     # 1. Supabase에서 transcript 조회
     logger.info("Fetching transcripts from Supabase...")
-    calls = fetch_transcripts(call_id=args.call_id, limit=args.limit)
+    calls = fetch_transcripts(
+        call_id=args.call_id, limit=args.limit,
+        since=args.since, until=args.until,
+    )
     if not calls:
         logger.error("No calls found with transcript_bilingual data")
         sys.exit(1)
