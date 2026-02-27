@@ -328,7 +328,7 @@ uv run python -m tests.run --test call --phone +82... --scenario restaurant --au
 
 ## 라이선스
 
-All rights reserved.
+MIT License. [LICENSE](LICENSE) 참조.
 
 ---
 

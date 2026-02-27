@@ -460,7 +460,7 @@ Extended production data beyond the paper's evaluation. Data collected via `scri
 
 ## License
 
-All rights reserved.
+MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
