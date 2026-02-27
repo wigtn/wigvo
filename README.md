@@ -416,6 +416,74 @@ uv run python -m tests.run --test call --phone +82... --scenario restaurant --au
 
 Extended production data beyond the paper's evaluation. Data collected via `scripts/eval/` from Supabase.
 
+### Latest Single-Call Benchmark (Feb 27, 2026)
+
+A real V2V call to a Korean immigration office — English-speaking caller inquiring about visa extension documents. 116 seconds, 11 utterances (5 user, 5 recipient, 1 AI greeting).
+
+| Metric | Paper (148 calls) | Latest Call | Note |
+|--------|------------------:|------------:|------|
+| **Session A P50** | 555 ms | 611 ms | Consistent within variance |
+| **Session A P95** | 1169 ms | 751 ms | Tighter distribution (6 turns) |
+| **Session B E2E P50** | 2868 ms | 7823 ms | Longer Korean utterances (STT = 97.8% of E2E) |
+| **Session B STT P50** | 2675 ms | 6959 ms | V2V mode — Realtime API handles STT+translate+TTS |
+| **First message** | 1215 ms | 787 ms | Faster cold start |
+| **Cost/min** | $0.27 | **$0.18** | 33% lower |
+| **Echo loops** | 0 / 148 calls | 0 | Zero tolerance maintained |
+| **Echo gate activations** | 7.0/call | 5 | |
+| **VAD false triggers** | 1.8/call | 1 | |
+| **Hallucinations blocked** | 0.7/call | 1 | |
+| **Guardrail L2 / L3** | 148 / 0 total | 2 / 0 | |
+
+Session B's higher latency is driven by utterance length — the recipient's Korean responses averaged 40+ characters, placing them in the upper-half bucket (see Utterance Length vs. Latency below). Pearson r = 0.887 for this call confirms strong length–latency correlation.
+
+<details>
+<summary><b>Full Transcript: Visa Extension Inquiry (en → ko)</b></summary>
+
+```
+[AI]        안녕하세요, 고객을 대신한 AI 번역 서비스로 전화드렸습니다.
+            이제 고객님의 말씀을 전달해드리겠습니다.
+
+[User]      Hi, I received a message saying there is a problem with
+            my visa extension documents.
+         → 안녕하세요, 제가 비자 연장 서류에 문제가 있다는 메시지를 받았는데요.
+
+[User]      Can you tell me what's missing?
+         → 어떤 서류가 빠졌는지 알려주실 수 있을까요?
+
+[Recipient] Just a moment.
+
+[Recipient] 고용계약서에 회사 직인이 누락되어 있고 거주지 증명서의 유효기간이
+            만료된 상태네요.
+         → It looks like the employer's signature is missing from the
+            employment contract, and the proof of residence document
+            has expired.
+
+[User]      Can I submit the corrected documents by email or fax?
+         → 수정된 서류를 이메일이나 팩스로 보내드려도 될까요?
+
+[Recipient] Email is not possible, but you can submit it via fax,
+            through the Hi Korea website upload, or by visiting
+            in person.
+
+[User]      그럼 팩스로 보내겠습니다. 팩스 번호를 알려주시고, 보낸 뒤에
+            확인 전화가 필요한지도 말씀해 주시겠어요?
+
+[Recipient] 번호는 02-123-4567 이구요. 발송 후 담당자에게 확인 전화를
+            주시면 처리가 더 빨리 진행됩니다.
+         → The number is 02-123-4567, and after sending, if you give
+            the person in charge a confirmation call, it will be
+            processed more quickly.
+
+[User]      Okay, thanks a lot. Have a nice day.
+         → 네, 감사합니다. 좋은 하루 되세요.
+
+[Recipient] Thank you.
+```
+
+*Call ID: `e2b35f79` | Duration: 116s | Cost: $0.35 ($0.18/min)*
+
+</details>
+
 ### Mode Distribution
 
 | Mode | Calls | % | SA P50 | SB P50 |
