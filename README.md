@@ -485,12 +485,12 @@ Session B runs a local Silero neural VAD on incoming Twilio audio, replacing Ope
 
 ### Measured Performance
 
-Production metrics from **208 instrumented calls** (437 total) across Voice-to-Voice, Text-to-Voice, and Agent modes:
+Production metrics from **162 instrumented calls** (169 total, since Feb 23, 2026) across Voice-to-Voice, Text-to-Voice, and Agent modes:
 
 <div align="center">
 <img src="docs/paper/figures/figure3_latency_histogram.png" alt="Latency Distribution" width="85%" />
 <br />
-<em>Figure 3: Session A (user→recipient) and Session B (recipient→user) latency distribution. Session A achieves P50=561ms thanks to OpenAI Realtime's integrated STT+Translation+TTS. Session B P50=2532ms reflects the additional VAD processing + PSTN audio pipeline.</em>
+<em>Figure 3: Session A (user→recipient) and Session B (recipient→user) latency distribution. Session A achieves P50=557ms thanks to OpenAI Realtime's integrated STT+Translation+TTS. Session B P50=2868ms reflects the additional VAD processing + PSTN audio pipeline.</em>
 </div>
 
 <br />
@@ -498,22 +498,22 @@ Production metrics from **208 instrumented calls** (437 total) across Voice-to-V
 <div align="center">
 <img src="docs/paper/figures/figure4_utterance_scatter.png" alt="Utterance Length vs Latency" width="85%" />
 <br />
-<em>Figure 4: Recipient utterance character length vs. end-to-end latency (Pearson r=0.374, N=1009 turns). Short utterances (<=30 chars) achieve P50=2316ms; longer utterances (100+ chars) show P50=10384ms due to increased STT processing time.</em>
+<em>Figure 4: Recipient utterance character length vs. end-to-end latency (Pearson r=0.400, N=744 turns). Short utterances (<=30 chars) achieve P50=2502ms; longer utterances (100+ chars) show P50=11100ms due to increased STT processing time.</em>
 </div>
 
 <br />
 
 | Metric | Value |
 |--------|-------|
-| Session A (User→Recipient) P50 / P95 | **561ms** / 1134ms |
-| Session B (Recipient→User) P50 / P95 | **2532ms** / 10083ms |
-| STT share of Session B E2E | 83.7% |
-| First message latency P50 | 1189ms |
-| Echo gate activations per call | 6.4 |
+| Session A (User→Recipient) P50 / P95 | **557ms** / 1156ms |
+| Session B (Recipient→User) P50 / P95 | **2868ms** / 15482ms |
+| STT share of Session B E2E | 87.3% |
+| First message latency P50 | 1215ms |
+| Echo gate activations per call | 7.0 |
 | VAD false triggers per call | 1.8 |
-| Hallucinations blocked | 115 total |
-| Call completion rate | 95.3% (recent) |
-| Cost per minute | $0.27–0.30 |
+| Hallucinations blocked | 109 |
+| Call completion rate | 95.3% |
+| Cost per minute | $0.27 |
 
 ---
 

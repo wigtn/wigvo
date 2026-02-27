@@ -269,12 +269,12 @@ Priority 3 (최저):  AI 생성     -> 누구든 인터럽트 가능
 
 ### 실측 성능
 
-프로덕션 **208건의 계측된 통화** (총 437건) 데이터:
+프로덕션 **162건의 계측된 통화** (총 169건, 2026-02-23 이후) 데이터:
 
 <div align="center">
 <img src="docs/paper/figures/figure3_latency_histogram.png" alt="레이턴시 분포" width="85%" />
 <br />
-<em>Figure 3: Session A(사용자→수신자)와 Session B(수신자→사용자) 레이턴시 분포. Session A P50=561ms (OpenAI Realtime 통합 STT+번역+TTS). Session B P50=2532ms (VAD 처리 + PSTN 오디오 파이프라인 추가).</em>
+<em>Figure 3: Session A(사용자→수신자)와 Session B(수신자→사용자) 레이턴시 분포. Session A P50=557ms (OpenAI Realtime 통합 STT+번역+TTS). Session B P50=2868ms (VAD 처리 + PSTN 오디오 파이프라인 추가).</em>
 </div>
 
 <br />
@@ -282,22 +282,22 @@ Priority 3 (최저):  AI 생성     -> 누구든 인터럽트 가능
 <div align="center">
 <img src="docs/paper/figures/figure4_utterance_scatter.png" alt="발화 길이 vs 레이턴시" width="85%" />
 <br />
-<em>Figure 4: 수신자 발화 문자 수 vs. E2E 레이턴시 (Pearson r=0.374, N=1009 턴). 짧은 발화(≤30자) P50=2316ms, 긴 발화(100+자) P50=10384ms.</em>
+<em>Figure 4: 수신자 발화 문자 수 vs. E2E 레이턴시 (Pearson r=0.400, N=744 턴). 짧은 발화(≤30자) P50=2502ms, 긴 발화(100+자) P50=11100ms.</em>
 </div>
 
 <br />
 
 | 지표 | 값 |
 |------|-----|
-| Session A (User→수신자) P50 / P95 | **561ms** / 1134ms |
-| Session B (수신자→User) P50 / P95 | **2532ms** / 10083ms |
-| STT가 SB E2E에서 차지하는 비율 | 83.7% |
-| 첫 메시지 레이턴시 P50 | 1189ms |
-| 에코 게이트 활성화 (통화당) | 6.4회 |
+| Session A (User→수신자) P50 / P95 | **557ms** / 1156ms |
+| Session B (수신자→User) P50 / P95 | **2868ms** / 15482ms |
+| STT가 SB E2E에서 차지하는 비율 | 87.3% |
+| 첫 메시지 레이턴시 P50 | 1215ms |
+| 에코 게이트 활성화 (통화당) | 7.0회 |
 | VAD 오탐 (통화당) | 1.8회 |
-| 할루시네이션 차단 | 115건 |
-| 통화 완료율 | 95.3% (최근) |
-| 분당 비용 | $0.27–0.30 |
+| 할루시네이션 차단 | 109건 |
+| 통화 완료율 | 95.3% |
+| 분당 비용 | $0.27 |
 
 ---
 
