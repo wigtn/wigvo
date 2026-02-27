@@ -61,6 +61,7 @@ class EchoGateManager:
         self._echo_cooldown_task: asyncio.Task | None = None
         self._tts_first_chunk_at: float = 0.0
         self._tts_total_bytes: int = 0
+        self._pre_activate_timeout: asyncio.Task | None = None
 
     # --- Public properties ---
 
@@ -97,6 +98,22 @@ class EchoGateManager:
         # Settling 중: 정상 발화 에너지만 VAD에 전달 (에코 이미 감쇠, 200 RMS로 충분)
         return audio_rms > settings.echo_settling_rms_threshold
 
+    def pre_activate(self, timeout_s: float = 5.0) -> None:
+        """User audio commit 시 선제적 echo gate 활성화.
+
+        TTS 응답이 예상될 때 미리 echo window를 열어
+        첫 발화 에코 누출을 방지한다.
+
+        - on_tts_chunk()이 호출되면 watchdog 자동 취소 (정상 흐름)
+        - timeout_s 내에 TTS가 도착하지 않으면 자동 해제 (safety)
+        """
+        self._activate()
+        if self._pre_activate_timeout and not self._pre_activate_timeout.done():
+            self._pre_activate_timeout.cancel()
+        self._pre_activate_timeout = asyncio.create_task(
+            self._pre_activate_watchdog(timeout_s)
+        )
+
     async def break_settling(self) -> None:
         """Settling 돌파: 에코 오염 버퍼 폐기 + 100ms grace period.
 
@@ -127,6 +144,10 @@ class EchoGateManager:
         Returns:
             True if this is the first chunk of the current TTS response.
         """
+        # Pre-activate watchdog 취소 (실제 TTS 도착 → 정상 흐름으로 전환)
+        if self._pre_activate_timeout and not self._pre_activate_timeout.done():
+            self._pre_activate_timeout.cancel()
+            self._pre_activate_timeout = None
         is_first = self._tts_first_chunk_at == 0.0
         if is_first:
             self._tts_first_chunk_at = time.time()
@@ -169,13 +190,14 @@ class EchoGateManager:
         return audio_bytes
 
     async def stop(self) -> None:
-        """리소스 정리 — cooldown task 취소."""
-        if self._echo_cooldown_task and not self._echo_cooldown_task.done():
-            self._echo_cooldown_task.cancel()
-            try:
-                await self._echo_cooldown_task
-            except asyncio.CancelledError:
-                pass
+        """리소스 정리 — cooldown task + pre-activate watchdog 취소."""
+        for task in (self._echo_cooldown_task, self._pre_activate_timeout):
+            if task and not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
     # --- Internal ---
 
@@ -188,6 +210,20 @@ class EchoGateManager:
             except RuntimeError:
                 logger.debug("_fire_event called outside event loop — skipping %s", event)
                 coro.close()
+
+    async def _pre_activate_watchdog(self, timeout_s: float) -> None:
+        """Pre-activate safety timeout: TTS가 도착하지 않으면 echo gate 해제."""
+        try:
+            await asyncio.sleep(timeout_s)
+            if self._in_echo_window:
+                logger.warning(
+                    "Pre-activate timeout (%.1fs) — no TTS arrived, deactivating echo gate",
+                    timeout_s,
+                )
+                self._in_echo_window = False
+                self._fire_event("deactivate")
+        except asyncio.CancelledError:
+            pass
 
     def _activate(self) -> None:
         """Echo window를 활성화한다."""
@@ -209,6 +245,9 @@ class EchoGateManager:
         if self._echo_cooldown_task and not self._echo_cooldown_task.done():
             self._echo_cooldown_task.cancel()
             self._echo_cooldown_task = None
+        if self._pre_activate_timeout and not self._pre_activate_timeout.done():
+            self._pre_activate_timeout.cancel()
+            self._pre_activate_timeout = None
         self._tts_first_chunk_at = 0.0
         self._tts_total_bytes = 0
         if was_active:

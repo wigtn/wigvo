@@ -268,6 +268,9 @@ class VoiceToVoicePipeline(BasePipeline):
     async def handle_user_audio_commit(self) -> None:
         if self.recovery_a.is_recovering or self.recovery_a.is_degraded:
             return
+        # 선제적 Echo Gate 활성화: commit → TTS 생성(1-2s) 사이 에코 누출 방지
+        # 첫 발화 시 수신자 전화기 AEC 미적응으로 에코가 Session B로 누출하는 문제 차단
+        self.echo_gate.pre_activate()
         await self._app_ws_send(
             WsMessage(
                 type=WsMessageType.TRANSLATION_STATE,

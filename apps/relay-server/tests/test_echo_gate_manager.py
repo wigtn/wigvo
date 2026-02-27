@@ -547,6 +547,77 @@ class TestDynamicSettling:
         assert gate.is_suppressing is False
 
 
+class TestPreActivate:
+    """pre_activate() 선제적 활성화 테스트."""
+
+    @pytest.mark.asyncio
+    async def test_pre_activate_activates_echo_window(self):
+        """pre_activate() → 즉시 echo window 활성화."""
+        gate, _, metrics = _make_echo_gate()
+        gate.pre_activate()
+        assert gate.in_echo_window is True
+        assert metrics.echo_suppressions == 1
+        await gate.stop()
+
+    @pytest.mark.asyncio
+    async def test_pre_activate_watchdog_deactivates_on_timeout(self):
+        """TTS 미도착 시 watchdog이 echo window를 자동 해제."""
+        gate, _, _ = _make_echo_gate()
+        gate.pre_activate(timeout_s=0.2)
+        assert gate.in_echo_window is True
+
+        await asyncio.sleep(0.3)
+        assert gate.in_echo_window is False
+
+    @pytest.mark.asyncio
+    async def test_on_tts_chunk_cancels_watchdog(self):
+        """on_tts_chunk() 호출 시 watchdog 취소 + echo window 유지."""
+        gate, _, _ = _make_echo_gate()
+        gate.pre_activate(timeout_s=0.3)
+        assert gate._pre_activate_timeout is not None
+
+        gate.on_tts_chunk(100)
+
+        assert gate._pre_activate_timeout is None
+        assert gate.in_echo_window is True
+        # watchdog timeout 이후에도 echo window 유지 (TTS가 관리)
+        await asyncio.sleep(0.5)
+        assert gate.in_echo_window is True
+        await gate.stop()
+
+    @pytest.mark.asyncio
+    async def test_pre_activate_no_double_count(self):
+        """pre_activate() → on_tts_chunk() 시 echo_suppressions 중복 카운트 안함."""
+        gate, _, metrics = _make_echo_gate()
+        gate.pre_activate()
+        gate.on_tts_chunk(200)
+        assert metrics.echo_suppressions == 1  # 1회만 카운트
+        await gate.stop()
+
+    @pytest.mark.asyncio
+    async def test_deactivate_cancels_watchdog(self):
+        """_deactivate() → pre_activate watchdog도 취소."""
+        gate, _, _ = _make_echo_gate()
+        gate.pre_activate(timeout_s=5.0)
+        assert gate._pre_activate_timeout is not None
+
+        gate._deactivate()
+
+        assert gate._pre_activate_timeout is None
+        assert gate.in_echo_window is False
+
+    @pytest.mark.asyncio
+    async def test_stop_cancels_watchdog(self):
+        """stop() → pre_activate watchdog 취소."""
+        gate, _, _ = _make_echo_gate()
+        gate.pre_activate(timeout_s=5.0)
+        assert gate._pre_activate_timeout is not None
+
+        await gate.stop()
+
+        assert gate._pre_activate_timeout.cancelled()
+
+
 class TestInEchoWindowProperty:
     """in_echo_window property setter 테스트."""
 

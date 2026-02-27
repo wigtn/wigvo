@@ -286,6 +286,25 @@ class TestVoiceToVoiceUserAudio:
         router.session_a.commit_user_audio.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_audio_commit_pre_activates_echo_gate(self):
+        """handle_user_audio_commit이 echo_gate를 선제적으로 활성화한다."""
+        router = _make_router()
+        router.session_a.commit_user_audio = AsyncMock()
+        router.recovery_a = MagicMock()
+        router.recovery_a.is_recovering = False
+        router.recovery_a.is_degraded = False
+        router.context_manager = MagicMock()
+        router.context_manager.inject_context = AsyncMock()
+
+        assert router.echo_gate.in_echo_window is False
+
+        await router.handle_user_audio_commit()
+
+        assert router.echo_gate.in_echo_window is True
+        assert router.echo_gate._pre_activate_timeout is not None
+        await router.echo_gate.stop()
+
+    @pytest.mark.asyncio
     async def test_audio_commit_skipped_during_recovery(self):
         """recovery 중 handle_user_audio_commit은 아무것도 하지 않는다."""
         router = _make_router()
