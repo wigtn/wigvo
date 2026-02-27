@@ -28,13 +28,9 @@ No apps needed on the recipient's end. Just call.
 
 ---
 
-## What is WIGVO?
+## 1. Introduction
 
-WIGVO connects people across language barriers through **real phone calls** — not chat, not text translation, but actual voice conversations where each side speaks their own language naturally.
-
-> **What WIGVO is**: A systems engineering platform that makes state-of-the-art AI models (OpenAI GPT-4o Realtime) work reliably over real telephone lines — solving echo, noise, latency, and codec problems that these models were never designed to handle.
->
-> **What WIGVO is not**: We didn't build the AI model. OpenAI's Realtime API handles STT, translation, and TTS. Our contribution is the **entire layer between that API and the actual phone network** — the part that nobody else has built.
+WIGVO is a server-side relay system that enables **bidirectional LLM-based speech translation over ordinary telephone calls** — without requiring app installation or carrier integration on either end. The caller speaks (or types) via a browser; the callee answers on an ordinary phone.
 
 ```
 You say:      "I'd like to make a reservation for tonight"
@@ -46,15 +42,9 @@ Recipient says:   "네, 몇 시에 오실 건가요?"
 You hear:         "Yes, what time would you like to come?"
 ```
 
-The recipient just answers a normal phone call. No apps. No setup. They don't even know AI is involved.
+### The Problem
 
----
-
-## The Problem
-
-Every year, **2M+ foreigners in South Korea** struggle with a simple task: making a phone call.
-
-Booking a hospital appointment. Ordering delivery. Calling a restaurant. Contacting a government office. These require Korean-language phone calls — and existing translation apps only handle **one-way text**, not **real-time bidirectional voice over a phone line**.
+Streaming speech-to-speech translation has advanced rapidly, but existing systems assume wideband audio and client-side acoustic echo cancellation (AEC). The **Public Switched Telephone Network (PSTN)** — still the primary inbound interface for local businesses, hospitals, and government offices — encodes audio via G.711 μ-law at 8 kHz, introduces 80–600 ms delays, and provides no AEC.
 
 | Who | Pain Point | Scale |
 |-----|-----------|-------|
@@ -65,160 +55,101 @@ Booking a hospital appointment. Ordering delivery. Calling a restaurant. Contact
 
 **No existing product solves bidirectional real-time voice translation + phone connection in a single platform.**
 
----
+### Contributions
 
-## Competitive Landscape
-
-Samsung and SKT solve real-time phone translation with hundreds of engineers, proprietary hardware, and telecom infrastructure access. WIGVO solves the same problem **with software alone, built in 7 days**.
-
-This isn't a claim of superiority — it's a fundamentally different approach. They control the hardware and the network. We operate at the application layer, bridging existing infrastructure (Twilio, OpenAI) into a system that works over any phone line.
-
-| | Samsung Galaxy AI | SKT A.dot | DeepL Voice | **WIGVO** |
-|---|---|---|---|---|
-| **Architecture** | On-Device NPU | Telco Network (IMS) | WebRTC App-to-App | **Web-PSTN Bridge (OTT)** |
-| **Translation Engine** | Samsung Gauss (on-device) | Proprietary LLM | DeepL NMT | OpenAI GPT-4o Realtime* |
-| **Echo Control** | Hardware AEC (chipset) | Telecom-level control | N/A (no phone) | **Software Silence Injection** |
-| **Phone Call Support** | Galaxy S24+ only | SKT subscribers only | No PSTN support | **Any phone number, any carrier** |
-| **Recipient Requirements** | Same device ecosystem | Same carrier | App installed | **Nothing — just answer the phone** |
-| **Accessibility Modes** | Translation only | Call summary / recording | Translation only | **3 modes: V2V, T2V, AI Agent** |
-| **Device Requirement** | Flagship Galaxy | SKT SIM required | App on both sides | **Any browser or smartphone** |
-
-*\*WIGVO uses OpenAI's model as-is. Our engineering contribution is not the AI model itself, but the system that makes it work reliably over PSTN phone lines — echo cancellation, VAD, codec bridging, and session management that the API was never designed to handle.*
-
-### Where WIGVO Fits
-
-- **Samsung Galaxy AI** and **SKT A.dot** are infrastructure-level solutions with massive investment. They have advantages WIGVO cannot match (native latency, hardware AEC).
-- **WIGVO's advantage** is accessibility and speed: any browser, any carrier, any phone number. No hardware lock-in, no carrier lock-in. And the entire system was built and deployed in 7 days — demonstrating what a small team can do with the right architecture.
-- **DeepL Voice** operates in a different space entirely (app-to-app, no PSTN). It's not a direct competitor.
+1. We formalize the **echo-induced translation loop** problem in streaming speech translation over telephony.
+2. We propose a **dual-session gated architecture** combining directional separation, silence injection, and energy-based VAD gating for PSTN environments.
+3. We deploy and evaluate a working relay server across three communication modes, achieving **zero echo-induced loops** across 147 completed PSTN calls with **555 ms median caller-to-callee latency** at **USD 0.28/min**.
 
 ---
 
-## Technical Moat — Why This Is Hard to Replicate
+## 2. Related Work
 
-Building "realtime translation" is conceptually simple — OpenAI's Realtime API handles STT, translation, and TTS in a single WebSocket call. But connecting that API to **actual phone lines** introduces an entirely different class of engineering challenges that the API was never designed for, and that no amount of prompt engineering can solve.
+Simultaneous speech translation systems (SeamlessM4T, Seamless Streaming, ESPnet-ST-v2) achieve real-time quality but assume wideband audio. End-to-end full-duplex models — Moshi (200 ms latency), PersonaPlex (70 ms turn-taking), Hibiki (near-human-interpreter quality) — all require clean 24 kHz audio and do not address G.711 codec artifacts, telephony echo, or narrowband VAD failures.
 
-### 1. The PSTN Audio Problem
+In telephony AI, Google Duplex performs monolingual task completion over PSTN. Vapi and Bland.ai provide LLM-powered phone agents without cross-lingual translation. Samsung Galaxy AI and SKT A.dot solve real-time phone translation with proprietary hardware and telecom infrastructure. WIGVO solves the same problem **with software alone**, operating at the application layer.
 
-PSTN (Public Switched Telephone Network) audio is fundamentally different from web audio:
+| System | PSTN | Bidirectional | Speech-to-Speech | Echo Handling | Accessibility |
+|--------|:----:|:----:|:----:|:----:|:----:|
+| SeamlessM4T | | ✓ | ✓ | N/A | |
+| Moshi / Hibiki | | | ✓ | N/A | |
+| Google Duplex | ✓ | | | N/D | |
+| Samsung Galaxy AI | ✓ | ✓ | ✓ | Hardware AEC | |
+| SKT A.dot | ✓ | ✓ | ✓ | Telco-level | |
+| Vapi / Bland.ai | ✓ | | | N/D | |
+| FCC TRS | ✓ | ✓ | | Human | ✓ |
+| **WIGVO** | **✓** | **✓** | **✓** | **✓** | **✓** |
 
-- **Constant background noise** (RMS 50-200) that never goes silent — telephone lines always carry line noise
-- **Narrowband codec** (g711 mu-law, 8kHz) with compression artifacts
-- **Echo loops** — audio sent to the recipient bounces back through the phone network with 200-500ms delay
-- **No silence** — unlike web audio where "no speech" = digital zero, PSTN "no speech" = noisy analog signal
+---
 
-Every voice AI demo works perfectly with clean WebRTC audio. WIGVO had to make it work with dirty, noisy, echoing PSTN audio — and that required building entirely new audio processing layers.
-
-### 2. Independent Dual Session Architecture
-
-A single AI session cannot handle bidirectional translation — it confuses source and target languages mid-conversation. WIGVO runs **two physically independent OpenAI Realtime sessions** with opposite translation directions:
-
-```
-Session A: User speaks English  →  AI translates to Korean  →  Twilio sends to phone
-Session B: Phone receives Korean →  AI translates to English →  App plays to user
-```
-
-This separation is non-negotiable. It eliminates translation direction confusion, enables independent interrupt handling per direction, and allows each session to maintain its own conversation context.
-
-### 3. Software-Only Echo Cancellation on PSTN
-
-Hardware echo cancellation (AEC) is built into phone chipsets and telecom switches. WIGVO doesn't have access to either. The echo problem must be solved **purely in software**, on audio that has already been encoded, transmitted through the phone network, and echoed back.
-
-The solution — **Silence Injection with Dynamic Cooldown** — was developed through 7 iterations of trial and error (detailed below). It replaces incoming audio with mu-law silence frames during TTS playback, with cooldown duration proportional to TTS length plus a 0.3s echo round-trip margin.
-
-### 4. Local VAD for PSTN (Silero Neural Network)
-
-OpenAI's built-in Server VAD cannot handle PSTN audio. Background noise causes it to never detect speech-end (we observed 45-72 second stuck states). WIGVO runs a **local Silero VAD** with a 2-stage pipeline:
-
-- **Stage 1**: RMS energy gate — sub-150 audio is definite silence, skip neural inference
-- **Stage 2**: Silero RNN — hysteresis state machine with separate start/stop thresholds
-
-This reduced speech-end detection from 15-72 seconds to **480ms**.
-
-### 5. Modular Pipeline Architecture (Strategy Pattern)
+## 3. System Architecture and Echo Gating
 
 <div align="center">
-<img src="docs/paper/figures/figure2_pipeline.png" alt="WIGVO Pipeline Architecture" width="100%" />
+<img src="docs/paper/figures/figure1_architecture.png" alt="WIGVO System Architecture" width="100%" />
+<br />
+<em>Figure 1: WIGVO system architecture. Session A (red) translates user speech to G.711 for Twilio; Session B (blue) receives PSTN audio through a 3-stage filter pipeline (Echo Gate → Energy Gate → Silero VAD).</em>
 </div>
 
-Three communication modes are implemented as independent pipeline strategies, sharing a common interface through `AudioRouter`:
+<br />
 
-```
-AudioRouter (thin delegator, ~160 lines)
-    │
-    ├── VoiceToVoicePipeline  ← Echo Gate + Silence Injection + full audio path
-    ├── TextToVoicePipeline   ← Chat API translation (Session B) + per-response instruction (Session A)
-    └── FullAgentPipeline     ← Function calling + autonomous AI conversation
-```
+A browser client connects to the relay server via WebSocket, sending 16 kHz PCM audio. The relay manages **two independent Realtime LLM sessions** and a Twilio telephony gateway. An `AudioRouter` dispatches events to one of three pipelines — V2V, T2V, and Full-Agent — via the Strategy pattern.
 
-This isn't just code organization — it enables immediate expansion to new use cases (disability assistance, AI concierge, multi-party calls) without touching existing pipelines.
+**Dual Realtime sessions.** Session A receives browser audio (PCM16) and produces translated G.711 μ-law for the telephony gateway. Session B receives PSTN audio (G.711 μ-law, 8 kHz) and produces translated audio or captions for the browser. In T2V and Full-Agent modes, Session B performs STT only, delegating translation to a separate Chat Completion call (GPT-4o-mini, `temperature=0`) to prevent generative hallucination. Each session maintains its own system prompt and sliding context window, ensuring strict directional separation.
 
----
+### 3.1 The Echo Loop Problem
 
-## Engineering Challenges — The Hard Parts
+In a naive single-session design, TTS output played to the callee echoes back through the PSTN after 80–600 ms, gets re-recognized, and triggers another translation cycle — generating progressively distorted paraphrases until manually interrupted. A Pearson-correlation echo detector comparing outgoing TTS with incoming audio failed in production due to μ-law nonlinear quantization and variable delays. **Without gating, 8 of 10 test calls produced echo loops; Echo Gate eliminated loops entirely (0 of 147 completed calls).**
 
-### Challenge: Recipient Speech Not Recognized — 7-Step Evolution
+### 3.2 Echo Gate and 3-Stage Pipeline
 
-The longest single debugging session in WIGVO's development. The recipient was clearly speaking, but the system couldn't detect their speech or produce translations. **11 commits in one day** to solve this one problem.
+<div align="center">
+<img src="docs/paper/figures/figure2_pipeline.png" alt="PSTN Audio Processing Pipeline" width="100%" />
+<br />
+<em>Figure 2: PSTN audio processing pipeline. (A) Three-stage filter between Twilio input and Session B. (B) Temporal behavior: during TTS playback, the Echo Gate replaces audio with μ-law silence while Stages 1–2 are suppressed; after settling, Stage 0 becomes transparent and Stages 1–2 filter PSTN noise.</em>
+</div>
 
-**Root cause**: PSTN audio characteristics were fundamentally underestimated. Phone lines carry constant background noise at RMS 50-200, with real speech at RMS 500-2000+. This "never truly silent" noise broke every assumption.
+<br />
 
-<details>
-<summary><b>Step 1: OpenAI Server VAD — Initial Design</b></summary>
+PSTN audio entering Session B passes through a 3-stage filter pipeline:
 
-Started by trusting OpenAI Realtime API's built-in Server VAD entirely.
+**Stage 0: Echo Gate.** When Session A begins streaming TTS, an *echo window* is activated. Incoming PSTN audio is replaced with μ-law silence (`0xFF`) before forwarding to Session B. A dynamic cooldown (TTS duration + 0.3 s echo round-trip margin) accounts for PSTN jitter, followed by a post-echo settling window that suppresses AGC recovery noise while permitting high-energy breakthrough (≥400 RMS) for genuine callee speech.
 
-```
-threshold: 0.5, silence_duration: 200ms
-```
+**Stage 1: RMS Energy Gate.** During echo windows, only signals ≥400 RMS break through as genuine speech; typical echo energy (100–400 RMS) remains suppressed. Outside echo windows, a 150 RMS threshold filters line noise. A three-level interrupt priority (callee > caller > AI TTS) enables natural turn-taking.
 
-**Problem**: PSTN background noise (RMS 50-200) looked like "still speaking" to Server VAD. `speech_started` fired, but `speech_stopped` never came. The recipient would say "네, 아직 있어요" but the post-speech line noise made VAD think they were still talking. Translation wouldn't begin until the 15-second timeout.
-</details>
+**Stage 2: Silero VAD.** Frames passing the energy gate are processed by Silero VAD. PSTN audio (8 kHz) is upsampled to 16 kHz via zero-order hold before inference. Asymmetric hysteresis — onset at 96 ms (probability ≥ 0.5, three frames), offset at 480 ms (probability < 0.35, 15 frames) — reduces `speech_stopped` latency from 15–72 s (server VAD on PSTN) to **480 ms**.
 
-<details>
-<summary><b>Step 2: Server VAD Tuning</b></summary>
+### 3.3 PSTN VAD Failures and Robustness
 
-Made VAD less sensitive:
+The Realtime API's server-side VAD fails on the telephone network in three ways: (1) constant low-level noise is classified as speech, causing 15–72 s stuck durations; (2) the noisy telephone floor prevents energy from dropping below the silence threshold; (3) audio discontinuities during echo suppression prevent clean silence detection. The three-stage pipeline addresses all three. A 15-pattern STT hallucination blocklist intercepts broadcast-style Whisper artifacts (e.g., "Thanks for watching," "MBC 뉴스 이덕영입니다").
 
-```
-threshold: 0.5 → 0.8 (only loud sounds = speech)
-silence_duration: 200ms → 600ms (need longer silence)
-```
+### 3.4 Guardrail System
 
-Added client-side energy gate: drop audio with RMS < 150.
+Real-time translation must balance speed and quality. A 3-level guardrail system adds **zero latency** in 95%+ of cases:
 
-**Problem**: threshold 0.8 was too high — quiet speakers were completely ignored. Soft-spoken recipients got zero recognition.
-</details>
+| Level | Trigger | Action | Added Latency |
+|-------|---------|--------|---------------|
+| **L1** | Clean translation | Pass through | **0 ms** |
+| **L2** | Informal speech detected | TTS immediately, correct in background | **0 ms** |
+| **L3** | Profanity / harmful content | Block + filler audio + GPT-4o-mini correction | **~800 ms** |
+
+### 3.5 Session Recovery
+
+OpenAI Realtime sessions can drop mid-call. A 30-second ring buffer retains undelivered audio chunks. On reconnect, unsent audio is batch-transcribed via Whisper and re-injected. After 10 s failure, the system switches to degraded mode (Whisper STT + GPT-4o-mini translation).
 
 <details>
-<summary><b>Step 3: Energy Threshold Lowering</b></summary>
+<summary><b>Engineering Deep Dive: VAD — 7-Step Evolution (11 commits in one day)</b></summary>
 
-Kept lowering the RMS threshold:
-```
-150 → 80 → 30 → 20
-```
+The longest single debugging session in WIGVO's development. The recipient was clearly speaking, but the system couldn't detect their speech. **Root cause**: PSTN audio characteristics were fundamentally underestimated.
 
-**Dilemma**: Lower threshold = PSTN noise passes through = VAD stuck again. Higher threshold = real speech filtered out. The gap between PSTN noise (50-200) and real speech (500-2000+) wasn't clean enough for a simple threshold.
-</details>
+**Step 1: OpenAI Server VAD** — Trusted built-in Server VAD (`threshold: 0.5, silence_duration: 200ms`). PSTN background noise (RMS 50–200) looked like "still speaking." `speech_stopped` never fired.
 
-<details>
-<summary><b>Step 4: Dynamic Energy Threshold</b></summary>
+**Step 2: Server VAD Tuning** — Raised threshold to 0.8, silence duration to 600 ms. Too aggressive — quiet speakers were completely ignored.
 
-Changed approach: instead of a fixed threshold, **dynamically adjust based on context**.
+**Step 3: Energy Threshold Lowering** — Tried 150 → 80 → 30 → 20. Lower = PSTN noise passes through = VAD stuck again. Higher = real speech filtered out.
 
-- During echo window (TTS playing): threshold = 400 RMS (blocks echo ~100-400, passes speech ~500+)
-- Normal operation: threshold = 80 RMS (blocks only line noise)
+**Step 4: Dynamic Energy Threshold** — Context-dependent: 400 RMS during echo window, 80 RMS normally. Still failed on post-echo-window noise.
 
-**Problem**: PSTN background noise immediately after echo window still caused VAD to get stuck.
-</details>
-
-<details>
-<summary><b>Step 5: The Critical Discovery — "Don't Drop Audio, Replace It"</b></summary>
-
-**This was the breakthrough insight** that took the longest to reach.
-
-When noisy audio was *dropped* (not sent to OpenAI), the Server VAD interpreted this as "audio stream interrupted" — not as silence. VAD distinguishes between "no data arriving" and "silent data arriving". With no data, it waits indefinitely instead of firing `speech_stopped`.
-
-**Solution**: Replace noisy audio with **silence frames** (`0xFF` mu-law) instead of dropping it. The audio stream stays continuous, but VAD correctly recognizes "oh, it's quiet now" and fires `speech_stopped`.
+**Step 5: Critical Discovery — "Don't Drop Audio, Replace It"** — When noisy audio was *dropped*, the Server VAD interpreted this as "audio stream interrupted" — not as silence. **Solution**: Replace with silence frames (`0xFF` mu-law) instead of dropping. The stream stays continuous, and VAD correctly recognizes silence.
 
 ```python
 # WRONG — VAD gets stuck (no data = "still waiting")
@@ -230,219 +161,148 @@ if rms < threshold:
     silence = b"\xff" * len(audio)  # mu-law silence
     await session_b.send_audio(base64.b64encode(silence))
 ```
-</details>
 
-<details>
-<summary><b>Step 6: Max Speech Timer (Safety Net)</b></summary>
+**Step 6: Max Speech Timer** — 8-second safety net for PSTN noise spikes above RMS 200.
 
-Silence injection fixed most cases, but PSTN line noise occasionally spiked above RMS 200, bypassing the silence replacement. Observed 45-72 second stuck states in production logs.
+**Step 7: Abandon Server VAD — Local Silero VAD** — OpenAI Server VAD fundamentally cannot handle PSTN audio. Replaced entirely with 2-stage local Silero VAD. Additional hurdles: 8kHz→16kHz upsampling, 20ms→32ms frame adaptation, Silero RNN state management, Cloud Run gVisor ELF binary patch.
 
-**Solution**: Added an 8-second max speech timer as a safety net. If `speech_started` fires but `speech_stopped` doesn't arrive within 8 seconds, force-commit the audio buffer and trigger translation. Continuous speech auto-restarts.
-</details>
-
-<details>
-<summary><b>Step 7: Abandon Server VAD — Local VAD (Silero Neural Network)</b></summary>
-
-Ultimately, OpenAI Server VAD **cannot handle PSTN audio**. Replaced it entirely with a local Silero VAD running server-side.
-
-**2-stage local detection**:
-
-```
-Stage 1: RMS Energy Gate
-  RMS < 200  →  Definite silence, skip Silero (save CPU)
-  RMS ≥ 200  →  Proceed to Stage 2
-
-Stage 2: Silero VAD Neural Network (16kHz)
-  Hysteresis State Machine:
-    SILENCE → SPEAKING:  probability > 0.5 for 3 consecutive frames (96ms)
-    SPEAKING → SILENCE:  probability < 0.35 for 15 consecutive frames (480ms)
-```
-
-**Additional technical hurdles**:
-- Twilio sends 8kHz g711_ulaw; Silero requires 16kHz PCM → zero-order hold upsampling + mu-law→float32 decoding
-- Twilio frames are 20ms (160 samples); Silero needs 32ms (512 samples) → frame adapter with internal buffering
-- Skipping Silero during RMS-silence stalls internal RNN state → model reset on RMS-silence→active transition
-- Silero `.so` file failed to load on Cloud Run gVisor → ELF binary patch to clear executable stack flag
-- OpenAI `turn_detection=null` means manual `commit_audio_only()` + `response.create()` on speech end
-- Continuous speech (short pauses between sentences) → 300ms debounce: if `speech_started` fires within 300ms of `speech_stopped`, cancel the commit and continue buffering
-
-**Final results**:
 | Metric | Before | After |
 |--------|--------|-------|
-| Speech-end detection | 15-72 seconds | **480ms** |
+| Speech-end detection | 15–72 seconds | **480 ms** |
 | Translation start (E2E) | 15+ seconds | **~3 seconds** |
-| Hallucination | Frequent (noise segments) | Blocked by VAD parameter tuning |
 
-Commit trail (one day of debugging):
+Commit trail:
 ```
-09ac3c3  3-layer noise filter (Server VAD tuning)
-20eb470  Energy threshold lowering (150→20)
-309c502  Energy threshold lowering (150→80)
-0ccc389  Dynamic Energy Threshold
-8488084  PSTN VAD re-tuning
-2554628  Energy threshold lowering (80→30) + diagnostic logging
-e83c9d5  Critical discovery: silence injection
-6f4668f  Silence injection expansion + max speech timer
-3330eeb  Local VAD (Silero) introduction
-b8f552e  Local VAD stabilization + debounce
-6569d76  Hallucination blocklist + VAD parameter final tuning
+09ac3c3 → 20eb470 → 309c502 → 0ccc389 → 8488084 → 2554628 → e83c9d5 → 6f4668f → 3330eeb → b8f552e → 6569d76
 ```
+
 </details>
 
-### Challenge: Echo Cancellation Without Hardware — 4-Layer Evolution
+<details>
+<summary><b>Engineering Deep Dive: Echo Cancellation — From Correlation to Silence Injection</b></summary>
 
-When Session A sends translated TTS to the recipient via Twilio, that same audio echoes back through the phone network into Session B's input. Without mitigation, this creates an **infinite translation loop** — the system translates its own output endlessly.
+**Attempt 1: Pearson Correlation Echo Detector** — Compared outgoing TTS with incoming audio using per-chunk correlation. Failed due to μ-law nonlinear quantization, variable PSTN delays, and codec distortion. Reduced echo loops from 8/10 to 3/10 but introduced frequent false positives. Removed from codebase.
 
-WIGVO solved this entirely in software, without access to hardware AEC or telecom-level echo cancellation.
-
-**Layer 1: Silence Injection + Dynamic Cooldown (primary)**
-
-During TTS playback ("echo window"), all incoming Twilio audio is replaced with mu-law silence frames (`0xFF`). This prevents echo contamination while keeping the audio stream continuous for VAD.
+**Solution: Silence Injection + Dynamic Cooldown** — During TTS playback ("echo window"), all incoming Twilio audio is replaced with mu-law silence frames (`0xFF`). Cooldown = remaining TTS playback time + 0.3 s echo round-trip margin.
 
 ```
 Echo window lifecycle:
   TTS chunk arrives     → Activate echo window
   TTS complete          → Start dynamic cooldown
-  Cooldown expired      → Deactivate echo window
+  Cooldown expired      → Post-echo settling (AGC recovery)
+  Settling expired      → Normal operation
 
-Dynamic cooldown = remaining TTS playback time + 0.3s echo round-trip margin
-  Short utterance ("네"): ~0.8s cooldown
-  Long sentence:          ~3.0s cooldown
+Dynamic cooldown:
+  Short utterance ("네"): ~0.8s
+  Long sentence:          ~3.0s
 ```
 
-**Layer 2: Local VAD Echo Rejection**
+This approach is simpler and more robust than signal-level echo detection, achieving **0 echo-induced loops across 147 completed calls** while preserving natural turn-taking through 354 callee interruptions.
 
-During echo window, Local VAD receives silence frames, so it never fires `speech_started` for echo. If the recipient genuinely speaks during TTS playback (interrupt), their speech energy (500-2000+ RMS) is immediately detectable once the echo window closes.
-
-**Layer 3: Interrupt Priority System**
-
-```
-Priority 1 (highest):  Recipient speech  → Immediately cancel AI output + close echo window
-Priority 2:            User speech        → Cancel AI, queue for translation
-Priority 3 (lowest):   AI generation      → Can be interrupted by anyone
-```
-
-Recipient speech always takes priority. A max speech duration safety net (8 seconds) force-commits audio if VAD fails to detect speech-end.
-
-**Layer 4: Legacy Audio Fingerprint (disabled)**
-
-A Pearson-correlation-based per-chunk echo detector was the first approach attempted but proved unreliable for PSTN audio where echo arrives distorted and time-shifted. It has since been removed from the codebase. The Silence Injection approach is simpler and more robust.
+</details>
 
 ---
 
-## How It Works
+## 4. Evaluation
+
+Evaluated on **162 instrumented PSTN calls** (169 total, since Feb 23, 2026) for Korean↔English translation across Voice-to-Voice, Text-to-Voice, and Full-Agent modes.
+
+### 4.1 Latency
 
 <div align="center">
-<img src="docs/paper/figures/figure5_screenshot_call.png" alt="WIGVO Call Interface" width="80%" />
+<img src="docs/paper/figures/figure3_latency_histogram.png" alt="Latency Distribution" width="85%" />
 <br />
-<em>Active call interface — real-time bilingual captions with chat history and call controls</em>
+<em>Figure 3: End-to-end latency distributions. Session A (caller→callee, N=814 turns) and Session B (callee→caller, N=744 turns) over live PSTN calls.</em>
 </div>
 
 <br />
 
-### For the User (Web App)
+| Stage | P50 | P95 | Mean | N |
+|-------|----:|----:|-----:|--:|
+| **Session A** (User→Recipient) | **557 ms** | 1156 ms | 617 ms | 814 turns |
+| **Session B E2E** (Recipient→User) | **2868 ms** | 15482 ms | 3997 ms | 744 turns |
+| Session B STT only | 2675 ms | 15547 ms | 3868 ms | 744 turns |
+| Session B Translation only | 104 ms | 1934 ms | 535 ms | 585 turns |
+| First message latency | 1215 ms | 6890 ms | 2081 ms | 162 calls |
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. Chat with AI         "식당 예약하고 싶어요"              │
-│     ↓                                                    │
-│  2. AI collects info     날짜, 시간, 인원, 요청사항         │
-│     ↓                                                    │
-│  3. Find the place       네이버 장소 검색 → 전화번호 확인    │
-│     ↓                                                    │
-│  4. One-click call       Relay Server → Twilio 발신       │
-│     ↓                                                    │
-│  5. Real-time monitor    자막 + 상태 표시                   │
-└─────────────────────────────────────────────────────────┘
-```
+Session A achieves **555 ms median**, within the range for interactive communication. STT (Whisper) dominates Session B latency, accounting for **87.3%** of end-to-end time. The P95 (15482 ms) is driven by PSTN VAD stuck events — server-side VAD on noisy telephone audio occasionally delays `speech_stopped` detection.
 
-### Supported Modes & Pipeline Architecture
+While Session B's ~2.9 s median exceeds ITU-T G.114's 150 ms one-way threshold, that standard applies to same-language dialogue. A more appropriate baseline is professional simultaneous interpretation, where ear-voice span ranges from **2 to 5 s**; Session B falls at the lower bound.
 
-Each communication mode is handled by a dedicated **pipeline** (Strategy pattern), enabling independent development and testing:
+<div align="center">
+<img src="docs/paper/figures/figure4_utterance_scatter.png" alt="Utterance Length vs Latency" width="85%" />
+<br />
+<em>Figure 4: Utterance length vs. Session B E2E latency. Pearson r=0.400 (p < 0.001), confirming that longer recipient utterances incur higher ASR-dominated latency.</em>
+</div>
+
+### 4.2 Echo and Safety
+
+| Metric | Total | Per Call |
+|--------|------:|---------:|
+| Echo gate activations | 1128 | 7.0 |
+| Echo gate breakthroughs (callee interrupt) | 358 | 2.2 |
+| Settling breakthroughs | 20 | 0.1 |
+| **Echo-induced translation loops** | **0** | **0** |
+| VAD false triggers | 286 | 1.8 |
+| Hallucinations blocked | 109 | 0.7 |
+| Guardrail L2 / L3 | 148 / 0 | — |
+
+**Zero echo-induced translation loops** across 162 instrumented calls, whereas early prototypes without gating reliably produced such loops. The echo gate permitted **358 callee interruptions** during active TTS playback, confirming that the energy-based override preserves natural turn-taking.
+
+### 4.3 Cost
+
+| Metric | Value |
+|--------|-------|
+| Total calls | 169 |
+| Total duration | 241.4 min |
+| Total cost | $64.71 |
+| **Cost per minute** | **$0.27** |
+| Cost per call | $0.40 |
+
+These costs reflect dual-session Realtime API pricing and remain an order of magnitude cheaper than professional telephone interpretation services ($1–3/min).
+
+### 4.4 Baseline Comparison
+
+No existing system performs bidirectional cross-lingual speech translation over PSTN, so we report absolute rather than comparative metrics.
+
+| System | Network | Bidirectional | Latency |
+|--------|---------|:----:|---------|
+| Seamless Streaming | Wideband | | < 2 s AL |
+| Moshi | Wideband | | ~200 ms |
+| Hibiki | Wideband | | 2.8–5.6 s LAAL |
+| Google Duplex | PSTN | | N/D |
+| Vapi | WebRTC/PSTN | | ~965 ms* |
+| Bland.ai | PSTN | | < 400 ms* |
+| **WIGVO Session A** | **PSTN** | **✓** | **557 ms P50** |
+| **WIGVO Session B** | **PSTN** | **✓** | **2868 ms P50** |
+
+*Vendor-reported; independent reviews report higher values. All non-WIGVO systems are monolingual (no cross-lingual translation).*
+
+Twilio's industry benchmark for AI voice agents targets 1115 ms median turn gap. Session A (557 ms) falls well within this target; Session B (2868 ms) exceeds it but includes cross-lingual translation that monolingual agents do not perform.
+
+---
+
+## 5. Demonstration
+
+<div align="center">
+<img src="docs/paper/figures/figure5_screenshot_call.png" alt="WIGVO Call Interface" width="80%" />
+<br />
+<em>Figure 5: WIGVO web interface during a V2V call — real-time bilingual captions with chat history and call controls.</em>
+</div>
+
+<br />
+
+A session proceeds as: (1) select a scenario, (2) chat with the AI agent to provide caller intent and phone number, (3) the system places a PSTN call with bidirectional translation, and (4) real-time captions appear alongside call status. Mode switching (V2V, T2V, Full-Agent) is available during active calls.
+
+### Communication Modes
+
+Each communication mode is handled by a dedicated pipeline (Strategy pattern):
 
 | Mode | Pipeline | Input | Output | For |
 |------|----------|-------|--------|-----|
 | **Voice → Voice** | `VoiceToVoicePipeline` | Speak your language | Translated speech + captions | General users |
 | **Text → Voice** | `TextToVoicePipeline` | Type text | AI speaks for you via phone | Speech disabilities, phone anxiety |
 | **Agent Mode** | `FullAgentPipeline` | Provide info upfront | AI handles entire call autonomously | Anyone |
-
----
-
-## Architecture
-
-<div align="center">
-<img src="docs/paper/figures/figure1_architecture.png" alt="WIGVO System Architecture" width="100%" />
-</div>
-
-> *Figure 1: WIGVO System Architecture — Dual-session relay server bridging web/mobile clients, OpenAI Realtime API, and Twilio PSTN phone calls via Supabase.*
-
-Two independent OpenAI Realtime sessions run simultaneously — **Session A** (User → Recipient) and **Session B** (Recipient → User) — because a single session confuses translation direction in bidirectional conversation.
-
----
-
-## Key Technical Innovations
-
-### Guardrail System — Translation Quality Verification
-
-Real-time translation must balance speed and quality. Our 3-level system adds **zero latency** in 95%+ of cases:
-
-| Level | Trigger | Action | Added Latency |
-|-------|---------|--------|---------------|
-| **L1** | Clean translation | Pass through | **0ms** |
-| **L2** | Informal speech detected | TTS immediately, correct in background | **0ms** |
-| **L3** | Profanity / harmful content | Block + filler audio + GPT-4o-mini correction | **~800ms** |
-
-### Session Recovery — Zero-Downtime Resilience
-
-OpenAI Realtime sessions can drop. Mid-call recovery is critical.
-
-```
-Normal ──► Heartbeat miss ──► Reconnect (exponential backoff)
-                                    │
-                              ┌─────┴─────┐
-                              │           │
-                         Success      Fail (10s)
-                              │           │
-                    Ring buffer        Degraded mode
-                    catch-up           (Whisper batch
-                    (unsent audio)      fallback)
-```
-
-- **Ring buffer**: 30-second circular buffer retains undelivered audio chunks
-- **Catch-up**: On reconnect, unsent audio is batch-transcribed via Whisper and re-injected
-- **Degraded mode**: After 10s failure, switches to Whisper STT + GPT-4o-mini translation
-
-### Measured Performance
-
-Production metrics from **162 instrumented calls** (169 total, since Feb 23, 2026) across Voice-to-Voice, Text-to-Voice, and Agent modes:
-
-<div align="center">
-<img src="docs/paper/figures/figure3_latency_histogram.png" alt="Latency Distribution" width="85%" />
-<br />
-<em>Figure 3: Session A (user→recipient) and Session B (recipient→user) latency distribution. Session A achieves P50=557ms thanks to OpenAI Realtime's integrated STT+Translation+TTS. Session B P50=2868ms reflects the additional VAD processing + PSTN audio pipeline.</em>
-</div>
-
-<br />
-
-<div align="center">
-<img src="docs/paper/figures/figure4_utterance_scatter.png" alt="Utterance Length vs Latency" width="85%" />
-<br />
-<em>Figure 4: Recipient utterance character length vs. end-to-end latency (Pearson r=0.400, N=744 turns). Short utterances (<=30 chars) achieve P50=2502ms; longer utterances (100+ chars) show P50=11100ms due to increased STT processing time.</em>
-</div>
-
-<br />
-
-| Metric | Value |
-|--------|-------|
-| Session A (User→Recipient) P50 / P95 | **557ms** / 1156ms |
-| Session B (Recipient→User) P50 / P95 | **2868ms** / 15482ms |
-| STT share of Session B E2E | 87.3% |
-| First message latency P50 | 1215ms |
-| Echo gate activations per call | 7.0 |
-| VAD false triggers per call | 1.8 |
-| Hallucinations blocked | 109 |
-| Call completion rate | 95.3% |
-| Cost per minute | $0.27 |
 
 ---
 
@@ -458,9 +318,7 @@ Production metrics from **162 instrumented calls** (169 total, since Feb 23, 202
 | **Local VAD** | Silero VAD (lightweight RNN) | PSTN-grade speech detection |
 | **Telephony** | Twilio (REST + Media Streams) | Reliable phone call infrastructure |
 | **Database** | Supabase (PostgreSQL + Auth + RLS) | Real-time subscriptions, row-level security |
-| **Place Search** | Naver Place Search API | Korean business directory |
 | **Deploy** | Docker, Google Cloud Run | Auto-scaling, zero cold start |
-| **Package Mgmt** | uv (Python), npm (Web/Mobile) | Fast, reliable dependency resolution |
 
 ---
 
@@ -471,103 +329,38 @@ apps/
 ├── relay-server/                    # Python FastAPI — Real-time Translation Engine
 │   ├── src/
 │   │   ├── main.py                  # FastAPI entrypoint + lifespan
-│   │   ├── call_manager.py          # Call lifecycle singleton (register/cleanup/shutdown)
+│   │   ├── call_manager.py          # Call lifecycle singleton
 │   │   ├── config.py                # pydantic-settings env config
 │   │   ├── types.py                 # ActiveCall, CostTokens, WsMessage, etc.
-│   │   ├── logging_config.py        # Structured logging setup
-│   │   ├── middleware/              # HTTP middleware
-│   │   │   └── rate_limit.py        # Rate limiting
 │   │   ├── routes/                  # HTTP + WebSocket endpoints
-│   │   │   ├── calls.py             # POST /calls/start, /calls/{id}/end
-│   │   │   ├── stream.py            # WS /calls/{id}/stream (app ↔ relay)
-│   │   │   └── twilio_webhook.py    # Twilio status callbacks
 │   │   ├── realtime/                # OpenAI Realtime session management
 │   │   │   ├── pipeline/            # Strategy pattern — mode-specific pipelines
 │   │   │   │   ├── base.py          # BasePipeline ABC
 │   │   │   │   ├── voice_to_voice.py # V2V (Echo Gate + Silence Injection)
-│   │   │   │   ├── text_to_voice.py  # T2V (Chat API translation + per-response instruction)
-│   │   │   │   └── full_agent.py     # Agent (function calling, autonomous)
-│   │   │   ├── chat_translator.py    # Chat API translator (GPT-4o-mini, T2V/Agent Session B)
+│   │   │   │   ├── text_to_voice.py  # T2V (Chat API translation)
+│   │   │   │   └── full_agent.py     # Agent (function calling)
+│   │   │   ├── chat_translator.py    # Chat API translator (GPT-4o-mini)
 │   │   │   ├── audio_router.py      # Thin delegator → pipeline selection
 │   │   │   ├── local_vad.py         # Silero neural VAD + RMS energy gate
-│   │   │   ├── audio_utils.py       # Shared mu-law audio utilities
-│   │   │   ├── sessions/            # OpenAI Realtime session handlers
-│   │   │   │   ├── session_manager.py # Dual session orchestrator
-│   │   │   │   ├── session_a.py     # User → Recipient translation
-│   │   │   │   └── session_b.py     # Recipient → User translation
+│   │   │   ├── sessions/            # Dual session handlers (A + B)
 │   │   │   ├── context_manager.py   # 6-turn sliding context window
-│   │   │   ├── recovery.py          # Session failure recovery + degraded mode
-│   │   │   └── ring_buffer.py       # 30s circular audio buffer
+│   │   │   └── recovery.py          # Session failure recovery + degraded mode
 │   │   ├── guardrail/               # 3-level translation quality system
 │   │   ├── tools/                   # Agent Mode function calling
-│   │   ├── prompt/                  # System prompt templates + generator
-│   │   └── db/                      # Supabase client
-│   ├── tests/                       # 430+ pytest unit tests
-│   │   ├── component/              # Module benchmarks (cost tracking, ring buffer perf)
-│   │   ├── integration/            # Server-required tests (API, WebSocket)
-│   │   ├── e2e/                    # End-to-end call tests (Twilio + OpenAI required)
-│   │   └── run.py                  # Test runner (--suite, --test options)
+│   │   └── prompt/                  # System prompt templates
+│   ├── tests/                       # 430+ pytest tests
 │
 ├── web/                             # Next.js 16 — Chat Agent + Call Monitor
-│   ├── app/
-│   │   ├── page.tsx                 # Dashboard (chat + call interface)
-│   │   ├── api/                     # 7 API routes (chat, calls, conversations)
-│   │   ├── calling/[id]/            # Real-time call monitoring
-│   │   └── result/[id]/             # Call result display
-│   ├── lib/
-│   │   ├── services/                # Chat pipeline (chat-service, place-matcher, data-extractor)
-│   │   ├── supabase/                # SSR client + helpers
-│   │   └── scenarios/               # Scenario prompts (restaurant, hospital, salon, etc.)
-│   ├── hooks/                       # useChat, useCallPolling, useRelayWebSocket, useDashboard
-│   ├── components/                  # chat/, call/, dashboard/, ui/ (shadcn)
-│   └── shared/types.ts              # Canonical type definitions (Call, Conversation, CallRow)
+│   ├── app/                         # Dashboard, API routes, call pages
+│   ├── lib/                         # Services, Supabase, scenarios
+│   ├── hooks/                       # useChat, useRelayWebSocket, etc.
+│   └── components/                  # chat/, call/, dashboard/, ui/
 │
 └── mobile/                          # React Native (Expo) — VAD + Audio Client
-    ├── app/                         # Expo Router (auth + main screens)
-    ├── hooks/                       # useRealtimeCall, useClientVad, useAudioRecorder
-    ├── components/call/             # RealtimeCallView, LiveCaptionPanel, VadIndicator
-    └── lib/vad/                     # VAD core (processor, ring buffer, config)
+    ├── app/                         # Expo Router
+    ├── hooks/                       # useRealtimeCall, useClientVad
+    └── lib/vad/                     # VAD core (processor, ring buffer)
 ```
-
----
-
-## API Reference
-
-### Relay Server
-
-| Endpoint | Type | Description |
-|----------|------|-------------|
-| `POST /relay/calls/start` | HTTP | Initiate outbound call via Twilio |
-| `POST /relay/calls/{id}/end` | HTTP | Terminate active call |
-| `WS /relay/calls/{id}/stream` | WebSocket | Bidirectional audio/text stream |
-| `POST /twilio/incoming` | HTTP | Twilio call status webhook |
-| `WS /twilio/media-stream` | WebSocket | Twilio Media Stream audio bridge |
-| `GET /health` | HTTP | Health check |
-
-### Web App
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/chat` | POST | AI conversation (GPT-4o-mini, scenario-based) |
-| `/api/conversations` | GET/POST | List or create conversation sessions |
-| `/api/conversations/[id]` | GET | Conversation details with messages |
-| `/api/calls` | GET/POST | List or create call records |
-| `/api/calls/[id]` | GET | Call details (status, result, summary) |
-| `/api/calls/[id]/start` | POST | Trigger call via Relay Server |
-
----
-
-## Database Schema
-
-| Table | Key Columns | Purpose |
-|-------|-------------|---------|
-| `conversations` | scenario, status, collected_data (JSONB) | Chat sessions with extracted info |
-| `messages` | role, content, metadata (JSONB) | User + AI messages |
-| `calls` | status, result, call_sid, duration_s, total_tokens | Call lifecycle tracking |
-| `conversation_entities` | entity_type, value, confidence | Structured data extraction |
-| `place_search_cache` | query, results (JSONB), expires_at | Naver API response cache |
-
-All tables enforce **Row Level Security** — users can only access their own data.
 
 ---
 
@@ -610,91 +403,37 @@ ngrok http 8000               # Copy URL to .env RELAY_SERVER_URL
 cd apps/relay-server
 uv run pytest -v
 
-# Component tests (ring buffer perf, cost tracking)
-uv run python -m tests.run --suite component
-
 # Integration tests (requires running server)
 uv run python -m tests.run --suite integration
-
-# Individual test
-uv run python -m tests.run --test cost
 
 # E2E call test (requires Twilio + OpenAI keys)
 uv run python -m tests.run --test call --phone +82... --scenario restaurant --auto
 ```
 
-### Deployment
-
-Both services are containerized and deploy to **Google Cloud Run**:
-
-```bash
-# Build & deploy via Cloud Build
-gcloud builds submit --config=cloudbuild.yaml
-```
-
-| Service | Dockerfile | Cloud Run |
-|---------|-----------|-----------|
-| Relay Server | `apps/relay-server/Dockerfile` | Auto-scaling, WebSocket support |
-| Web App | `apps/web/Dockerfile` | Next.js standalone output |
-
 ---
 
 ## Appendix: Production Metrics (since 2026-02-23)
 
-Real-world call data from production deployment on Google Cloud Run. Data collected via `scripts/eval/` from Supabase.
-
-### Overview
-
-| Metric | Value |
-|--------|-------|
-| Total calls | 169 |
-| Instrumented (with metrics) | 162 |
-| Completion rate | 95.3% (161/169) |
-| Total duration | 241.4 min |
-| Total cost | $64.71 |
-| Avg cost per call | $0.40 |
+Extended production data beyond the paper's evaluation. Data collected via `scripts/eval/` from Supabase.
 
 ### Mode Distribution
 
 | Mode | Calls | % | SA P50 | SB P50 |
 |------|------:|--:|-------:|-------:|
-| **Text-to-Voice** | 116 | 68.6% | 487ms | 2557ms |
-| **Voice-to-Voice** | 52 | 30.8% | 603ms | 2476ms |
+| **Text-to-Voice** | 116 | 68.6% | 487 ms | 2557 ms |
+| **Voice-to-Voice** | 52 | 30.8% | 603 ms | 2476 ms |
 | **Agent** | 1 | 0.6% | — | — |
-
-### Latency Breakdown
-
-| Component | P50 | P95 | Mean | N |
-|-----------|----:|----:|-----:|--:|
-| **Session A** (User→Recipient) | 557ms | 1156ms | 617ms | 814 turns |
-| **Session B E2E** (Recipient→User) | 2868ms | 15482ms | 3997ms | 744 turns |
-| Session B STT only | 2675ms | 15547ms | 3868ms | 744 turns |
-| Session B Translation only | 104ms | 1934ms | 535ms | 585 turns |
-| First message latency | 1215ms | 6890ms | 2081ms | 162 calls |
-| Speech duration | 1640ms | 5073ms | 2168ms | — |
 
 ### Utterance Length vs. Latency
 
 | Char Length | N | P50 | P95 | Mean |
 |------------|--:|----:|----:|-----:|
-| ≤30 chars | 565 | 2502ms | 6511ms | 3119ms |
-| 31–60 chars | 132 | 4713ms | 15692ms | 5860ms |
-| 61–100 chars | 32 | 7596ms | 18402ms | 8922ms |
-| 100+ chars | 15 | 11100ms | 18716ms | 10185ms |
+| ≤30 chars | 565 | 2502 ms | 6511 ms | 3119 ms |
+| 31–60 chars | 132 | 4713 ms | 15692 ms | 5860 ms |
+| 61–100 chars | 32 | 7596 ms | 18402 ms | 8922 ms |
+| 100+ chars | 15 | 11100 ms | 18716 ms | 10185 ms |
 
 *Pearson r = 0.400 (char length vs. SB latency)*
-
-### Echo & VAD Performance
-
-| Metric | Total | Per Call |
-|--------|------:|---------:|
-| Echo gate activations | 1128 | 7.0 |
-| Echo gate breakthroughs (recipient interrupt) | 358 | 2.2 |
-| Settling breakthroughs | 20 | 0.1 |
-| VAD false triggers | 286 | 1.8 |
-| Hallucinations blocked | 109 | 0.7 |
-| Interrupts | 21 | 0.1 |
-| Guardrail L2 / L3 | 148 / 0 | — |
 
 ### Cost per Minute (by Mode, Cumulative)
 
