@@ -12,11 +12,7 @@
 \usepackage{multirow}
 \usepackage{xcolor}
 \usepackage{amssymb}
-\usepackage{pgfplots}
-\pgfplotsset{compat=1.18}
-\usepgfplotslibrary{groupplots,fillbetween}
-\usetikzlibrary{patterns}
-\input{data/figure4_meta_feb23_27}
+% pgfplots/tikz removed — figures are pre-rendered PDFs
 % ACL 2026 System Demos uses single-blind review: author names are visible,
 % line numbers are retained. The [review] option above enables line numbering
 % but also sets \acl@anonymize to true (double-blind). We override this because
@@ -163,8 +159,8 @@ Session~A achieves 555\,ms median latency, within the range for interactive comm
 
 \begin{figure*}[t]
   \centering
-  \resizebox{\textwidth}{!}{\input{figures/figure3_latency_histogram.tikz}}
-  \caption{End-to-end latency distributions for Session~A (caller$\to$callee, $N{=}\FigThreeSAN$ turns) and Session~B (callee$\to$caller, $N{=}\FigThreeSBN$ turns) over live PSTN calls.}
+  \includegraphics[width=\textwidth]{figures/figure3_latency_histogram}
+  \caption{End-to-end latency distributions for Session~A (caller$\to$callee, $N{=}739$ turns) and Session~B (callee$\to$caller, $N{=}683$ turns) over live PSTN calls.}
   \label{fig:latency}
 \end{figure*}
 
@@ -172,7 +168,7 @@ T2V mode shows lower Session~A latency (no caller-side ASR), while Agent mode sh
 
 While Session~B's ${\sim}$2.7\,s median exceeds ITU-T G.114's 150\,ms one-way threshold for conversational speech~\citep{itu_g114_2003}, that standard applies to same-language dialogue, not cross-lingual translation where additional processing is inherent. A more appropriate baseline is professional simultaneous interpretation, where ear-voice span---the delay between hearing source speech and producing the target---ranges from 2 to 5\,s~\citep{goldman_eisler_1972,timarova_2011_evs}. Our system's Session~B latency falls at the lower bound of this range. Session~B's ${\sim}$2.7\,s median reflects the inherent challenge of narrowband ASR on PSTN audio; the P95 improved from early measurements as the evaluation expanded to 155 calls across diverse PSTN environments. Moreover, the latency is structurally asymmetric by design: Session~A (555\,ms) keeps the caller-to-callee direction within interactive thresholds, while Session~B prioritizes STT accuracy on degraded G.711 audio over speed. The bottleneck is narrowband ASR, not the relay architecture. Replacing Whisper with a streaming STT model~\citep{kyutai2025stt} could reduce Session~B below 800\,ms; the relay, echo gate, and VAD layers remain necessary regardless.
 
-Figure~\ref{fig:scatter} shows the correlation between utterance length and Session~B latency ($r=\FigFourPearsonR$, $\FigFourPValue$), confirming that VAD stuck events are independent of utterance length.
+Figure~\ref{fig:scatter} shows the correlation between utterance length and Session~B latency ($r=0.333$, $p < 0.001$), confirming that VAD stuck events are independent of utterance length.
 
 \subsection{Echo and Safety}
 
@@ -184,8 +180,8 @@ Across the 148 instrumented calls (220.2 minutes total), WIGVO consumed 1{,}870{
 
 \begin{figure}[t]
   \centering
-  \input{figures/figure4_utterance_scatter.tikz}
-  \caption{Utterance length (characters) vs.\ Session~B E2E latency. Pearson $r=\FigFourPearsonR$ ($\FigFourPValue$), indicating that longer recipient utterances incur higher ASR-dominated latency.}
+  \includegraphics[width=\columnwidth]{figures/figure4_utterance_scatter}
+  \caption{Utterance length (characters) vs.\ Session~B E2E latency. Pearson $r=0.333$ ($p < 0.001$), indicating that longer recipient utterances incur higher ASR-dominated latency.}
   \label{fig:scatter}
 \end{figure}
 
