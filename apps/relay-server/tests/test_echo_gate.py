@@ -178,18 +178,34 @@ class TestSilenceInjection:
         assert len(sent_bytes) == 160
 
     @pytest.mark.asyncio
-    async def test_high_energy_breaks_echo_gate(self):
-        """echo window 중 고에너지 오디오(실제 발화)는 게이트를 해제하고 원본 전달."""
+    async def test_first_high_energy_absorbed_as_echo(self):
+        """echo window 중 첫 번째 고에너지 → PSTN 에코로 흡수, 게이트 유지."""
         router = _make_router()
         router.session_b.send_recipient_audio = AsyncMock()
         router.echo_gate.in_echo_window = True
 
-        audio = bytes([0x10] * 160)  # 고에너지 오디오 (실제 발화)
+        audio = bytes([0x10] * 160)
         await router.handle_twilio_audio(audio)
 
-        # 에코 게이트가 해제됨
+        assert router.echo_gate.in_echo_window is True
+        router.session_b.send_recipient_audio.assert_called_once()
+        sent_b64 = router.session_b.send_recipient_audio.call_args[0][0]
+        sent_bytes = base64.b64decode(sent_b64)
+        assert sent_bytes == b"\xff" * 160
+
+    @pytest.mark.asyncio
+    async def test_second_high_energy_breaks_echo_gate(self):
+        """echo window 중 두 번째 고에너지 → 진짜 발화, 게이트 해제 + 원본 전달."""
+        router = _make_router()
+        router.session_b.send_recipient_audio = AsyncMock()
+        router.echo_gate.in_echo_window = True
+
+        audio = bytes([0x10] * 160)
+        await router.handle_twilio_audio(audio)  # 첫 번째: 흡수
+        router.session_b.send_recipient_audio.reset_mock()
+
+        await router.handle_twilio_audio(audio)  # 두 번째: break
         assert router.echo_gate.in_echo_window is False
-        # 원본 오디오가 Session B에 전송됨
         router.session_b.send_recipient_audio.assert_called_once()
         sent_b64 = router.session_b.send_recipient_audio.call_args[0][0]
         sent_bytes = base64.b64decode(sent_b64)
@@ -521,28 +537,44 @@ class TestEchoGateOnEvent:
         assert len(events) == 0
 
     @pytest.mark.asyncio
-    async def test_breakthrough_fires_event(self):
-        """Echo window 중 고에너지 오디오 → 'breakthrough' 이벤트 발생."""
+    async def test_first_breakthrough_fires_echo_absorbed_event(self):
+        """Echo window 중 첫 번째 고에너지 → 'echo_absorbed' 이벤트 발생."""
         gate, events = self._make_gate()
         gate._activate()
         await asyncio.sleep(0)
         events.clear()
 
-        # 고에너지 오디오 (0x00 = max amplitude in mu-law)
         loud_audio = bytes([0x00] * 160)
         with patch("src.realtime.pipeline.echo_gate.settings") as mock_settings:
             mock_settings.echo_energy_threshold_rms = 400.0
             result = gate.filter_audio(loud_audio)
         await asyncio.sleep(0)
 
-        # breakthrough 이벤트 + deactivate 이벤트 발생
+        stage_events = [e[1] for e in events]
+        assert "echo_absorbed" in stage_events
+        assert "breakthrough" not in stage_events
+        assert result == b"\xff" * 160  # silence
+
+    @pytest.mark.asyncio
+    async def test_second_breakthrough_fires_event(self):
+        """Echo window 중 두 번째 고에너지 → 'breakthrough' 이벤트 발생."""
+        gate, events = self._make_gate()
+        gate._activate()
+        await asyncio.sleep(0)
+
+        loud_audio = bytes([0x00] * 160)
+        with patch("src.realtime.pipeline.echo_gate.settings") as mock_settings:
+            mock_settings.echo_energy_threshold_rms = 400.0
+            gate.filter_audio(loud_audio)  # 첫 번째: 흡수
+            events.clear()
+            result = gate.filter_audio(loud_audio)  # 두 번째: break
+        await asyncio.sleep(0)
+
         stage_events = [e[1] for e in events]
         assert "breakthrough" in stage_events
         assert "deactivate" in stage_events
-        # breakthrough 데이터에 rms 포함
         bt_event = next(e for e in events if e[1] == "breakthrough")
         assert "rms" in bt_event[2]
-        # 원본 오디오 반환 (무음 아님)
         assert result == loud_audio
 
     @pytest.mark.asyncio

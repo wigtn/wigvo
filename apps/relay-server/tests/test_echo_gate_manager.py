@@ -133,12 +133,23 @@ class TestFilterAudio:
         assert all(b == 0xFF for b in result)
         assert len(result) == 160
 
-    def test_high_rms_breaks_gate(self):
-        """Echo window 중 고에너지 → gate break + 원본 전달."""
+    def test_first_high_rms_absorbed_as_echo(self):
+        """Echo window 중 첫 번째 고에너지 → PSTN 에코 흡수, 게이트 유지."""
         gate, _, metrics = _make_echo_gate()
         gate.in_echo_window = True
         audio = bytes([0x10] * 160)  # 고에너지 (RMS ~3999)
         result = gate.filter_audio(audio)
+        assert all(b == 0xFF for b in result)  # silence
+        assert gate.in_echo_window is True
+        assert metrics.echo_gate_breakthroughs == 0
+
+    def test_second_high_rms_breaks_gate(self):
+        """Echo window 중 두 번째 고에너지 → gate break + 원본 전달."""
+        gate, _, metrics = _make_echo_gate()
+        gate.in_echo_window = True
+        audio = bytes([0x10] * 160)
+        gate.filter_audio(audio)  # 첫 번째: 흡수
+        result = gate.filter_audio(audio)  # 두 번째: break
         assert result == audio
         assert gate.in_echo_window is False
         assert metrics.echo_gate_breakthroughs == 1

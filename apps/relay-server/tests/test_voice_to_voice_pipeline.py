@@ -379,14 +379,17 @@ class TestVoiceToVoiceTwilioAudio:
 
     @pytest.mark.asyncio
     async def test_high_rms_breaks_echo_gate(self):
-        """echo window 중 고에너지 오디오 → 게이트 해제 + 원본 전달."""
+        """echo window 중 두 번째 고에너지 오디오 → 게이트 해제 + 원본 전달."""
         router = _make_router()
         router.session_b.send_recipient_audio = AsyncMock()
         router.echo_gate.in_echo_window = True
 
-        audio = bytes([0x10] * 160)  # 고에너지 오디오 (실제 발화)
-        await router.handle_twilio_audio(audio)
+        audio = bytes([0x10] * 160)  # 고에너지 오디오
+        await router.handle_twilio_audio(audio)  # 첫 번째: 에코 흡수
+        assert router.echo_gate.in_echo_window is True
+        router.session_b.send_recipient_audio.reset_mock()
 
+        await router.handle_twilio_audio(audio)  # 두 번째: 진짜 발화
         assert router.echo_gate.in_echo_window is False
         router.session_b.send_recipient_audio.assert_called_once()
         sent_b64 = router.session_b.send_recipient_audio.call_args[0][0]

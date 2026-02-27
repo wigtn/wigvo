@@ -62,6 +62,7 @@ class EchoGateManager:
         self._tts_first_chunk_at: float = 0.0
         self._tts_total_bytes: int = 0
         self._pre_activate_timeout: asyncio.Task | None = None
+        self._first_breakthrough_absorbed: bool = False
 
     # --- Public properties ---
 
@@ -168,13 +169,26 @@ class EchoGateManager:
         """Twilio 오디오를 필터링한다.
 
         Echo window 중:
-          - RMS > threshold → echo gate break (원본 전달)
+          - RMS > threshold, 첫 번째 → PSTN 에코로 판단, 흡수 (silence 유지)
+          - RMS > threshold, 두 번째+ → 진짜 발화 → echo gate break (원본 전달)
           - RMS <= threshold → mu-law silence(0xFF)로 대체
         Echo window 외: 원본 그대로 전달.
         """
         if self._in_echo_window:
             rms = _ulaw_rms(audio_bytes)
             if rms > settings.echo_energy_threshold_rms:
+                if not self._first_breakthrough_absorbed:
+                    # 첫 번째 돌파 = PSTN 에코 — 흡수하고 게이트 유지
+                    self._first_breakthrough_absorbed = True
+                    logger.info(
+                        "First breakthrough absorbed as echo (RMS=%.0f) — gate stays closed",
+                        rms,
+                    )
+                    self._fire_event("echo_absorbed", rms=round(rms))
+                    if self._on_breakthrough is not None:
+                        asyncio.create_task(self._on_breakthrough())
+                    return b"\xff" * len(audio_bytes)
+                # 두 번째 이상 돌파 = 진짜 발화
                 logger.info(
                     "High energy (RMS=%.0f) during echo window — breaking echo gate",
                     rms,
@@ -182,7 +196,6 @@ class EchoGateManager:
                 self._call_metrics.echo_gate_breakthroughs += 1
                 self._fire_event("breakthrough", rms=round(rms))
                 self._deactivate()
-                # Breakthrough 콜백: 에코 오염 버퍼 폐기
                 if self._on_breakthrough is not None:
                     asyncio.create_task(self._on_breakthrough())
                 return audio_bytes
@@ -230,6 +243,7 @@ class EchoGateManager:
         if not self._in_echo_window:
             logger.info("Echo window activated — silence injection for Session B input")
             self._call_metrics.echo_suppressions += 1
+            self._first_breakthrough_absorbed = False
             self._fire_event("activate")
         self._in_echo_window = True
         if self._echo_cooldown_task and not self._echo_cooldown_task.done():
