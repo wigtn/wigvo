@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - name: "WIGTN Crew"
+    website: "https://wigtn.com"
+repository-code: "https://github.com/wigtn/wigvo-v2"
+url: "https://wigtn.com"
+abstract: "WIGVO — AI-Powered Realtime Phone Translation and Relay Platform. Real-time bidirectional voice translation over actual phone calls with Dual-Session Echo Gating architecture. No apps needed on the recipient's end."
+keywords:
+  - ai-native
+  - wigtn
+  - korea
+  - voice-translation
+  - pstn
+  - realtime
+  - korean-english
+license: MIT

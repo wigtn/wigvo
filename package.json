@@ -4,5 +4,26 @@
   "workspaces": [
     "apps/web",
     "apps/mobile"
-  ]
+  ],
+  "author": "WIGTN Crew <hello@wigtn.com> (https://wigtn.com)",
+  "homepage": "https://wigtn.com",
+  "bugs": {
+    "url": "https://github.com/wigtn/wigvo-v2/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wigtn/wigvo-v2.git"
+  },
+  "keywords": [
+    "wigtn",
+    "ai-native",
+    "voice-translation",
+    "pstn",
+    "realtime",
+    "korean-english"
+  ],
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/wigtn"
+  }
 }
