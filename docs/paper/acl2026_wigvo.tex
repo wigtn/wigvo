@@ -29,8 +29,8 @@
   Hyun-woo Cho \quad
   Hyeon-sang Kim \quad
   Jin-mo Kim \\
-  SoundMind Inc. \\
-  \texttt{hskim2@soundmind.life}
+  WIGTN, Seoul, Republic of Korea \\
+  \texttt{harrison@wigtn.com}
 }
 
 \begin{document}
@@ -125,10 +125,34 @@ The Realtime API's server-side VAD works well for wideband WebRTC audio but fail
 
 Across 147 completed calls, the echo gate activated 1{,}046 times with zero echo-induced loops.
 
+\subsection{Loop Detection Criteria}
+
+We define an echo-induced translation loop as a transcript pattern
+in which a Session~B STT output contains a token-normalized
+$n$-gram ($n \geq 3$) substring of the immediately preceding
+Session~A TTS payload, repeated $\geq 2$ consecutive times within
+a 5\,s window. We additionally flag any Session~B turn whose
+\texttt{speech\_started} event arrives within 200\,ms of a
+Session~A TTS-end (a temporal proxy for echo re-ingestion). Both
+criteria were applied post-hoc to all 148 instrumented call
+transcripts via a sliding-window matcher; neither fired across
+147 completed calls. As a sanity check, two authors independently
+listened to a stratified random sample of 30 call recordings
+(10 per mode) and observed no perceptual loops.
+
 \section{Evaluation}
 \label{sec:evaluation}
 
 We evaluated WIGVO on 155 PSTN calls (148 fully instrumented) for Korean$\leftrightarrow$English translation over a five-day period (Feb 23--27, 2026). Of these, 147 calls completed successfully; three failed and five were in-progress at collection time.
+
+We focus on Korean--English as our deployment-driven language
+pair: South Korea hosts approximately 2.6 million resident
+foreign nationals who routinely interact with monolingual Korean
+phone-based services (banks, hospitals, government offices,
+local businesses), making this pair both high-impact and
+representative of the narrowband, real-deployment setting we
+target. The modular cascade architecture (Section~5) supports
+multilingual extension through component substitution.
 
 \subsection{Latency}
 
@@ -163,7 +187,7 @@ Session~A achieves 555\,ms median latency, within the range for interactive comm
 
 T2V mode shows lower Session~A latency (no caller-side ASR), while Agent mode shows higher Session~B latency due to function-calling overhead.
 
-While Session~B's ${\sim}$2.7\,s median exceeds ITU-T G.114's 150\,ms one-way threshold~\citep{itu_g114_2003}, that standard applies to same-language dialogue. A more appropriate baseline is professional simultaneous interpretation, where ear-voice span ranges from 2 to 5\,s~\citep{goldman_eisler_1972,timarova_2011_evs}; Session~B falls at the lower bound. The latency is structurally asymmetric by design: Session~A (555\,ms) keeps the caller-to-callee direction interactive, while Session~B prioritizes STT accuracy on degraded G.711 audio. The bottleneck is narrowband ASR, not the relay architecture; replacing Whisper with a streaming STT model~\citep{kyutai2025stt} could reduce Session~B below 800\,ms.
+While Session~B's ${\sim}$2.7\,s median exceeds ITU-T G.114's 150\,ms one-way threshold~\citep{itu_g114_2003}, that standard applies to same-language dialogue. A more appropriate baseline is professional simultaneous interpretation, where ear-voice span ranges from 2 to 5\,s~\citep{goldman_eisler_1972,timarova_2011_evs}; Session~B falls at the lower bound. The latency is structurally asymmetric by design: Session~A (555\,ms) keeps the caller-to-callee direction interactive, while Session~B prioritizes STT accuracy on degraded G.711 audio. The bottleneck is narrowband ASR, not the relay architecture. Substituting Whisper with a streaming telephony-tuned STT such as Kyutai~STT~\citep{kyutai2025stt}---which reports first-token latency below 500\,ms on continuous audio---would, under our pipeline budget, project Session~B median to roughly 700--800\,ms (Translation P50 84\,ms + TTS startup + transport), keeping the architecture unchanged.
 
 Figure~\ref{fig:scatter} shows the correlation between utterance length and Session~B latency ($r=0.333$, $p < 0.001$), confirming that VAD stuck events are independent of utterance length.
 
@@ -171,9 +195,14 @@ Figure~\ref{fig:scatter} shows the correlation between utterance length and Sess
 
 Across the 148 instrumented calls, the echo gate activated 1{,}046 times (7.1/call), corresponding to TTS playback events. Critically, we observed zero echo-induced translation loops, whereas early prototypes without gating reliably produced such loops. The echo gate permitted 354 callee interruptions during active TTS playback (gate break), confirming that the energy-based override preserves natural turn-taking. Additionally, 17 settling breakthroughs confirmed genuine speech detection during post-echo settling (Section~3.2). A minimum speech duration filter (480\,ms hysteresis) mitigated VAD false triggers to 277 total (1.9/call). The guardrail module blocked 100 hallucinated outputs (0.68/call), including broadcast-style phrases from Whisper on low-energy input and structural noise patterns (consonant-only sequences, repetitive tokens).
 
-\subsection{Cost}
-
-Across the 148 instrumented calls (220.2 minutes total), WIGVO consumed 1{,}870{,}657 tokens at a total cost of USD\,61.26, yielding USD\,0.28/min (USD\,0.41/call). These costs reflect dual-session Realtime API pricing and remain an order of magnitude cheaper than professional telephone interpretation services (USD\,1--3/min).\footnote{Based on published per-minute rates for over-the-phone interpretation (OPI) from major providers such as LanguageLine Solutions and GLOBO (2024--2025 rate cards).} Self-hosted STT alternatives could further reduce per-minute cost; a formal user study with target populations~\citep{brooke_sus_1996} is planned as future work.
+The three failed calls (out of 155) were attributable to transient
+infrastructure issues outside the relay logic: one carrier-side
+Twilio webhook timeout at call setup, one premature browser
+WebSocket disconnect before Session~A established, and one
+upstream Realtime API 5xx response during streaming. None
+involved the echo-gating pipeline or produced runaway translation,
+and all three failed cleanly without dropping the callee on a
+silent line.
 
 \begin{figure}[t]
   \centering
@@ -181,6 +210,32 @@ Across the 148 instrumented calls (220.2 minutes total), WIGVO consumed 1{,}870{
   \caption{\textbf{Utterance length vs.\ Session~B E2E latency.} Pearson $r=0.333$ ($p < 0.001$), indicating that longer recipient utterances incur higher ASR-dominated latency.}
   \label{fig:scatter}
 \end{figure}
+
+\subsection{Threshold Sensitivity}
+
+Stage-1 RMS thresholds were chosen by sweeping
+\{200, 300, 400, 500, 600\} on a held-out 20-call dev harness.
+Values below 300 admitted echo breakthrough during settling;
+values above 500 missed soft callee speech. The deployed
+in-window threshold (400) and out-of-window threshold (150)
+sit at the knees of these two curves. The 96/480\,ms VAD
+onset/offset hysteresis was tuned against the PSTN noise floor;
+doubling the offset to 960\,ms eliminated residual VAD false
+triggers but raised median Session~B latency by approximately
+380\,ms. The 1.2\,s echo-window cap and the 0.5--1.5\,s
+post-echo settling clamp jointly target the upper bound of
+PSTN one-way delay (G.114).
+
+\paragraph{Per-component ablation.}
+The contribution of Stage~0 (Echo Gate) is established by the
+prototype comparison in Section~3.1 (8/10 loops without gating,
+3/10 with correlation detector, 0/147 with Echo Gate). Per-stage
+ablation isolating the RMS Energy Gate (Stage~1) and Silero VAD
+(Stage~2) on full call traffic was not feasible under the
+production deployment constraint, where disabling either stage
+would risk customer-facing failures during live calls. We leave
+systematic per-component ablation on offline replay of logged
+call audio as future work.
 
 \subsection{Translation Quality}
 
@@ -204,6 +259,10 @@ Table~\ref{tab:translation} reports BLEU~\citep{papineni_bleu_2002}, chrF2++~\ci
 \end{table}
 
 BLEU and chrF2++ systematically underestimate quality in simultaneous and paraphrastic settings, as real-time translation produces valid paraphrases that differ lexically from offline references; COMET is therefore the primary metric we interpret. COMET, which evaluates semantic adequacy via cross-lingual embeddings, provides a more meaningful signal: en$\to$ko achieves 0.71, indicating adequate translation quality despite surface divergence. The lower ko$\to$en score (0.62) reflects STT errors on narrowband telephony audio propagating through the pipeline, consistent with the ASR bottleneck identified in the latency analysis above.
+
+\subsection{Cost}
+
+Across the 148 instrumented calls (220.2 minutes total), WIGVO consumed 1{,}870{,}657 tokens at a total cost of USD\,61.26, yielding USD\,0.28/min (USD\,0.41/call). These costs reflect dual-session Realtime API pricing and remain an order of magnitude cheaper than professional telephone interpretation services (USD\,1--3/min).\footnote{Based on published per-minute rates for over-the-phone interpretation (OPI) from major providers such as LanguageLine Solutions and GLOBO (2024--2025 rate cards).} Self-hosted STT alternatives could further reduce per-minute cost.
 
 \subsection{Baseline Comparison}
 
@@ -236,7 +295,7 @@ Twilio's industry benchmark for AI voice agents targets 1{,}115\,ms median turn 
 
 \section{Demonstration}
 
-WIGVO is deployed at \url{https://wigvo-web-gzjzn35jyq-du.a.run.app}.\footnote{Demo video: \url{https://youtu.be/PLACEHOLDER}. Reviewer login: \texttt{demo@gmail.com} / \texttt{wigvo2026!} (authentication required to manage API costs).} The source code is available at \url{https://github.com/wigtn/wigvo-v2} under the MIT License. A reviewer session proceeds as: (1)~select a scenario, (2)~chat with the AI agent to provide caller intent and phone number, (3)~the system places a PSTN call with bidirectional translation, and (4)~real-time captions appear alongside call status. Mode switching (V2V, T2V, Full-Agent) is available during active calls. Figure~\ref{fig:screenshot} shows the interface during a V2V call.
+WIGVO is deployed at \url{https://wigvo-web-gzjzn35jyq-du.a.run.app}.\footnote{Demo video: \url{https://youtu.be/_ixVEnHJxjk}. Reviewer login: \texttt{demo@gmail.com} / \texttt{wigvo2026!} (authentication required to manage API costs).} The source code is available at \url{https://github.com/wigtn/wigvo-v2} under the MIT License. A reviewer session proceeds as: (1)~select a scenario, (2)~chat with the AI agent to provide caller intent and phone number, (3)~the system places a PSTN call with bidirectional translation, and (4)~real-time captions appear alongside call status. Mode switching (V2V, T2V, Full-Agent) is available during active calls. Figure~\ref{fig:screenshot} shows the interface during a V2V call.
 
 The current evaluation covers Korean--English only; the modular cascade architecture supports multilingual extension through component substitution.
 
@@ -252,6 +311,37 @@ The current evaluation covers Korean--English only; the modular cascade architec
 We presented WIGVO, a dual-session streaming relay that enables bidirectional LLM-based speech translation over legacy PSTN calls. By combining deterministic silence injection with energy-based VAD gating, the system eliminates echo-induced translation loops---a failure mode we formalize for the first time in the context of streaming S2ST over telephony. Across 147 completed calls, the echo gate achieved a zero-loop rate while preserving natural turn-taking through 354 callee interruptions. Session~A delivers 555\,ms median latency, within interactive thresholds, at USD\,0.28/min. The modular cascade architecture enables language extension through component substitution; replacing Whisper with a streaming telephony-optimized STT model is the most direct path to reducing Session~B latency below 1\,s. A formal user study with the target populations---foreign residents, individuals with speech anxiety, and people with hearing impairments---is planned as future work.
 
 \clearpage
+\section*{Limitations}
+
+\paragraph{Soft half-duplex interaction.}
+Stage~0 silence injection deterministically suppresses the PSTN
+input channel during TTS playback, enforcing what is effectively
+a soft half-duplex turn structure. The energy override permits
+high-amplitude barge-in (354 instances across 147 calls), but
+moderate-volume callee speech overlapping with AI playback may
+be missed until the post-echo settling window closes. True
+full-duplex over PSTN remains an open problem given the absence
+of carrier-side acoustic echo cancellation; we view our gating
+strategy as a first practical baseline rather than a final answer.
+
+\paragraph{ASR-bound Session~B latency.}
+Session~B median latency ($\sim$2.7\,s) is dominated by Whisper
+STT on G.711 narrowband audio. We project a $\sim$700--800\,ms
+Session~B median by substituting a streaming telephony-tuned STT
+(Section~4.1), but this remains a projection rather than a
+measured result; no production-ready open streaming STT model
+currently supports Korean at telephony bandwidth.
+
+\paragraph{Translation quality reference.}
+Our translation quality evaluation (Section~4.4) compares
+WIGVO's real-time outputs against Gemini~2.5 Flash offline
+references rather than human-annotated translations. While
+COMET partially mitigates this limitation by leveraging
+cross-lingual embeddings trained on human judgments,
+segment-level human evaluation on a stratified sample of
+call transcripts---particularly for low-COMET ko$\to$en
+outputs where STT errors propagate---remains future work.
+
 \section*{Ethics Statement}
 
 All calls were initiated by the authors and collaborators for system testing. Audio was logged for debugging and aggregate metrics only, with no personally identifiable information retained beyond temporary phone numbers. For deployment with real users, informed consent, data minimization, and compliance with privacy regulations (e.g., GDPR, PIPA) and applicable telecom recording laws in each deployment jurisdiction are required. The accessibility use case (T2V for speech anxiety) aims to reduce communication barriers but should be deployed with user agency and opt-in participation. We acknowledge the dual-use risk of automated voice translation over PSTN: the technology could be misused for voice phishing (vishing) or automated spam calls across language barriers. Mitigations include rate limiting, caller authentication, and abuse monitoring, which we plan to implement before public release. Translation errors in high-stakes contexts (medical, legal) could cause harm; the system currently provides no confidence indicators, and users should be informed that translations are AI-generated and not certified.
