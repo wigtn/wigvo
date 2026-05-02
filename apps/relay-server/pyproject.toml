@@ -16,6 +16,7 @@ dependencies = [
     "python-multipart>=0.0.18",
     "numpy>=1.26.0",
     "silero-vad-lite>=0.2.0",
+    "google-cloud-logging>=3.13.0",
 ]
 
 [dependency-groups]
