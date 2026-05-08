@@ -1,0 +1,32 @@
+name: wigvo-v2
+services:
+  wigvo-relay:
+    platform: linux/amd64
+    build:
+      context: apps/relay-server
+      dockerfile: Dockerfile
+    container_name: wigvo-relay
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "8080"
+    ports:
+      - "10102:8080"
+
+  wigvo-web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_RELAY_WS_URL: ${NEXT_PUBLIC_RELAY_WS_URL}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+    container_name: wigvo-web
+    restart: unless-stopped
+
+    environment:
+      PORT: "3000"
+    ports:
+      - "10301:3000"
