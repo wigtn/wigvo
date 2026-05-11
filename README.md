@@ -16,9 +16,8 @@ No apps needed on the recipient's end. Just call.
 <br />
 
 [![ACL 2026](https://img.shields.io/badge/ACL_2026-Accepted-DC2626?style=for-the-badge&logoColor=white)](https://openreview.net/forum?id=9oUknRxASv)
-[![Paper](https://img.shields.io/badge/Paper-PDF-1E40AF?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](docs/paper/acl2026_wigvo.pdf)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/_ixVEnHJxjk)
-[![Live Demo](https://img.shields.io/badge/Live_Demo-wigvo.run-0F172A?style=for-the-badge&logo=google-cloud&logoColor=white)](https://wigvo.run)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-wigvo.run-0F172A?style=for-the-badge&logo=google-cloud&logoColor=white)]([https://wigvo.run](https://wigvo-web-gzjzn35jyq-du.a.run.app/login))
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#tech-stack)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](#tech-stack)
