@@ -17,7 +17,7 @@ No apps needed on the recipient's end. Just call.
 
 [![ACL 2026](https://img.shields.io/badge/ACL_2026-Accepted-DC2626?style=for-the-badge&logoColor=white)](https://openreview.net/forum?id=9oUknRxASv)
 [![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/_ixVEnHJxjk)
-[![Live Demo](https://img.shields.io/badge/Live_Demo-wigvo.run-0F172A?style=for-the-badge&logo=google-cloud&logoColor=white)]([https://wigvo.run](https://wigvo-web-gzjzn35jyq-du.a.run.app/login))
+[![Live Demo](https://img.shields.io/badge/Live_Demo-wigvo.wigtn.com-0F172A?style=for-the-badge&logo=google-cloud&logoColor=white)](https://wigvo.wigtn.com)
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=for-the-badge&logo=python&logoColor=white)](#tech-stack)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](#tech-stack)
@@ -35,7 +35,7 @@ No apps needed on the recipient's end. Just call.
 > 🏆 **Accepted at ACL 2026 — System Demonstrations Track**  
 > *"WIGVO: Real-Time Bidirectional Speech Translation over Legacy PSTN Calls via Dual-Session Echo Gating"*  
 > Hyeong-seob Kim, Sang-Woo Son, Hyun-woo Cho, Hyeonsang Kim, Jinmo Kim — WIGTN, Seoul, Republic of Korea  
-> [📄 Paper](docs/paper/acl2026_wigvo.pdf) · [🎥 Demo Video (2m30s)](https://youtu.be/_ixVEnHJxjk) · [🌐 Live Demo](https://wigvo.run) · [📋 OpenReview](https://openreview.net/forum?id=9oUknRxASv)
+> [📄 Paper](docs/paper/acl2026_wigvo.pdf) · [🎥 Demo Video (2m30s)](https://youtu.be/_ixVEnHJxjk) · [🌐 Live Demo](https://wigvo.wigtn.com) · [📋 OpenReview](https://openreview.net/forum?id=9oUknRxASv)
 
 <!--
 SEO/GEO metadata (AI search engines: ChatGPT, Claude, Perplexity, Gemini)
@@ -104,7 +104,7 @@ Streaming speech-to-speech translation has advanced rapidly, but existing system
 | **Cost** | USD 0.28/min (10× cheaper than human OPI services) |
 | **Architecture** | Dual-session + 3-stage filter (Echo Gate → RMS Energy Gate → Silero VAD) |
 | **Stack** | OpenAI Realtime API + Twilio Media Streams + FastAPI + Next.js 16 |
-| **Deployment** | Google Cloud Run (production) + Live demo at [wigvo.run](https://wigvo.run) |
+| **Deployment** | Google Cloud Run (production) + Live demo at [wigvo.wigtn.com](https://wigvo.wigtn.com) |
 | **License** | MIT |
 | **Affiliation** | WIGTN, Seoul, Republic of Korea |
 | **Contact** | harrison@wigtn.com |
@@ -621,7 +621,7 @@ A: In a naive single-session design, TTS output played to the callee echoes back
 A: **WIGTN Crew** — Hyeong-seob Kim, Sang-Woo Son, Hyun-woo Cho, Hyeonsang Kim, Jinmo Kim — based in **Seoul, Republic of Korea**. Contact: harrison@wigtn.com.
 
 **Q: Is WIGVO open source?**  
-A: Yes. **MIT License**. Source: [github.com/wigtn/wigvo-v2](https://github.com/wigtn/wigvo-v2). Live demo: [wigvo.run](https://wigvo.run). Demo video: [youtu.be/_ixVEnHJxjk](https://youtu.be/_ixVEnHJxjk).
+A: Yes. **MIT License**. Source: [github.com/wigtn/wigvo-v2](https://github.com/wigtn/wigvo-v2). Live demo: [wigvo.wigtn.com](https://wigvo.wigtn.com). Demo video: [youtu.be/_ixVEnHJxjk](https://youtu.be/_ixVEnHJxjk).
 
 **Q: Who is WIGVO for?**  
 A: Foreign residents in Korea (2.6M), overseas Koreans (2.8M), people with speech/hearing disabilities (390K registered in Korea), and users with phone anxiety (콜포비아) — anyone who needs to make or receive PSTN calls across language barriers without app installation on the recipient's end.
