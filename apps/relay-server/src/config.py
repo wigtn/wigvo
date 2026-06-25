@@ -136,6 +136,11 @@ class Settings(BaseSettings):
     guardrail_fallback_model: str = "gpt-4o-mini"
     guardrail_fallback_timeout_ms: int = 2000
 
+    # Langfuse (관측/추적) — 키가 비어 있으면 추적 비활성화(no-op), 통화에 영향 없음
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
+
     model_config = {
         "env_file": str(_ENV_FILE),
         "env_file_encoding": "utf-8",

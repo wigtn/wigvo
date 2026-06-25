@@ -322,6 +322,16 @@ class SessionAHandler:
                         timestamp=time.time(),
                     )
                 )
+                # Langfuse: 발신자 → 수신자 턴 기록 (키 없으면 no-op)
+                from src.observability import tracer
+
+                tracer.record_turn(
+                    self._call,
+                    direction="caller_to_callee",
+                    original_text=self._last_user_stt or transcript,
+                    translated_text=transcript,
+                    language=self._call.source_language,
+                )
             self._last_user_stt = ""  # 사용 후 초기화
 
         # 대화 컨텍스트 콜백

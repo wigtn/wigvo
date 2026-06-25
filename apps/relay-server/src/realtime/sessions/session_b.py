@@ -783,6 +783,7 @@ class SessionBHandler:
         if self._call:
             self._call.call_metrics.vad_false_triggers = max(0, self._speech_started_count - self._transcript_completed_count)
 
+        _lf_latency: dict[str, float] | None = None  # Langfuse 턴 레이턴시 분해
         if self._committed_speech_started_at > 0:
             e2e_ms = (time.time() - self._committed_speech_started_at) * 1000
             # 5) 최소 e2e 필터: 물리적으로 불가능한 속도의 응답 → 할루시네이션
@@ -801,17 +802,18 @@ class SessionBHandler:
                 e2e_ms, transcript[:80],
             )
             if self._call:
+                stt_ms_val = self._pending_stt_ms if self._pending_stt_ms > 0 else e2e_ms
                 self._call.call_metrics.session_b_e2e_latencies_ms.append(e2e_ms)
                 # STT latency를 E2E와 동시에 기록 — 리스트 인덱스 정합성 보장
-                self._call.call_metrics.session_b_stt_latencies_ms.append(
-                    self._pending_stt_ms if self._pending_stt_ms > 0 else e2e_ms
-                )
+                self._call.call_metrics.session_b_stt_latencies_ms.append(stt_ms_val)
                 self._pending_stt_ms = 0.0
                 self._call.call_metrics.turn_count += 1
+                _lf_latency = {"e2e_ms": e2e_ms, "stt_ms": stt_ms_val}
                 # processing latency: speech_stopped → 번역 완료 (STT와 독립적)
                 if self._committed_speech_stopped_at > 0:
                     proc_ms = (time.time() - self._committed_speech_stopped_at) * 1000
                     self._call.call_metrics.session_b_processing_latencies_ms.append(proc_ms)
+                    _lf_latency["processing_ms"] = proc_ms
         else:
             logger.info("[SessionB] Translation complete: %s", transcript[:80])
 
@@ -826,6 +828,17 @@ class SessionBHandler:
                     language=self._call.target_language,
                     timestamp=time.time(),
                 )
+            )
+            # Langfuse: 수신자 → 발신자 턴 기록 (레이턴시 분해 포함, 키 없으면 no-op)
+            from src.observability import tracer
+
+            tracer.record_turn(
+                self._call,
+                direction="callee_to_caller",
+                original_text=self._last_recipient_stt or transcript,
+                translated_text=transcript,
+                language=self._call.target_language,
+                latency_breakdown=_lf_latency,
             )
             self._last_recipient_stt = ""  # 사용 후 초기화
 
