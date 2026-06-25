@@ -1,9 +1,18 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use this software, please cite the paper below."
 type: software
+title: "WIGVO — AI-Powered Realtime Phone Translation and Relay Platform"
 authors:
-  - name: "WIGTN Crew"
-    website: "https://wigtn.com"
+  - family-names: Kim
+    given-names: Hyeong-seob
+  - family-names: Son
+    given-names: Sang-Woo
+  - family-names: Cho
+    given-names: Hyun-woo
+  - family-names: Kim
+    given-names: Hyeonsang
+  - family-names: Kim
+    given-names: Jinmo
 repository-code: "https://github.com/wigtn/wigvo-v2"
 url: "https://wigtn.com"
 abstract: "WIGVO — AI-Powered Realtime Phone Translation and Relay Platform. Real-time bidirectional voice translation over actual phone calls with Dual-Session Echo Gating architecture. No apps needed on the recipient's end."
@@ -16,3 +25,24 @@ keywords:
   - realtime
   - korean-english
 license: MIT
+
+preferred-citation:
+  type: conference-paper
+  title: "WIGVO: Real-Time Bidirectional Speech Translation over Legacy PSTN Calls via Dual-Session Echo Gating"
+  authors:
+    - family-names: Kim
+      given-names: Hyeong-seob
+    - family-names: Son
+      given-names: Sang-Woo
+    - family-names: Cho
+      given-names: Hyun-woo
+    - family-names: Kim
+      given-names: Hyeonsang
+    - family-names: Kim
+      given-names: Jinmo
+  conference:
+    name: "Proceedings of the 2026 Conference of the Association for Computational Linguistics: System Demonstrations (ACL 2026 Demo)"
+  year: 2026
+  publisher:
+    name: "Association for Computational Linguistics"
+  url: "https://github.com/wigtn/wigvo-v2"
