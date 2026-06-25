@@ -14,6 +14,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from src.observability import tracer
 from src.types import ActiveCall, CallStatus, WsMessage, WsMessageType
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ class CallManager:
 
     def register_call(self, call_id: str, call: ActiveCall) -> None:
         self._calls[call_id] = call
+        tracer.start_call(call)  # Langfuse trace 시작 (키 없으면 no-op)
 
     def register_session(self, call_id: str, session: "DualSessionManager") -> None:
         self._sessions[call_id] = session
@@ -149,6 +151,10 @@ class CallManager:
                     logger.info("Twilio call terminated: %s", call.call_sid)
                 except Exception as e:
                     logger.warning("Failed to terminate Twilio call %s: %s", call.call_sid, e)
+
+            # 0c. Langfuse trace 마감 + flush (키 없으면 no-op)
+            if call:
+                tracer.end_call(call)
 
             # 1. AudioRouter stop
             router = self._routers.pop(call_id, None)

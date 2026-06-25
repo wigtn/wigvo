@@ -179,7 +179,43 @@ export interface MockWsEvent {
   data: Record<string, unknown>;
 }
 
+// --- Pipeline Event Timeline (실시간 단계 모니터 데모 구동) ---
+// 캡션과 시간을 맞춰 3-stage 필터(echo_gate→energy_gate→silero_vad)가
+// 흐르는 것처럼 보이게 한다. delayMs 기준으로 스케줄되므로 순서는 무관.
+const pe = (delayMs: number, stage: string, event: string, extra: Record<string, unknown> = {}): MockWsEvent => ({
+  delayMs,
+  type: 'pipeline.event',
+  data: { stage, event, ...extra },
+});
+
+const DEMO_PIPELINE_EVENTS: MockWsEvent[] = [
+  // Turn 1 (수신자 7s): AI TTS 중 echo gate 닫힘 → 에코 흡수 → 수신자 발화 통과
+  pe(4000, 'echo_gate', 'activated'),
+  pe(6300, 'echo_gate', 'echo_absorbed', { rms: 320 }),
+  pe(6600, 'echo_gate', 'deactivated'),
+  pe(6700, 'energy_gate', 'accept', { rms: 540 }),
+  pe(6750, 'silero_vad', 'speech_start', { peak_rms: 620 }),
+  pe(7900, 'silero_vad', 'speech_end', { peak_rms: 580 }),
+
+  // Turn 2 (수신자 14s)
+  pe(10500, 'echo_gate', 'activated'),
+  pe(11500, 'echo_gate', 'break', { rms: 810 }), // barge-in 시연 (amber)
+  pe(13400, 'echo_gate', 'deactivated'),
+  pe(13600, 'energy_gate', 'accept', { rms: 610 }),
+  pe(13650, 'silero_vad', 'speech_start', { peak_rms: 700 }),
+  pe(14900, 'silero_vad', 'speech_end', { peak_rms: 640 }),
+
+  // Turn 3 (수신자 20s): 라인 노이즈 reject(red) → 진짜 발화 accept
+  pe(17000, 'echo_gate', 'activated'),
+  pe(19400, 'echo_gate', 'deactivated'),
+  pe(19500, 'energy_gate', 'reject', { rms: 180 }),
+  pe(19650, 'energy_gate', 'accept', { rms: 580 }),
+  pe(19700, 'silero_vad', 'speech_start', { peak_rms: 660 }),
+  pe(21100, 'silero_vad', 'speech_end', { peak_rms: 600 }),
+];
+
 export const DEMO_CAPTION_TIMELINE: MockWsEvent[] = [
+  ...DEMO_PIPELINE_EVENTS,
   // 0s: Ringing
   {
     delayMs: 0,
