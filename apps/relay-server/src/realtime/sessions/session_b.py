@@ -357,12 +357,12 @@ class SessionBHandler:
         self._register_handlers()
 
     def _register_handlers(self) -> None:
-        self.session.on("response.audio.delta", self._handle_audio_delta)
-        self.session.on("response.audio_transcript.delta", self._handle_transcript_delta)
-        self.session.on("response.audio_transcript.done", self._handle_transcript_done)
+        self.session.on("response.output_audio.delta", self._handle_audio_delta)
+        self.session.on("response.output_audio_transcript.delta", self._handle_transcript_delta)
+        self.session.on("response.output_audio_transcript.done", self._handle_transcript_done)
         # modalities=['text'] 전용: response.text.delta/done 핸들러
-        self.session.on("response.text.delta", self._handle_text_delta)
-        self.session.on("response.text.done", self._handle_text_done)
+        self.session.on("response.output_text.delta", self._handle_text_delta)
+        self.session.on("response.output_text.done", self._handle_text_done)
         self.session.on("response.done", self._handle_response_done)
         # 대화 아이템 트래킹 (프루닝용)
         self.session.on("conversation.item.created", self._handle_item_created)

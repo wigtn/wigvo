@@ -107,9 +107,9 @@ class SessionAHandler:
         self._register_handlers()
 
     def _register_handlers(self) -> None:
-        self.session.on("response.audio.delta", self._handle_audio_delta)
-        self.session.on("response.audio_transcript.delta", self._handle_transcript_delta)
-        self.session.on("response.audio_transcript.done", self._handle_transcript_done)
+        self.session.on("response.output_audio.delta", self._handle_audio_delta)
+        self.session.on("response.output_audio_transcript.delta", self._handle_transcript_delta)
+        self.session.on("response.output_audio_transcript.done", self._handle_transcript_done)
         self.session.on("response.done", self._handle_response_done)
         self.session.on(
             "input_audio_buffer.speech_started", self._handle_user_speech_started
