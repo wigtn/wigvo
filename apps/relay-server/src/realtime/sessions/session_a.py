@@ -69,6 +69,8 @@ class SessionAHandler:
         self._on_guardrail_event = on_guardrail_event
         self._is_generating = False
         self._response_expected = False  # 명시적 create_response 호출 시만 True
+        # Langfuse: 턴을 transcript.done에서 버퍼링 → response.done(토큰 확정)에서 flush
+        self._lf_pending_turn: dict[str, Any] | None = None
         self._done_event = asyncio.Event()
         self._done_event.set()  # 초기 상태: 생성 중 아님
 
@@ -322,16 +324,21 @@ class SessionAHandler:
                         timestamp=time.time(),
                     )
                 )
-                # Langfuse: 발신자 → 수신자 턴 기록 (키 없으면 no-op)
-                from src.observability import tracer
-
-                tracer.record_turn(
-                    self._call,
-                    direction="caller_to_callee",
-                    original_text=self._last_user_stt or transcript,
-                    translated_text=transcript,
-                    language=self._call.source_language,
-                )
+                # Langfuse: 턴을 버퍼링 → response.done(토큰 확정)에서 flush.
+                guardrail_level = None
+                if self._guardrail is not None:
+                    lvl = getattr(self._guardrail, "current_level", None)
+                    guardrail_level = getattr(lvl, "value", lvl)
+                self._lf_pending_turn = {
+                    "direction": "caller_to_callee",
+                    "original_text": self._last_user_stt or transcript,
+                    "translated_text": transcript,
+                    "language": self._call.source_language,
+                    "stages": {
+                        "guardrail_level": guardrail_level,
+                        "stt_source": "caller_stt" if self._last_user_stt else "translation_fallback",
+                    },
+                }
             self._last_user_stt = ""  # 사용 후 초기화
 
         # 대화 컨텍스트 콜백
@@ -361,6 +368,7 @@ class SessionAHandler:
         if self._call:
             response = event.get("response", {})
             usage = response.get("usage", {})
+            turn_in = turn_out = 0
             if usage:
                 input_details = usage.get("input_token_details", {})
                 output_details = usage.get("output_token_details", {})
@@ -371,11 +379,32 @@ class SessionAHandler:
                     text_output=output_details.get("text_tokens", 0),
                 )
                 self._call.cost_tokens.add(tokens)
+                turn_in = tokens.audio_input + tokens.text_input
+                turn_out = tokens.audio_output + tokens.text_output
                 logger.debug(
                     "[SessionA] Tokens — audio_in=%d text_in=%d audio_out=%d text_out=%d (total=%d)",
                     tokens.audio_input, tokens.text_input,
                     tokens.audio_output, tokens.text_output,
                     self._call.cost_tokens.total,
+                )
+
+            # Langfuse: 토큰이 확정된 지금 버퍼된 턴을 flush한다 (키 없으면 no-op).
+            if self._lf_pending_turn is not None:
+                from src.observability import tracer
+                from src.config import settings
+
+                pend = self._lf_pending_turn
+                self._lf_pending_turn = None
+                tracer.record_turn(
+                    self._call,
+                    direction=pend["direction"],
+                    original_text=pend["original_text"],
+                    translated_text=pend["translated_text"],
+                    language=pend["language"],
+                    stages=pend["stages"],
+                    input_tokens=turn_in,
+                    output_tokens=turn_out,
+                    model=settings.openai_realtime_model,
                 )
 
         # 다음 응답을 위해 상태 초기화

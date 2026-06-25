@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 
 # 방향 → trace 타임라인에 표시될 사람이 읽기 쉬운 라벨
 DIRECTION_LABELS = {
-    "caller_to_callee": "🗣️ 발신자 → 수신자",
-    "callee_to_caller": "📞 수신자 → 발신자",
+    "caller_to_callee": "🗣️ Caller → Callee",
+    "callee_to_caller": "📞 Callee → Caller",
 }
 
 
@@ -114,17 +114,20 @@ class LangfuseTracer:
         input_tokens: int = 0,
         output_tokens: int = 0,
         model: str | None = None,
+        stages: dict[str, Any] | None = None,
     ) -> None:
-        """발화 턴 하나를 trace 에 child generation 으로 기록한다.
+        """Record a single utterance turn as a child generation on the trace.
 
         direction: "caller_to_callee" | "callee_to_caller"
+        stages: pipeline-stage signals (echo gate, VAD, STT, guardrail, ...)
+                surfaced under "stage.*" metadata keys.
         """
         if not self._enabled or not call.call_id:
             return
         try:
             root = self._roots.get(call.call_id)
             if root is None:
-                # 통화 시작 훅을 놓쳤어도 첫 턴에서 지연 생성
+                # Lazily create the trace even if start_call was missed.
                 self.start_call(call)
                 root = self._roots.get(call.call_id)
                 if root is None:
@@ -134,12 +137,20 @@ class LangfuseTracer:
             metadata: dict[str, Any] = {"direction": direction}
             if language:
                 metadata["language"] = language
+
+            # Per-stage latency under "latency.*"
             if latency_ms is not None:
-                metadata["latency_ms"] = round(latency_ms, 1)
+                metadata["latency.total_ms"] = round(latency_ms, 1)
             if latency_breakdown:
                 for key, val in latency_breakdown.items():
                     if val is not None:
-                        metadata[key] = round(float(val), 1)
+                        metadata[f"latency.{key}"] = round(float(val), 1)
+
+            # Pipeline-stage decisions under "stage.*"
+            if stages:
+                for key, val in stages.items():
+                    if val is not None:
+                        metadata[f"stage.{key}"] = val
 
             usage = None
             if input_tokens or output_tokens:
@@ -160,7 +171,31 @@ class LangfuseTracer:
             )
             obs.end()
         except Exception:
-            logger.warning("Langfuse record_turn 실패", exc_info=True)
+            logger.warning("Langfuse record_turn failed", exc_info=True)
+
+    def record_event(
+        self,
+        call: "ActiveCall",
+        *,
+        name: str,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Record a discrete pipeline moment (hallucination blocked, echo gate
+        block, interrupt/barge-in) as an event observation on the trace."""
+        if not self._enabled or not call.call_id:
+            return
+        try:
+            root = self._roots.get(call.call_id)
+            if root is None:
+                return
+            obs = root.start_observation(
+                name=name,
+                as_type="event",
+                metadata=metadata or {},
+            )
+            obs.end()
+        except Exception:
+            logger.warning("Langfuse record_event failed", exc_info=True)
 
     def end_call(self, call: "ActiveCall") -> None:
         """통화 종료 시 trace 를 마감하고 flush 한다."""
