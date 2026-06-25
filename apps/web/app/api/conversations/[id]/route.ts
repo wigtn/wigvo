@@ -1,60 +1,42 @@
-// =============================================================================
-// GET /api/conversations/[id] - 대화 복구
-// =============================================================================
-// BE1 소유 - 대화 세션 + 메시지 조회
-// API Contract: Endpoint 0-3
-// =============================================================================
+// GET /api/conversations/[id] - fetch conversation with messages (recovery view)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getConversation } from '@/lib/supabase/chat';
+import { and, eq, or } from 'drizzle-orm';
+import { db, schema } from '@/lib/db/client';
+import { requireUser } from '@/lib/auth/require-user';
+import { authErrorResponse } from '@/lib/auth/route-helpers';
+import { getConversation } from '@/lib/db/chat';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Next.js 15+: params는 Promise이므로 await 필수
     const { id } = await params;
+    const user = await requireUser();
 
-    // 1. 인증 확인
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. 대화 조회
     const conversation = await getConversation(id);
-
-    if (!conversation) {
+    if (!conversation || conversation.user_id !== user.id) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    // 3. 본인 대화인지 확인
-    if (conversation.user_id !== user.id) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-    }
-
-    // 4. CALLING 상태인데 통화가 이미 끝났으면 COMPLETED로 보정
     let effectiveStatus = conversation.status;
     if (conversation.status === 'CALLING') {
-      const { data: calls } = await supabase
-        .from('calls')
-        .select('status')
-        .eq('conversation_id', id)
+      const [call] = await db
+        .select({ status: schema.calls.status })
+        .from(schema.calls)
+        .where(
+          and(
+            eq(schema.calls.conversationId, id),
+            or(eq(schema.calls.status, 'COMPLETED'), eq(schema.calls.status, 'FAILED')),
+          ),
+        )
         .limit(1);
-      const call = calls?.[0];
-      if (call && (call.status === 'COMPLETED' || call.status === 'FAILED')) {
+      if (call) {
         effectiveStatus = 'COMPLETED';
       }
     }
 
-    // 5. 응답 (snake_case → camelCase 변환)
     return NextResponse.json({
       id: conversation.id,
       userId: conversation.user_id,
@@ -70,10 +52,9 @@ export async function GET(
       updatedAt: conversation.updated_at,
     });
   } catch (error) {
+    const authResp = authErrorResponse(error);
+    if (authResp) return authResp;
     console.error('Failed to get conversation:', error);
-    return NextResponse.json(
-      { error: 'Failed to get conversation' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to get conversation' }, { status: 500 });
   }
 }

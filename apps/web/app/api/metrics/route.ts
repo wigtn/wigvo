@@ -1,9 +1,10 @@
-// =============================================================================
-// GET /api/metrics - 통화 메트릭 집계 API (논문 Table용)
-// =============================================================================
+// GET /api/metrics — aggregate call-quality metrics across completed calls.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { and, desc, eq } from 'drizzle-orm';
+import { db, schema } from '@/lib/db/client';
+import { requireUser } from '@/lib/auth/require-user';
+import { authErrorResponse } from '@/lib/auth/route-helpers';
 
 interface CallMetricsRow {
   session_a_latencies_ms: number[];
@@ -17,13 +18,9 @@ interface CallMetricsRow {
   echo_loops_detected: number;
 }
 
-interface CallRow {
-  call_result_data: { metrics?: CallMetricsRow; cost_usd?: number } | null;
-  duration_s: number | null;
-  total_tokens: number | null;
-  communication_mode: string | null;
-  status: string;
-  created_at: string;
+interface CallResultData {
+  metrics?: CallMetricsRow;
+  cost_usd?: number;
 }
 
 function std(arr: number[]): number {
@@ -36,7 +33,7 @@ function std(arr: number[]): number {
 function stats(arr: number[]) {
   if (arr.length === 0) return { avg: 0, std: 0, min: 0, max: 0, count: 0 };
   return {
-    avg: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10,
+    avg: Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10,
     std: Math.round(std(arr) * 10) / 10,
     min: Math.round(Math.min(...arr) * 10) / 10,
     max: Math.round(Math.max(...arr) * 10) / 10,
@@ -44,48 +41,38 @@ function stats(arr: number[]) {
   };
 }
 
-// Cost: relay server가 call_result_data.cost_usd에 정확한 비용을 저장함
-// (CostTokens.cost_usd — per-category token pricing 기반)
-
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireUser();
 
     const searchParams = request.nextUrl.searchParams;
     const mode = searchParams.get('mode');
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500);
 
-    let query = supabase
-      .from('calls')
-      .select('call_result_data, duration_s, total_tokens, communication_mode, status, created_at')
-      .eq('status', 'COMPLETED')
-      .order('created_at', { ascending: false })
+    const whereClause = mode
+      ? and(eq(schema.calls.status, 'COMPLETED'), eq(schema.calls.communicationMode, mode))
+      : eq(schema.calls.status, 'COMPLETED');
+
+    const rows = await db
+      .select({
+        callResultData: schema.calls.callResultData,
+        durationS: schema.calls.durationS,
+        totalTokens: schema.calls.totalTokens,
+        communicationMode: schema.calls.communicationMode,
+        status: schema.calls.status,
+        createdAt: schema.calls.createdAt,
+      })
+      .from(schema.calls)
+      .where(whereClause)
+      .orderBy(desc(schema.calls.createdAt))
       .limit(limit);
 
-    if (mode) {
-      query = query.eq('communication_mode', mode);
-    }
+    const validCalls = rows.filter((c) => {
+      const data = c.callResultData as CallResultData | null;
+      return Boolean(data?.metrics);
+    });
+    const allMetrics = validCalls.map((c) => (c.callResultData as CallResultData).metrics!);
 
-    const { data: calls, error } = await query;
-
-    if (error) {
-      console.error('Failed to fetch metrics:', error);
-      return NextResponse.json({ error: 'Failed to fetch metrics' }, { status: 500 });
-    }
-
-    // Filter calls with valid metrics
-    const validCalls = (calls as CallRow[] || []).filter(
-      (c) => c.call_result_data?.metrics
-    );
-
-    const allMetrics = validCalls.map((c) => c.call_result_data!.metrics!);
-
-    // Flatten latency arrays
     const allSessionALatencies = allMetrics.flatMap((m) => m.session_a_latencies_ms);
     const allSessionBE2ELatencies = allMetrics.flatMap((m) => m.session_b_e2e_latencies_ms);
     const allSessionBSTTLatencies = allMetrics.flatMap((m) => m.session_b_stt_latencies_ms);
@@ -93,94 +80,98 @@ export async function GET(request: NextRequest) {
       .map((m) => m.first_message_latency_ms)
       .filter((v) => v > 0);
 
-    // Durations
     const durations = validCalls
-      .map((c) => c.duration_s)
+      .map((c) => c.durationS)
       .filter((v): v is number => v != null && v > 0);
     const totalDurationMin = durations.reduce((a, b) => a + b, 0) / 60;
 
-    // Tokens & Cost (cost_usd from relay server — exact per-category pricing)
     const totalTokens = validCalls
-      .map((c) => c.total_tokens)
+      .map((c) => c.totalTokens)
       .filter((v): v is number => v != null)
       .reduce((a, b) => a + b, 0);
     const totalCostUsd = validCalls
-      .map((c) => c.call_result_data?.cost_usd ?? 0)
+      .map((c) => (c.callResultData as CallResultData | null)?.cost_usd ?? 0)
       .reduce((a, b) => a + b, 0);
 
-    // Turn counts
     const turnCounts = allMetrics.map((m) => m.turn_count);
-
-    // Echo / VAD / Hallucinations
     const totalEchoSuppressions = allMetrics.reduce((s, m) => s + m.echo_suppressions, 0);
     const totalEchoLoops = allMetrics.reduce((s, m) => s + m.echo_loops_detected, 0);
     const totalVadFalseTriggers = allMetrics.reduce((s, m) => s + m.vad_false_triggers, 0);
     const totalHallucinationsBlocked = allMetrics.reduce((s, m) => s + m.hallucinations_blocked, 0);
-
     const callCount = validCalls.length;
 
-    // By mode breakdown
     const modes = ['voice_to_voice', 'text_to_voice', 'full_agent'];
-    const byMode: Record<string, { call_count: number; avg_session_a_ms: number; avg_session_b_ms: number; avg_turns: number }> = {};
+    const byMode: Record<
+      string,
+      { call_count: number; avg_session_a_ms: number; avg_session_b_ms: number; avg_turns: number }
+    > = {};
 
     for (const m of modes) {
-      const modeCalls = validCalls.filter((c) => c.communication_mode === m);
-      const modeMetrics = modeCalls.map((c) => c.call_result_data!.metrics!);
-      if (modeMetrics.length === 0) continue;
-
+      const modeCalls = validCalls.filter((c) => c.communicationMode === m);
+      if (modeCalls.length === 0) continue;
+      const modeMetrics = modeCalls.map((c) => (c.callResultData as CallResultData).metrics!);
       const modeALatencies = modeMetrics.flatMap((mm) => mm.session_a_latencies_ms);
       const modeBLatencies = modeMetrics.flatMap((mm) => mm.session_b_e2e_latencies_ms);
       const modeTurns = modeMetrics.map((mm) => mm.turn_count);
-
       byMode[m] = {
         call_count: modeCalls.length,
-        avg_session_a_ms: modeALatencies.length > 0
-          ? Math.round(modeALatencies.reduce((a, b) => a + b, 0) / modeALatencies.length)
-          : 0,
-        avg_session_b_ms: modeBLatencies.length > 0
-          ? Math.round(modeBLatencies.reduce((a, b) => a + b, 0) / modeBLatencies.length)
-          : 0,
-        avg_turns: modeTurns.length > 0
-          ? Math.round(modeTurns.reduce((a, b) => a + b, 0) / modeTurns.length * 10) / 10
-          : 0,
+        avg_session_a_ms:
+          modeALatencies.length > 0
+            ? Math.round(modeALatencies.reduce((a, b) => a + b, 0) / modeALatencies.length)
+            : 0,
+        avg_session_b_ms:
+          modeBLatencies.length > 0
+            ? Math.round(modeBLatencies.reduce((a, b) => a + b, 0) / modeBLatencies.length)
+            : 0,
+        avg_turns:
+          modeTurns.length > 0
+            ? Math.round((modeTurns.reduce((a, b) => a + b, 0) / modeTurns.length) * 10) / 10
+            : 0,
       };
     }
 
     return NextResponse.json({
       call_count: callCount,
-      total_calls_queried: (calls || []).length,
+      total_calls_queried: rows.length,
       session_a_latency: stats(allSessionALatencies),
       session_b_e2e_latency: stats(allSessionBE2ELatencies),
       session_b_stt_latency: stats(allSessionBSTTLatencies),
       first_message_latency: stats(allFirstMessageLatencies),
       turns: stats(turnCounts),
-      duration: {
-        total_minutes: Math.round(totalDurationMin * 10) / 10,
-        ...stats(durations),
-      },
+      duration: { total_minutes: Math.round(totalDurationMin * 10) / 10, ...stats(durations) },
       echo: {
         total_suppressions: totalEchoSuppressions,
         total_loops: totalEchoLoops,
-        avg_suppressions_per_call: callCount > 0 ? Math.round(totalEchoSuppressions / callCount * 10) / 10 : 0,
-        avg_loops_per_call: callCount > 0 ? Math.round(totalEchoLoops / callCount * 10) / 10 : 0,
+        avg_suppressions_per_call:
+          callCount > 0 ? Math.round((totalEchoSuppressions / callCount) * 10) / 10 : 0,
+        avg_loops_per_call:
+          callCount > 0 ? Math.round((totalEchoLoops / callCount) * 10) / 10 : 0,
       },
       vad: {
         total_false_triggers: totalVadFalseTriggers,
-        avg_per_call: callCount > 0 ? Math.round(totalVadFalseTriggers / callCount * 10) / 10 : 0,
+        avg_per_call:
+          callCount > 0 ? Math.round((totalVadFalseTriggers / callCount) * 10) / 10 : 0,
       },
       hallucinations: {
         total_blocked: totalHallucinationsBlocked,
-        avg_per_call: callCount > 0 ? Math.round(totalHallucinationsBlocked / callCount * 10) / 10 : 0,
+        avg_per_call:
+          callCount > 0 ? Math.round((totalHallucinationsBlocked / callCount) * 10) / 10 : 0,
       },
       cost: {
         total_tokens: totalTokens,
         total_usd: Math.round(totalCostUsd * 1000) / 1000,
-        avg_per_call: callCount > 0 ? Math.round(totalCostUsd / callCount * 1000) / 1000 : 0,
-        avg_per_minute: totalDurationMin > 0 ? Math.round(totalCostUsd / totalDurationMin * 1000) / 1000 : 0,
+        avg_per_call:
+          callCount > 0 ? Math.round((totalCostUsd / callCount) * 1000) / 1000 : 0,
+        avg_per_minute:
+          totalDurationMin > 0
+            ? Math.round((totalCostUsd / totalDurationMin) * 1000) / 1000
+            : 0,
       },
       by_mode: byMode,
     });
   } catch (error) {
+    const authResp = authErrorResponse(error);
+    if (authResp) return authResp;
     console.error('Failed to aggregate metrics:', error);
     return NextResponse.json({ error: 'Failed to aggregate metrics' }, { status: 500 });
   }

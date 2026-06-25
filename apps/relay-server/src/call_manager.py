@@ -123,16 +123,10 @@ class CallManager:
             call = self._calls.get(call_id)
             if call:
                 try:
-                    from src.db.supabase_client import get_client
+                    from src.db.pg_client import update_call
 
-                    client = await get_client()
                     pre_result = "ERROR" if reason in ("error", "server_shutdown") else "SUCCESS"
-                    await (
-                        client.table("calls")
-                        .update({"status": "COMPLETED", "result": pre_result})
-                        .eq("id", call_id)
-                        .execute()
-                    )
+                    await update_call(call_id, status="COMPLETED", result=pre_result)
                 except Exception:
                     logger.warning("Failed to pre-persist status for call %s", call_id)
 
@@ -230,7 +224,7 @@ class CallManager:
                 call.call_result_data["cost_usd"] = round(call.cost_tokens.cost_usd, 6)
 
                 try:
-                    from src.db.supabase_client import persist_call
+                    from src.db.pg_client import persist_call
 
                     await persist_call(call)
                 except Exception as e:

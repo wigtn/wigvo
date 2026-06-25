@@ -1,32 +1,19 @@
-// =============================================================================
-// POST /api/conversations - 대화 시작
-// GET /api/conversations - 대화 목록 조회
-// =============================================================================
-// BE1 소유 - 새 대화 세션 생성 및 목록 조회
-// API Contract: Endpoint 0-1
-// v4: 시나리오 타입 파라미터 지원
-// =============================================================================
+// POST /api/conversations - start a conversation
+// GET  /api/conversations - list the current user's recent conversations
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { createConversation } from '@/lib/supabase/chat';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { db, schema } from '@/lib/db/client';
+import { requireUser } from '@/lib/auth/require-user';
+import { authErrorResponse } from '@/lib/auth/route-helpers';
+import { createConversation } from '@/lib/db/chat';
 import type { CollectedData, ScenarioType, ScenarioSubType } from '@/shared/types';
 import type { CommunicationMode } from '@/shared/call-types';
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. 인증 확인
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await requireUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. v5: 모드 + 시나리오 타입 + 언어 파라미터 파싱
     let scenarioType: ScenarioType | undefined;
     let subType: ScenarioSubType | undefined;
     let communicationMode: CommunicationMode | undefined;
@@ -43,10 +30,9 @@ export async function POST(request: NextRequest) {
       targetLang = body.targetLang;
       locale = body.locale;
     } catch {
-      // body가 없거나 파싱 실패해도 OK (기존 호환성)
+      /* body optional */
     }
 
-    // 3. 대화 세션 생성 (모드 + 시나리오 타입 + 언어 전달)
     const { conversation, greeting } = await createConversation(
       user.id,
       scenarioType,
@@ -54,10 +40,9 @@ export async function POST(request: NextRequest) {
       communicationMode,
       sourceLang,
       targetLang,
-      locale
+      locale,
     );
 
-    // 4. 응답 (snake_case → camelCase 변환)
     return NextResponse.json(
       {
         id: conversation.id,
@@ -67,104 +52,96 @@ export async function POST(request: NextRequest) {
         greeting,
         createdAt: conversation.created_at,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
+    const authResp = authErrorResponse(error);
+    if (authResp) return authResp;
     console.error('Failed to create conversation:', error);
-    return NextResponse.json(
-      { error: 'Failed to create conversation' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 });
   }
 }
 
 export async function GET() {
   try {
-    // 1. 인증 확인
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await requireUser();
 
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 2. 대화 목록 조회 (최근 20개)
-    const { data: conversations, error } = await supabase
-      .from('conversations')
-      .select(`
-        id,
-        status,
-        collected_data,
-        created_at,
-        messages (
-          content,
-          role,
-          created_at
-        )
-      `)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+    // Recent 20 conversations for this user.
+    const convRows = await db
+      .select({
+        id: schema.conversations.id,
+        status: schema.conversations.status,
+        collectedData: schema.conversations.collectedData,
+        createdAt: schema.conversations.createdAt,
+      })
+      .from(schema.conversations)
+      .where(eq(schema.conversations.userId, user.id))
+      .orderBy(desc(schema.conversations.createdAt))
       .limit(20);
 
-    if (error) {
-      console.error('Failed to fetch conversations:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch conversations' },
-        { status: 500 }
-      );
+    if (convRows.length === 0) {
+      return NextResponse.json({ conversations: [] });
     }
 
-    // 2.5. CALLING 상태 conversation에 대해 calls 테이블에서 실제 상태 확인
-    const callingIds = (conversations || [])
-      .filter((c) => c.status === 'CALLING')
-      .map((c) => c.id);
+    const convIds = convRows.map((c) => c.id);
 
-    const callStatusMap = new Map<string, string>();
-    if (callingIds.length > 0) {
-      const { data: calls } = await supabase
-        .from('calls')
-        .select('conversation_id, status')
-        .in('conversation_id', callingIds);
+    // Most recent message per conversation (for the sidebar snippet).
+    const msgs = await db
+      .select({
+        conversationId: schema.messages.conversationId,
+        content: schema.messages.content,
+        createdAt: schema.messages.createdAt,
+      })
+      .from(schema.messages)
+      .where(inArray(schema.messages.conversationId, convIds))
+      .orderBy(desc(schema.messages.createdAt));
 
-      for (const call of calls || []) {
-        if (call.status === 'COMPLETED' || call.status === 'FAILED') {
-          callStatusMap.set(call.conversation_id, 'COMPLETED');
-        }
+    const lastMessageByConv = new Map<string, string>();
+    for (const m of msgs) {
+      if (!lastMessageByConv.has(m.conversationId)) {
+        lastMessageByConv.set(m.conversationId, m.content);
       }
     }
 
-    // 3. 응답 변환 (사이드바용 요약 형태)
-    const summaries = (conversations || []).map((conv) => {
-      const collectedData = conv.collected_data as CollectedData | null;
-      const messages = conv.messages as Array<{ content: string; role: string; created_at: string }> | null;
+    // For CALLING conversations, surface effective status (COMPLETED if any
+    // associated call has finished).
+    const callingIds = convRows.filter((c) => c.status === 'CALLING').map((c) => c.id);
+    const callStatusMap = new Map<string, string>();
+    if (callingIds.length > 0) {
+      const finishedCalls = await db
+        .select({
+          conversationId: schema.calls.conversationId,
+          status: schema.calls.status,
+        })
+        .from(schema.calls)
+        .where(
+          and(
+            inArray(schema.calls.conversationId, callingIds),
+            or(eq(schema.calls.status, 'COMPLETED'), eq(schema.calls.status, 'FAILED')),
+          ),
+        );
+      for (const c of finishedCalls) {
+        if (c.conversationId) callStatusMap.set(c.conversationId, 'COMPLETED');
+      }
+    }
 
-      // 마지막 메시지 찾기 (정렬 후)
-      const sortedMessages = (messages || []).sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      const lastMessage = sortedMessages[0];
-
-      // effective status: CALLING이지만 call이 COMPLETED/FAILED이면 COMPLETED로 표시
+    const summaries = convRows.map((conv) => {
+      const collectedData = conv.collectedData as CollectedData | null;
       const effectiveStatus = callStatusMap.get(conv.id) ?? conv.status;
-
       return {
         id: conv.id,
         status: effectiveStatus,
         targetName: collectedData?.target_name || null,
-        lastMessage: lastMessage?.content?.slice(0, 50) || '새 대화',
-        createdAt: conv.created_at,
+        lastMessage: (lastMessageByConv.get(conv.id) || '새 대화').slice(0, 50),
+        createdAt: (conv.createdAt as unknown as Date).toISOString(),
       };
     });
 
     return NextResponse.json({ conversations: summaries });
   } catch (error) {
+    const authResp = authErrorResponse(error);
+    if (authResp) return authResp;
     console.error('Failed to fetch conversations:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch conversations' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 });
   }
 }
