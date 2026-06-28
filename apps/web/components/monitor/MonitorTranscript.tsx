@@ -58,7 +58,7 @@ export default function MonitorTranscript() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5">
         {shown.length === 0 ? (
           <div className="flex h-full items-center justify-center">
-            <p className="text-lg text-slate-600">대화 대기 중…</p>
+            <p className="text-lg text-slate-600">Waiting for conversation…</p>
           </div>
         ) : (
           shown.map((entry) => <Bubble key={entry.id} entry={entry} />)

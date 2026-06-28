@@ -11,6 +11,7 @@ import { getCall } from '@/lib/api';
 import { RELAY_WS_URL } from '@/lib/constants';
 import type { Call } from '@/shared/types';
 import MonitorProvider from '@/components/monitor/MonitorProvider';
+import MonitorReplay from '@/components/monitor/MonitorReplay';
 import MonitorStatusBar from '@/components/monitor/MonitorStatusBar';
 import MonitorPipeline from '@/components/monitor/MonitorPipeline';
 import MonitorTranscript from '@/components/monitor/MonitorTranscript';
@@ -52,36 +53,37 @@ export default function MonitorCallPage() {
   if (error || !call) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[#070B14] text-slate-300">
-        <p className="text-lg">{error ?? '통화를 찾을 수 없습니다'}</p>
+        <p className="text-lg">{error ?? 'Call not found'}</p>
         <button
           onClick={() => router.push('/monitor')}
           className="flex items-center gap-2 rounded-xl border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800"
         >
-          <ArrowLeft className="size-4" /> 목록으로
+          <ArrowLeft className="size-4" /> Back to list
         </button>
       </div>
     );
   }
 
-  const wsUrl = deriveMonitorWsUrl(call);
+  // 진행 중인 통화만 라이브 관전(WS). 종료된 통화는 DB 저장 기록을 재생(replay).
+  const isActive = call.status === 'CALLING' || call.status === 'IN_PROGRESS';
 
-  return (
-    <MonitorProvider wsUrl={wsUrl}>
-      <div className="flex h-screen flex-col gap-4 bg-[#070B14] p-5 text-slate-100">
-        {/* 상단 헤더 + 상태 타임라인 */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push('/monitor')}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800"
-          >
-            <ArrowLeft className="size-4" />
-          </button>
-          <div className="flex-1">
-            <MonitorStatusBar />
-          </div>
+  const body = (
+    <div className="flex h-screen flex-col gap-4 bg-[#070B14] p-5 text-slate-100">
+      {/* 상단 헤더 + 상태 타임라인 */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => router.push('/monitor')}
+          className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800"
+        >
+          <ArrowLeft className="size-4" />
+        </button>
+        <div className="flex-1">
+          <MonitorStatusBar />
         </div>
+      </div>
 
-        {/* 본문: 좌 파이프라인 / 우 자막 */}
+      {/* 본문: 진행중이면 좌 파이프라인 + 우 자막 / 종료면 자막 전체폭(저장된 기록) */}
+      {isActive ? (
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="min-h-0 overflow-y-auto">
             <MonitorPipeline />
@@ -90,7 +92,17 @@ export default function MonitorCallPage() {
             <MonitorTranscript />
           </div>
         </div>
-      </div>
-    </MonitorProvider>
+      ) : (
+        <div className="mx-auto min-h-0 w-full max-w-3xl flex-1">
+          <MonitorTranscript />
+        </div>
+      )}
+    </div>
+  );
+
+  return isActive ? (
+    <MonitorProvider wsUrl={deriveMonitorWsUrl(call)}>{body}</MonitorProvider>
+  ) : (
+    <MonitorReplay call={call}>{body}</MonitorReplay>
   );
 }
