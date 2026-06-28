@@ -12,9 +12,13 @@ import type { Call } from '@/shared/types';
 const POLL_MS = 4000;
 const ACTIVE_STATUSES = new Set(['CALLING', 'IN_PROGRESS']);
 
+const ENDED_STATUSES = new Set(['COMPLETED', 'FAILED']);
+
 const STATUS_LABEL: Record<string, string> = {
-  CALLING: '연결 중',
-  IN_PROGRESS: '통화 중',
+  CALLING: 'Connecting',
+  IN_PROGRESS: 'In progress',
+  COMPLETED: 'Ended',
+  FAILED: 'Failed',
 };
 
 export default function MonitorListPage() {
@@ -39,14 +43,14 @@ export default function MonitorListPage() {
           router.push('/login');
           return;
         }
-        if (!res.ok) throw new Error('통화 목록을 불러오지 못했습니다');
+        if (!res.ok) throw new Error('Failed to load calls');
         const data = (await res.json()) as { calls: Call[] };
         if (!stopped) {
-          setCalls(data.calls.filter((c) => ACTIVE_STATUSES.has(c.status)));
+          setCalls(data.calls);
           setError(null);
         }
       } catch (err) {
-        if (!stopped) setError(err instanceof Error ? err.message : '오류가 발생했습니다');
+        if (!stopped) setError(err instanceof Error ? err.message : 'Something went wrong');
       } finally {
         if (!stopped) {
           setLoading(false);
@@ -73,8 +77,8 @@ export default function MonitorListPage() {
         <div className="mb-8 flex items-center gap-3">
           <Radio className="size-7 text-teal-400" />
           <div>
-            <h1 className="text-2xl font-bold">관전 모니터</h1>
-            <p className="text-sm text-slate-400">진행 중인 통역 통화를 선택해 실시간으로 관전합니다</p>
+            <h1 className="text-2xl font-bold">Observer Monitor</h1>
+            <p className="text-sm text-slate-400">Select a call to watch the live interpretation</p>
           </div>
         </div>
 
@@ -84,32 +88,38 @@ export default function MonitorListPage() {
           </div>
         ) : error ? (
           <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-6 py-5 text-red-200">{error}</div>
-        ) : calls.length === 0 ? (
-          <div className="rounded-2xl border border-[#1E293B] bg-[#0B1220]/60 px-6 py-16 text-center text-slate-500">
-            진행 중인 통화가 없습니다
-            <p className="mt-1 text-xs text-slate-600">통화가 시작되면 자동으로 나타납니다 (4초마다 갱신)</p>
-          </div>
         ) : (
-          <ul className="flex flex-col gap-3">
-            {calls.map((call) => {
+          (() => {
+            const active = calls.filter((c) => ACTIVE_STATUSES.has(c.status));
+            const ended = calls.filter((c) => ENDED_STATUSES.has(c.status));
+
+            const Row = (call: Call, live: boolean) => {
               const src = call.sourceLanguage?.toUpperCase() ?? '--';
               const tgt = call.targetLanguage?.toUpperCase() ?? '--';
               return (
                 <li key={call.id}>
                   <button
                     onClick={() => router.push(`/monitor/${call.id}`)}
-                    className="flex w-full items-center gap-4 rounded-2xl border border-[#1E293B] bg-[#0B1220]/70 px-5 py-4 text-left transition-colors hover:border-teal-500/50 hover:bg-[#0B1220]"
+                    className={`flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition-colors ${
+                      live
+                        ? 'border-[#1E293B] bg-[#0B1220]/70 hover:border-teal-500/50 hover:bg-[#0B1220]'
+                        : 'border-[#1E293B]/60 bg-[#0B1220]/40 opacity-80 hover:opacity-100 hover:border-slate-600'
+                    }`}
                   >
                     <span className="flex size-2.5 shrink-0 items-center">
-                      <span className="size-2.5 animate-pulse rounded-full bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.7)]" />
+                      <span
+                        className={`size-2.5 rounded-full ${
+                          live ? 'animate-pulse bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.7)]' : 'bg-slate-600'
+                        }`}
+                      />
                     </span>
                     <div className="flex items-center gap-2 text-lg font-bold">
                       <span>{src}</span>
-                      <span className="text-teal-400">↔</span>
+                      <span className={live ? 'text-teal-400' : 'text-slate-500'}>↔</span>
                       <span>{tgt}</span>
                     </div>
                     <div className="flex-1 truncate text-sm text-slate-400">
-                      {call.targetName || call.targetPhone || '상대 미지정'}
+                      {call.targetName || call.targetPhone || 'No recipient'}
                     </div>
                     <span className="shrink-0 rounded-full border border-slate-600 bg-slate-800/60 px-3 py-1 text-xs font-medium text-slate-300">
                       {STATUS_LABEL[call.status] ?? call.status}
@@ -118,8 +128,43 @@ export default function MonitorListPage() {
                   </button>
                 </li>
               );
-            })}
-          </ul>
+            };
+
+            if (active.length === 0 && ended.length === 0) {
+              return (
+                <div className="rounded-2xl border border-[#1E293B] bg-[#0B1220]/60 px-6 py-16 text-center text-slate-500">
+                  No calls
+                  <p className="mt-1 text-xs text-slate-600">Calls appear here automatically (refreshes every 4s)</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="flex flex-col gap-8">
+                <section>
+                  <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-teal-400/80">
+                    Live ({active.length})
+                  </h2>
+                  {active.length > 0 ? (
+                    <ul className="flex flex-col gap-3">{active.map((c) => Row(c, true))}</ul>
+                  ) : (
+                    <p className="rounded-xl border border-[#1E293B] bg-[#0B1220]/40 px-5 py-6 text-center text-sm text-slate-600">
+                      No ongoing calls
+                    </p>
+                  )}
+                </section>
+
+                {ended.length > 0 && (
+                  <section>
+                    <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      Recently ended ({ended.length})
+                    </h2>
+                    <ul className="flex flex-col gap-3">{ended.map((c) => Row(c, false))}</ul>
+                  </section>
+                )}
+              </div>
+            );
+          })()
         )}
       </div>
     </div>
