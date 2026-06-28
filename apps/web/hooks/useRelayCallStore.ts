@@ -12,39 +12,6 @@ export interface EventLogEntry {
   color: string;
 }
 
-// --- Live Pipeline (실시간 단계 모니터) ---
-export type PipeStatus = 'idle' | 'active' | 'pass' | 'block' | 'bargein' | 'done';
-export interface PipeNode {
-  status: PipeStatus;
-  detail: string;
-  at: number; // 마지막 갱신 시각(ms) — 컴포넌트가 decay(불 꺼짐) 판정에 사용
-}
-export type PipeStageKey = 'echo_gate' | 'energy_gate' | 'silero_vad' | 'stt' | 'translate_b';
-export type APhase = 'idle' | 'speaking' | 'translating' | 'delivered';
-
-export interface LivePipeline {
-  aPhase: APhase; // Session A (발신자→수신자) 빠른 경로
-  aDetail: string;
-  aAt: number;
-  b: Record<PipeStageKey, PipeNode>; // Session B (수신자→발신자) 3단계+STT+번역
-  lastAt: number;
-}
-
-const freshNode = (): PipeNode => ({ status: 'idle', detail: '', at: 0 });
-const freshPipeline = (): LivePipeline => ({
-  aPhase: 'idle',
-  aDetail: '',
-  aAt: 0,
-  b: {
-    echo_gate: freshNode(),
-    energy_gate: freshNode(),
-    silero_vad: freshNode(),
-    stt: freshNode(),
-    translate_b: freshNode(),
-  },
-  lastAt: 0,
-});
-
 export interface CallMetrics {
   session_a_latencies_ms: number[];
   session_b_e2e_latencies_ms: number[];
@@ -73,7 +40,6 @@ interface RelayCallStoreState {
   error: string | null;
   metrics: CallMetrics | null;
   eventLog: EventLogEntry[];
-  pipeline: LivePipeline;
 
   // Call 메타데이터 (Provider가 동기화)
   callData: Call | null;
@@ -90,11 +56,6 @@ interface RelayCallStoreState {
 
   // 액션 (Event Log)
   addEventLog: (entry: Omit<EventLogEntry, 'id' | 'timestamp'>) => void;
-
-  // 액션 (Live Pipeline)
-  signalPipeA: (phase: APhase, detail?: string) => void;
-  signalPipeB: (stage: PipeStageKey, status: PipeStatus, detail?: string) => void;
-  resetPipeline: () => void;
 
   // 동기화
   syncState: (partial: Partial<RelayCallStoreState>) => void;
@@ -113,7 +74,6 @@ const initialState = {
   error: null as string | null,
   metrics: null as CallMetrics | null,
   eventLog: [] as EventLogEntry[],
-  pipeline: freshPipeline() as LivePipeline,
   callData: null as Call | null,
   callDataLoading: true,
   callDataError: null as string | null,
@@ -127,7 +87,7 @@ const initialState = {
 
 let _eventLogId = 0;
 
-export const useRelayCallStore = create<RelayCallStoreState>((set, get) => ({
+export const useRelayCallStore = create<RelayCallStoreState>((set) => ({
   ...initialState,
 
   addEventLog: (entry) => {
@@ -140,26 +100,7 @@ export const useRelayCallStore = create<RelayCallStoreState>((set, get) => ({
     }));
   },
 
-  signalPipeA: (phase, detail = '') => {
-    const now = Date.now();
-    set({ pipeline: { ...get().pipeline, aPhase: phase, aDetail: detail, aAt: now, lastAt: now } });
-  },
-
-  signalPipeB: (stage, status, detail = '') => {
-    const now = Date.now();
-    const prev = get().pipeline;
-    set({
-      pipeline: {
-        ...prev,
-        b: { ...prev.b, [stage]: { status, detail, at: now } },
-        lastAt: now,
-      },
-    });
-  },
-
-  resetPipeline: () => set({ pipeline: freshPipeline() }),
-
   syncState: (partial) => set(partial),
 
-  reset: () => set({ ...initialState, pipeline: freshPipeline() }),
+  reset: () => set({ ...initialState }),
 }));

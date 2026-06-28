@@ -10,7 +10,6 @@ import CallStatusBar from './CallStatusBar';
 import CallSummaryPanel from './CallSummaryPanel';
 import MetricsPanel from './MetricsPanel';
 import EventLogPanel from './EventLogPanel';
-import LivePipelineMonitor from './LivePipelineMonitor';
 import {
   PhoneOff,
   Mic,
@@ -20,7 +19,6 @@ import {
   Loader2,
   BarChart3,
   ScrollText,
-  Workflow,
 } from 'lucide-react';
 import type { CommunicationMode } from '@/shared/call-types';
 import { isDemoMode } from '@/lib/demo';
@@ -70,7 +68,6 @@ export default function CallEffectPanel() {
 
   const [showMetrics, setShowMetrics] = useState(false);
   const [showEventLog, setShowEventLog] = useState(false);
-  const [showPipeline, setShowPipeline] = useState(true);
 
   // WebSocket reports ended → immediately refetch call data from server
   const prevCallStatusRef = useRef(callStatus);
@@ -219,9 +216,6 @@ export default function CallEffectPanel() {
         )}
       </div>
 
-      {/* Live Pipeline Monitor (실시간 단계 추적) */}
-      {showPipeline && <LivePipelineMonitor />}
-
       {/* Metrics Panel */}
       {showMetrics && <MetricsPanel metrics={metrics} />}
 
@@ -231,19 +225,6 @@ export default function CallEffectPanel() {
       {/* Controls */}
       {isActive && (
         <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-t border-[#E2E8F0]">
-          {/* Live Pipeline toggle */}
-          <button
-            onClick={() => setShowPipeline(!showPipeline)}
-            title="Live Pipeline"
-            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium transition-all ${
-              showPipeline
-                ? 'bg-[#0F172A] text-white'
-                : 'bg-[#F1F5F9] text-[#334155] border border-[#E2E8F0] hover:bg-[#E2E8F0]'
-            }`}
-          >
-            <Workflow className="size-3.5" />
-          </button>
-
           {/* Metrics toggle */}
           <button
             onClick={() => setShowMetrics(!showMetrics)}

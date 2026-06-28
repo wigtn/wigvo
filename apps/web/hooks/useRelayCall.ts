@@ -12,7 +12,7 @@ import {
 import { useRelayWebSocket } from './useRelayWebSocket';
 import { useClientVad } from './useClientVad';
 import { useWebAudioPlayer } from './useWebAudioPlayer';
-import { useRelayCallStore, type CallMetrics, type EventLogEntry, type APhase, type PipeStageKey, type PipeStatus } from './useRelayCallStore';
+import { useRelayCallStore, type CallMetrics, type EventLogEntry } from './useRelayCallStore';
 
 // --- Pipeline Event Log helpers (module scope for stable reference) ---
 const PIPELINE_STAGE_TAG_MAP: Record<string, { tag: string; color: string }> = {
@@ -23,14 +23,6 @@ const PIPELINE_STAGE_TAG_MAP: Record<string, { tag: string; color: string }> = {
 
 function pushEventLog(entry: Omit<EventLogEntry, 'id' | 'timestamp'>) {
   useRelayCallStore.getState().addEventLog(entry);
-}
-
-// --- Live Pipeline 신호 (실시간 단계 모니터 구동) ---
-function signalA(phase: APhase, detail = '') {
-  useRelayCallStore.getState().signalPipeA(phase, detail);
-}
-function signalB(stage: PipeStageKey, status: PipeStatus, detail = '') {
-  useRelayCallStore.getState().signalPipeB(stage, status, detail);
 }
 
 type CallStatus = 'idle' | 'connecting' | 'waiting' | 'connected' | 'ended';
@@ -103,20 +95,6 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
           };
           const speaker: CaptionEntry['speaker'] = ROLE_TO_SPEAKER[rawRole] ?? 'recipient';
           const text = (msg.data.text as string) ?? '';
-
-          // Live pipeline: 캡션 방향/단계로 흐름 구동
-          if (direction === 'outbound') {
-            // 발신자 → 수신자 (Session A 빠른 경로)
-            signalA(stage === 2 ? 'delivered' : 'speaking');
-          } else if (direction === 'inbound') {
-            // 수신자 → 발신자 (Session B): stage1=STT 원문, stage2=번역 출력
-            if (stage === 2) {
-              signalB('stt', 'done');
-              signalB('translate_b', 'done', 'translated');
-            } else {
-              signalB('stt', 'active', 'STT...');
-            }
-          }
 
           const cur = streamingRef.current;
 
@@ -231,9 +209,6 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
           if (state === 'processing' || state === 'done' || state === 'caption_done') {
             pushEventLog({ tag: 'Session A', message: state, color: 'text-green-400' });
           }
-          // Live pipeline: Session A 번역 진행/완료
-          if (state === 'processing') signalA('translating', 'translating');
-          else if (state === 'done') signalA('delivered');
           if (state === 'caption_done') {
             // Session B 번역 완료 → 스트리밍 컨텍스트 리셋
             // 다음 수신자 발화 delta가 새 캡션 엔트리로 생성됨
@@ -246,7 +221,6 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
 
         case WsMessageType.INTERRUPT_ALERT: {
           pushEventLog({ tag: 'Interrupt', message: 'Recipient speaking', color: 'text-red-400' });
-          signalB('silero_vad', 'bargein', 'callee barge-in');
           // Clear playback queue when recipient is speaking
           player.clearQueue();
           break;
@@ -277,21 +251,6 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
           const extra = msg.data.duration_s != null ? ` ${(msg.data.duration_s as number).toFixed(1)}s` : '';
           const totalS = msg.data.total_s != null ? ` ${(msg.data.total_s as number).toFixed(1)}s` : '';
           pushEventLog({ tag, message: `${event}${rms}${peakRms}${extra}${totalS}`, color });
-
-          // Live pipeline: Session B 단계 점등
-          const rmsVal = msg.data.rms ?? msg.data.peak_rms;
-          const rmsTxt = rmsVal != null ? `RMS ${rmsVal}` : '';
-          if (stage === 'echo_gate') {
-            if (event.includes('absorb')) signalB('echo_gate', 'block', 'echo absorbed');
-            else if (event.includes('break')) signalB('echo_gate', 'bargein', 'barge-in');
-            else if (event.includes('deactiv')) signalB('echo_gate', 'idle', '');
-            else signalB('echo_gate', 'active', 'gate closed');
-          } else if (stage === 'energy_gate') {
-            signalB('energy_gate', event === 'accept' ? 'pass' : 'block', rmsTxt);
-          } else if (stage === 'silero_vad') {
-            signalB('silero_vad', event === 'speech_start' ? 'active' : 'done',
-              event === 'speech_start' ? rmsTxt : 'speech end');
-          }
           break;
         }
 
@@ -370,7 +329,6 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
       setIsMuted(false);
       captionCounterRef.current = 0;
       streamingRef.current = null;
-      useRelayCallStore.getState().resetPipeline();
       setWsUrl(relayWsUrl);
     },
     [],
