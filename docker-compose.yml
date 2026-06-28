@@ -1,0 +1,68 @@
+name: wigvo-v2
+
+services:
+  wigvo-postgres:
+    image: postgres:16
+    container_name: wigvo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wigvo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-wigvo}
+      TZ: UTC
+    ports:
+      - "127.0.0.1:10201:5432"
+    volumes:
+      - wigvo-pgdata:/var/lib/postgresql/data
+      - ./scripts/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wigvo} -d ${POSTGRES_DB:-wigvo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  wigvo-relay:
+    platform: linux/amd64
+    build:
+      context: apps/relay-server
+      dockerfile: Dockerfile
+    container_name: wigvo-relay
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wigvo}:${POSTGRES_PASSWORD}@wigvo-postgres:5432/${POSTGRES_DB:-wigvo}
+    ports:
+      - "10102:8080"
+    depends_on:
+      wigvo-postgres:
+        condition: service_healthy
+
+  wigvo-web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_RELAY_WS_URL: ${NEXT_PUBLIC_RELAY_WS_URL}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+    container_name: wigvo-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wigvo}:${POSTGRES_PASSWORD}@wigvo-postgres:5432/${POSTGRES_DB:-wigvo}
+      # Server-side relay calls go via docker DNS, not the public URL.
+      RELAY_SERVER_URL: http://wigvo-relay:8080
+    ports:
+      - "10301:3000"
+    depends_on:
+      wigvo-postgres:
+        condition: service_healthy
+
+volumes:
+  wigvo-pgdata:
+    name: wigvo-pgdata

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 # Monorepo 루트의 .env 파일 경로 (config.py → src → relay-server → apps → wigvo)
@@ -24,18 +24,13 @@ class Settings(BaseSettings):
     openai_ws_connect_timeout_s: float = 30.0  # WebSocket handshake timeout (기본 10s → 30s)
     openai_ws_connect_retries: int = 2  # 연결 실패 시 재시도 횟수
 
-    # Supabase
-    supabase_url: str = ""
-    supabase_key: str = ""
-    supabase_service_key: str = ""
-    supabase_service_role_key: str = ""
-
-    @model_validator(mode="after")
-    def resolve_service_key(self) -> "Settings":
-        """SUPABASE_SERVICE_ROLE_KEY 우선, fallback SUPABASE_SERVICE_KEY."""
-        if self.supabase_service_role_key:
-            self.supabase_service_key = self.supabase_service_role_key
-        return self
+    # Local Postgres (replaces former Supabase DB usage).
+    # docker-compose injects DATABASE_URL pointing at the wigvo-postgres
+    # service; for local non-docker runs the .env DATABASE_URL points at the
+    # host-exposed port.
+    database_url: str = ""
+    db_pool_min_size: int = 1
+    db_pool_max_size: int = 5
 
     # Relay Server
     relay_server_url: str = "http://localhost:8000"
@@ -140,6 +135,11 @@ class Settings(BaseSettings):
     guardrail_enabled: bool = True
     guardrail_fallback_model: str = "gpt-4o-mini"
     guardrail_fallback_timeout_ms: int = 2000
+
+    # Langfuse (관측/추적) — 키가 비어 있으면 추적 비활성화(no-op), 통화에 영향 없음
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_host: str = "https://cloud.langfuse.com"
 
     model_config = {
         "env_file": str(_ENV_FILE),

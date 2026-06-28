@@ -309,6 +309,10 @@ class SessionBHandler:
         self._stt_check_done.set()  # 초기 상태: 대기 불필요
         # STT latency 임시 저장: E2E와 동시에 기록하여 리스트 정합성 보장
         self._pending_stt_ms: float = 0.0
+        # Langfuse: 턴을 transcript.done에서 버퍼링 → response.done(토큰 확정)에서 flush
+        self._lf_pending_turn: dict[str, Any] | None = None
+        # 차단 이벤트 감지용: 직전 hallucinations_blocked 카운트 스냅샷
+        self._lf_last_blocked_count: int = 0
 
         # Debounced response creation (create_response=False 모드)
         # VAD speech_stopped 후 일정 시간 대기, 새 speech_started가 없으면 수동 response.create
@@ -357,12 +361,12 @@ class SessionBHandler:
         self._register_handlers()
 
     def _register_handlers(self) -> None:
-        self.session.on("response.audio.delta", self._handle_audio_delta)
-        self.session.on("response.audio_transcript.delta", self._handle_transcript_delta)
-        self.session.on("response.audio_transcript.done", self._handle_transcript_done)
+        self.session.on("response.output_audio.delta", self._handle_audio_delta)
+        self.session.on("response.output_audio_transcript.delta", self._handle_transcript_delta)
+        self.session.on("response.output_audio_transcript.done", self._handle_transcript_done)
         # modalities=['text'] 전용: response.text.delta/done 핸들러
-        self.session.on("response.text.delta", self._handle_text_delta)
-        self.session.on("response.text.done", self._handle_text_done)
+        self.session.on("response.output_text.delta", self._handle_text_delta)
+        self.session.on("response.output_text.done", self._handle_text_done)
         self.session.on("response.done", self._handle_response_done)
         # 대화 아이템 트래킹 (프루닝용)
         self.session.on("conversation.item.created", self._handle_item_created)
@@ -783,6 +787,7 @@ class SessionBHandler:
         if self._call:
             self._call.call_metrics.vad_false_triggers = max(0, self._speech_started_count - self._transcript_completed_count)
 
+        _lf_latency: dict[str, float] | None = None  # Langfuse 턴 레이턴시 분해
         if self._committed_speech_started_at > 0:
             e2e_ms = (time.time() - self._committed_speech_started_at) * 1000
             # 5) 최소 e2e 필터: 물리적으로 불가능한 속도의 응답 → 할루시네이션
@@ -801,17 +806,18 @@ class SessionBHandler:
                 e2e_ms, transcript[:80],
             )
             if self._call:
+                stt_ms_val = self._pending_stt_ms if self._pending_stt_ms > 0 else e2e_ms
                 self._call.call_metrics.session_b_e2e_latencies_ms.append(e2e_ms)
                 # STT latency를 E2E와 동시에 기록 — 리스트 인덱스 정합성 보장
-                self._call.call_metrics.session_b_stt_latencies_ms.append(
-                    self._pending_stt_ms if self._pending_stt_ms > 0 else e2e_ms
-                )
+                self._call.call_metrics.session_b_stt_latencies_ms.append(stt_ms_val)
                 self._pending_stt_ms = 0.0
                 self._call.call_metrics.turn_count += 1
+                _lf_latency = {"e2e_ms": e2e_ms, "stt_ms": stt_ms_val}
                 # processing latency: speech_stopped → 번역 완료 (STT와 독립적)
                 if self._committed_speech_stopped_at > 0:
                     proc_ms = (time.time() - self._committed_speech_stopped_at) * 1000
                     self._call.call_metrics.session_b_processing_latencies_ms.append(proc_ms)
+                    _lf_latency["processing_ms"] = proc_ms
         else:
             logger.info("[SessionB] Translation complete: %s", transcript[:80])
 
@@ -827,6 +833,19 @@ class SessionBHandler:
                     timestamp=time.time(),
                 )
             )
+            # Langfuse: 턴을 버퍼링한다 (토큰은 response.done에서 확정되므로 거기서 flush).
+            # 여기까지 도달 = 3단계 anti-hallucination 필터를 모두 통과한 턴.
+            self._lf_pending_turn = {
+                "direction": "callee_to_caller",
+                "original_text": self._last_recipient_stt or transcript,
+                "translated_text": transcript,
+                "language": self._call.target_language,
+                "latency_breakdown": _lf_latency,
+                "stages": {
+                    "anti_hallucination": "passed",
+                    "stt_source": "recipient_stt" if self._last_recipient_stt else "translation_fallback",
+                },
+            }
             self._last_recipient_stt = ""  # 사용 후 초기화
 
         # 대화 컨텍스트 콜백
@@ -852,6 +871,7 @@ class SessionBHandler:
         if self._call:
             response = event.get("response", {})
             usage = response.get("usage", {})
+            turn_in = turn_out = 0
             if usage:
                 input_details = usage.get("input_token_details", {})
                 output_details = usage.get("output_token_details", {})
@@ -862,12 +882,44 @@ class SessionBHandler:
                     text_output=output_details.get("text_tokens", 0),
                 )
                 self._call.cost_tokens.add(tokens)
+                turn_in = tokens.audio_input + tokens.text_input
+                turn_out = tokens.audio_output + tokens.text_output
                 logger.debug(
                     "[SessionB] Tokens — audio_in=%d text_in=%d audio_out=%d text_out=%d (total=%d)",
                     tokens.audio_input, tokens.text_input,
                     tokens.audio_output, tokens.text_output,
                     self._call.cost_tokens.total,
                 )
+
+            # Langfuse: 토큰이 확정된 지금 턴을 flush한다 (키 없으면 no-op).
+            from src.observability import tracer
+            from src.config import settings
+
+            if self._lf_pending_turn is not None:
+                pend = self._lf_pending_turn
+                self._lf_pending_turn = None
+                tracer.record_turn(
+                    self._call,
+                    direction=pend["direction"],
+                    original_text=pend["original_text"],
+                    translated_text=pend["translated_text"],
+                    language=pend["language"],
+                    latency_breakdown=pend["latency_breakdown"],
+                    stages=pend["stages"],
+                    input_tokens=turn_in,
+                    output_tokens=turn_out,
+                    model=settings.openai_realtime_model,
+                )
+            else:
+                # 버퍼된 턴이 없는데 차단 카운트가 늘었다 = 이번 응답이 필터링됨.
+                blocked_now = self._call.call_metrics.hallucinations_blocked
+                if blocked_now > self._lf_last_blocked_count:
+                    tracer.record_event(
+                        self._call,
+                        name="🛑 Hallucination blocked",
+                        metadata={"blocked_total": blocked_now},
+                    )
+            self._lf_last_blocked_count = self._call.call_metrics.hallucinations_blocked
 
     async def _handle_speech_started(self, event: dict[str, Any]) -> None:
         """Server VAD가 수신자 발화 시작을 감지.

@@ -23,6 +23,29 @@ logger = logging.getLogger(__name__)
 OPENAI_REALTIME_URL = "wss://api.openai.com/v1/realtime"
 
 
+def _ga_audio_format(fmt: str) -> dict[str, Any]:
+    """beta 문자열 오디오 포맷을 GA audio.format 객체로 변환한다.
+
+    GA(realtime) API는 format을 문자열 대신 {type, [rate]} 객체로 받는다.
+    """
+    if fmt == "pcm16":
+        return {"type": "audio/pcm", "rate": 24000}
+    if fmt == "g711_ulaw":
+        return {"type": "audio/pcmu"}  # Twilio Media Stream 기본 (8kHz)
+    if fmt == "g711_alaw":
+        return {"type": "audio/pcma"}
+    return {"type": "audio/pcm", "rate": 24000}
+
+
+def _ga_output_modalities(modalities: list[str]) -> list[str]:
+    """beta modalities를 GA output_modalities로 변환한다.
+
+    GA는 audio+text 동시 지정을 허용하지 않는다. audio가 있으면 audio 우선
+    (번역 자막은 response.output_audio_transcript.* 이벤트로 별도 도착한다).
+    """
+    return ["audio"] if "audio" in modalities else ["text"]
+
+
 class RealtimeSession:
     """단일 OpenAI Realtime API WebSocket 세션."""
 
@@ -60,7 +83,6 @@ class RealtimeSession:
         url = f"{OPENAI_REALTIME_URL}?model={settings.openai_realtime_model}"
         headers = {
             "Authorization": f"Bearer {settings.openai_api_key}",
-            "OpenAI-Beta": "realtime=v1",
         }
 
         logger.info("[%s] Connecting to OpenAI Realtime API...", self.label)
@@ -86,12 +108,10 @@ class RealtimeSession:
                     raise last_err
         logger.info("[%s] Connected", self.label)
 
-        # 세션 설정
-        session_config: dict[str, Any] = {
-            "modalities": self.config.modalities,
-            "instructions": system_prompt,
-            "input_audio_format": self.config.input_audio_format,
-            "output_audio_format": self.config.output_audio_format,
+        # 세션 설정 — GA(realtime) 형식. beta 형식(modalities/input_audio_format/
+        # turn_detection 최상위)은 폐기됨(beta_api_shape_disabled).
+        audio_input: dict[str, Any] = {
+            "format": _ga_audio_format(self.config.input_audio_format),
             "turn_detection": (
                 {
                     "type": "server_vad",
@@ -105,14 +125,24 @@ class RealtimeSession:
             ),
         }
 
-        # 2단계 자막: input_audio_transcription 활성화 (PRD 5.4)
+        # 2단계 자막: 입력 음성 전사 활성화 (PRD 5.4) — GA에선 audio.input.transcription
         if self.config.input_audio_transcription:
-            session_config["input_audio_transcription"] = self.config.input_audio_transcription
+            audio_input["transcription"] = self.config.input_audio_transcription
             logger.info(
                 "[%s] input_audio_transcription enabled: %s",
                 self.label,
                 self.config.input_audio_transcription,
             )
+
+        session_config: dict[str, Any] = {
+            "type": "realtime",
+            "output_modalities": _ga_output_modalities(self.config.modalities),
+            "instructions": system_prompt,
+            "audio": {
+                "input": audio_input,
+                "output": {"format": _ga_audio_format(self.config.output_audio_format)},
+            },
+        }
 
         # Agent Mode: Function Calling 도구 추가
         if tools:

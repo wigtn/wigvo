@@ -14,6 +14,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from src.observability import tracer
 from src.types import ActiveCall, CallStatus, WsMessage, WsMessageType
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ class CallManager:
 
     def register_call(self, call_id: str, call: ActiveCall) -> None:
         self._calls[call_id] = call
+        tracer.start_call(call)  # Langfuse trace 시작 (키 없으면 no-op)
 
     def register_session(self, call_id: str, session: "DualSessionManager") -> None:
         self._sessions[call_id] = session
@@ -123,16 +125,10 @@ class CallManager:
             call = self._calls.get(call_id)
             if call:
                 try:
-                    from src.db.supabase_client import get_client
+                    from src.db.pg_client import update_call
 
-                    client = await get_client()
                     pre_result = "ERROR" if reason in ("error", "server_shutdown") else "SUCCESS"
-                    await (
-                        client.table("calls")
-                        .update({"status": "COMPLETED", "result": pre_result})
-                        .eq("id", call_id)
-                        .execute()
-                    )
+                    await update_call(call_id, status="COMPLETED", result=pre_result)
                 except Exception:
                     logger.warning("Failed to pre-persist status for call %s", call_id)
 
@@ -149,6 +145,10 @@ class CallManager:
                     logger.info("Twilio call terminated: %s", call.call_sid)
                 except Exception as e:
                     logger.warning("Failed to terminate Twilio call %s: %s", call.call_sid, e)
+
+            # 0c. Langfuse trace 마감 + flush (키 없으면 no-op)
+            if call:
+                tracer.end_call(call)
 
             # 1. AudioRouter stop
             router = self._routers.pop(call_id, None)
@@ -230,7 +230,7 @@ class CallManager:
                 call.call_result_data["cost_usd"] = round(call.cost_tokens.cost_usd, 6)
 
                 try:
-                    from src.db.supabase_client import persist_call
+                    from src.db.pg_client import persist_call
 
                     await persist_call(call)
                 except Exception as e:

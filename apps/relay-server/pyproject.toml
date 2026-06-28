@@ -9,7 +9,7 @@ dependencies = [
     "websockets>=14.0",
     "twilio>=9.0.0",
     "openai>=1.60.0",
-    "supabase>=2.0.0",
+    "asyncpg>=0.30.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
     "python-dotenv>=1.0.0",
@@ -17,6 +17,7 @@ dependencies = [
     "numpy>=1.26.0",
     "silero-vad-lite>=0.2.0",
     "google-cloud-logging>=3.13.0",
+    "langfuse>=3.0.0",
 ]
 
 [dependency-groups]

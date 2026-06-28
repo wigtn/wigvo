@@ -129,48 +129,33 @@ async def test_deferred_save_fires_after_delay(pipeline):
 @pytest.mark.asyncio
 async def test_persist_snapshot_correct_format(pipeline):
     """DB write payload가 cleanup_call 포맷과 일치한다."""
-    mock_execute = AsyncMock()
-    mock_eq = MagicMock()
-    mock_eq.execute = mock_execute
-    mock_update = MagicMock()
-    mock_update.eq.return_value = mock_eq
-    mock_table = MagicMock()
-    mock_table.update.return_value = mock_update
-    # Supabase client는 sync 메서드 (table, update, eq) + async execute
-    mock_client = MagicMock()
-    mock_client.table.return_value = mock_table
+    captured: dict[str, object] = {}
 
-    async def fake_get_client():
-        return mock_client
+    async def fake_update_call(call_id, **fields):
+        captured["call_id"] = call_id
+        captured["fields"] = fields
+        return 1
 
-    with patch("src.db.supabase_client.get_client", new=fake_get_client):
+    with patch("src.db.pg_client.update_call", new=fake_update_call):
         await pipeline._persist_metrics_snapshot()
 
-    # DB 호출 확인
-    mock_client.table.assert_called_with("calls")
-    mock_table.update.assert_called_once()
-    update_data = mock_table.update.call_args[0][0]
-
-    # payload 구조 검증
-    assert "call_result_data" in update_data
-    assert "metrics" in update_data["call_result_data"]
-    assert "cost_usd" in update_data["call_result_data"]
-    assert "transcript_bilingual" in update_data
-    assert "cost_tokens" in update_data
-    assert "total_tokens" in update_data
-
-    # eq("id", call_id) 확인
-    mock_update.eq.assert_called_with("id", "test-call-incr")
+    assert captured["call_id"] == "test-call-incr"
+    fields = captured["fields"]
+    assert "call_result_data" in fields
+    assert "metrics" in fields["call_result_data"]
+    assert "cost_usd" in fields["call_result_data"]
+    assert "transcript_bilingual" in fields
+    assert "cost_tokens" in fields
+    assert "total_tokens" in fields
 
 
 @pytest.mark.asyncio
 async def test_persist_snapshot_handles_db_error(pipeline):
     """DB 에러 시 통화 흐름에 영향 없음 (warning 로그만)."""
-    with patch(
-        "src.db.supabase_client.get_client",
-        new_callable=AsyncMock,
-        side_effect=Exception("DB connection failed"),
-    ):
+    async def fake_update_call(*_args, **_kwargs):
+        raise Exception("DB connection failed")
+
+    with patch("src.db.pg_client.update_call", new=fake_update_call):
         # 에러가 전파되지 않아야 함
         await pipeline._persist_metrics_snapshot()
         # 함수가 정상 종료되면 테스트 통과

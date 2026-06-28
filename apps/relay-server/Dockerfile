@@ -1,8 +1,11 @@
 FROM python:3.12-slim
 
 # silero-vad-lite (ONNX Runtime) 런타임 의존성
-RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgomp1 \
+    cmake \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 # uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 

@@ -85,7 +85,7 @@ class TestCleanupCall:
         cm.register_call("test-001", sample_call)
         cm.register_router("test-001", mock_router)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock):
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.cleanup_call("test-001", reason="test")
 
         mock_router.stop.assert_awaited_once()
@@ -100,7 +100,7 @@ class TestCleanupCall:
         cm.register_call("test-001", sample_call)
         cm.register_session("test-001", mock_dual_session)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock):
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.cleanup_call("test-001", reason="test")
 
         mock_dual_session.close.assert_awaited_once()
@@ -116,7 +116,7 @@ class TestCleanupCall:
         task = asyncio.create_task(long_running())
         cm.register_listen_task("test-001", task)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock):
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.cleanup_call("test-001", reason="test")
 
         assert task.cancelled()
@@ -130,7 +130,7 @@ class TestCleanupCall:
         cm.register_call("test-001", sample_call)
         cm.register_app_ws("test-001", mock_app_ws)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock):
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.cleanup_call("test-001", reason="test")
 
         mock_app_ws.send_json.assert_awaited_once()
@@ -142,7 +142,7 @@ class TestCleanupCall:
     async def test_cleanup_persists_call(self, cm: CallManager, sample_call: ActiveCall):
         cm.register_call("test-001", sample_call)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock) as mock_persist:
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock) as mock_persist:
             await cm.cleanup_call("test-001", reason="test")
 
         mock_persist.assert_awaited_once()
@@ -161,7 +161,7 @@ class TestCleanupCall:
         cm.register_router("test-001", mock_router)
         cm.register_session("test-001", mock_dual_session)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock):
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.cleanup_call("test-001", reason="first")
             await cm.cleanup_call("test-001", reason="second")
 
@@ -202,7 +202,7 @@ class TestShutdownAll:
         cm.register_call("c1", call1)
         cm.register_call("c2", call2)
 
-        with patch("src.db.supabase_client.persist_call", new_callable=AsyncMock):
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.shutdown_all()
 
         assert cm.active_call_count == 0

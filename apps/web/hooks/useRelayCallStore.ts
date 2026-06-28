@@ -102,5 +102,5 @@ export const useRelayCallStore = create<RelayCallStoreState>((set) => ({
 
   syncState: (partial) => set(partial),
 
-  reset: () => set(initialState),
+  reset: () => set({ ...initialState }),
 }));

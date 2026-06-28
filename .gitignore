@@ -16,6 +16,8 @@ build/
 .env.local
 .env.production
 .env*.local
+.env.bak*
+*.bak
 
 # IDE
 .vscode/
@@ -56,6 +58,10 @@ docs/paper/acl2026_wigvo.pdf
 docs/paper/*_korea.md
 docs/paper/*_ssw.tex
 scripts/migrations/
+
+# DB seed — 실제 사용자 PII 포함, git에 올리지 않음 (build_seed_sql.py 로 로컬 재생성)
+scripts/db/init/002_seed.sql
+/tmp/wigvo-dump/
 
 # Eval intermediate results
 scripts/eval/eval_results_*.json

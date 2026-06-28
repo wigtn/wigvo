@@ -74,9 +74,8 @@ class BasePipeline(ABC):
         if not call.call_id:
             return
         try:
-            from src.db.supabase_client import get_client
+            from src.db.pg_client import update_call
 
-            client = await get_client()
             m = call.call_metrics
             data: dict[str, object] = {
                 "call_result_data": {
@@ -95,7 +94,7 @@ class BasePipeline(ABC):
                 data["communication_mode"] = call.communication_mode.value
             if call.started_at > 0:
                 data["duration_s"] = round(time.time() - call.started_at, 1)
-            await client.table("calls").update(data).eq("id", call.call_id).execute()
+            await update_call(call.call_id, **data)
             logger.debug("Incremental metrics saved for call %s", call.call_id)
         except Exception:
             logger.warning("Failed to save incremental metrics for call %s", call.call_id, exc_info=True)
