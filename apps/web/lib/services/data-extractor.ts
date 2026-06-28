@@ -30,29 +30,22 @@ export function extractDataFromMessage(
     result.customer_name = m;
   }
 
-  // 전화번호 패턴 (국내 + E.164)
-  const phoneMatch = m.match(
-    /(\+82[\d-]{9,13})|(0\d{1,2}-?\d{3,4}-?\d{4})|(010\d{8})/
-  );
+  // 전화번호 패턴 (E.164 국제형식: +국가코드...)
+  // 구분문자(공백/-/()/.) 허용 후 정규화하여 E.164로 검증.
+  const phoneMatch = m.match(/\+[1-9][\d\s().-]{6,16}/);
   if (phoneMatch) {
-    if (phoneMatch[1]) {
-      // E.164: +8210-9265-9103 → +821092659103
-      result.target_phone = phoneMatch[1].replace(/-/g, '');
-    } else {
-      const raw = (phoneMatch[2] || phoneMatch[3] || '').replace(/-/g, '');
-      if (raw.length >= 10 && raw.length <= 11 && /^0\d+$/.test(raw)) {
-        const withDashes = phoneMatch[2]?.includes('-') ? phoneMatch[2] : null;
-        result.target_phone = withDashes ?? raw;
-      }
+    const e164 = phoneMatch[0].replace(/[^\d+]/g, '');
+    if (/^\+[1-9]\d{7,14}$/.test(e164)) {
+      result.target_phone = e164;
     }
   }
 
   // target_name 추출: "이름, 전화번호" 또는 "이름 전화번호" 패턴
-  // "Heaven Bread, 01092659103" → target_name = "Heaven Bread"
-  // "강남면옥 02-1234-5678" → target_name = "강남면옥"
+  // "Heaven Bread, +1 415-555-1234" → target_name = "Heaven Bread"
+  // "강남면옥 +82 2-1234-5678" → target_name = "강남면옥"
   if (result.target_phone) {
     const nameBeforePhone = m.match(
-      /^([A-Za-z\s]+|[가-힣]+(?:\s?[가-힣]+)*)[,\s]+(?:0\d{1,2}|010|\+82)/
+      /^([A-Za-z\s]+|[가-힣]+(?:\s?[가-힣]+)*)[,\s]+\+/
     );
     if (nameBeforePhone) {
       const name = nameBeforePhone[1].trim();

@@ -10,6 +10,7 @@ import { requireUser } from '@/lib/auth/require-user';
 import { authErrorResponse } from '@/lib/auth/route-helpers';
 import { generateDynamicPrompt } from '@/lib/prompt-generator';
 import { startRelayCall, formatPhoneToE164 } from '@/lib/relay-client';
+import { isValidPhoneNumber } from '@/lib/validation';
 import type { CallMode, CommunicationMode } from '@/shared/call-types';
 import type { CollectedData } from '@/shared/types';
 
@@ -72,6 +73,19 @@ export async function POST(
       return NextResponse.json({ error: 'Target phone is missing' }, { status: 400 });
     }
 
+    // Normalize + validate E.164 BEFORE transitioning to CALLING so an invalid
+    // number doesn't leave the call in a half-started state.
+    const phoneNumber = formatPhoneToE164(call.targetPhone);
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return NextResponse.json(
+        {
+          error:
+            '국가코드를 포함한 국제번호 형식(E.164, 예: +1 415 555 1234)으로 입력해 주세요.',
+        },
+        { status: 400 },
+      );
+    }
+
     // 3. Transition both call and conversation to CALLING before issuing
     // the relay request so the UI reflects in-flight state.
     await db
@@ -95,8 +109,6 @@ export async function POST(
       const { systemPrompt } = generateDynamicPrompt(collectedData);
       systemPromptOverride = systemPrompt;
     }
-
-    const phoneNumber = formatPhoneToE164(call.targetPhone);
 
     let relayResult;
     try {

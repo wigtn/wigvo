@@ -61,8 +61,8 @@ export const STORAGE_KEY_CONVERSATION_ID = 'currentConversationId';
 // Validation
 // -----------------------------------------------------------------------------
 
-/** 한국 전화번호 정규식 */
-export const PHONE_NUMBER_REGEX = /^(0[0-9]{1,2})[0-9]{3,4}[0-9]{4}$/;
+/** E.164 국제 전화번호 정규식 (+국가코드; relay types.py 검증식과 동일) */
+export const PHONE_NUMBER_REGEX = /^\+[1-9]\d{1,14}$/;
 
 /** UUID v4 정규식 */
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

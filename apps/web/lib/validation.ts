@@ -93,7 +93,7 @@ export function validateMessage(message: string): { valid: boolean; error?: stri
 }
 
 /**
- * 전화번호 형식 검사 (한국 전화번호)
+ * 전화번호 형식 검사 (E.164 국제형식, +국가코드 필수)
  */
 export function isValidPhoneNumber(phone: string): boolean {
   const cleaned = phone.replace(/[\s-]/g, '');
