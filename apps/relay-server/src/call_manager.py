@@ -108,7 +108,9 @@ class CallManager:
         observers = self._observers.get(call_id)
         if observers:
             dead: list["WebSocket"] = []
-            for obs in observers:
+            # 스냅샷 순회: await 중 register/unregister_observer가 set을 바꿔도
+            # "Set changed size during iteration" 크래시가 나지 않도록.
+            for obs in list(observers):
                 try:
                     await obs.send_json(payload)
                 except Exception:
@@ -225,7 +227,7 @@ class CallManager:
 
             observers = self._observers.pop(call_id, None)
             if observers:
-                for obs in observers:
+                for obs in list(observers):
                     try:
                         await obs.send_json(ended_msg)
                         await obs.close()
