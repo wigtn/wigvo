@@ -194,6 +194,117 @@ class TestSendToApp:
         await cm.send_to_app("nonexistent", msg)  # 에러 없음
 
 
+@pytest.fixture
+def mock_observer_ws() -> AsyncMock:
+    ws = AsyncMock()
+    ws.send_json = AsyncMock()
+    ws.close = AsyncMock()
+    return ws
+
+
+@pytest.mark.asyncio
+class TestObserver:
+    """관전(observer) fanout — 부스 시연 모니터 화면용."""
+
+    async def test_send_broadcasts_to_app_and_observers(
+        self,
+        cm: CallManager,
+        mock_app_ws: AsyncMock,
+        mock_observer_ws: AsyncMock,
+    ):
+        """발신자 WS + 관전 WS 모두에게 동일 메시지가 broadcast된다."""
+        from src.types import WsMessage, WsMessageType
+
+        cm.register_app_ws("test-001", mock_app_ws)
+        cm.register_observer("test-001", mock_observer_ws)
+        msg = WsMessage(type=WsMessageType.CAPTION, data={"text": "hi"})
+        await cm.send_to_app("test-001", msg)
+
+        mock_app_ws.send_json.assert_awaited_once()
+        mock_observer_ws.send_json.assert_awaited_once()
+
+    async def test_observer_receives_without_app_ws(
+        self, cm: CallManager, mock_observer_ws: AsyncMock
+    ):
+        """발신자 WS가 없어도(관전만) 메시지를 수신한다."""
+        from src.types import WsMessage, WsMessageType
+
+        cm.register_observer("test-001", mock_observer_ws)
+        msg = WsMessage(type=WsMessageType.PIPELINE_EVENT, data={"stage": "echo_gate"})
+        await cm.send_to_app("test-001", msg)
+
+        mock_observer_ws.send_json.assert_awaited_once()
+
+    async def test_unregister_observer_stops_delivery(
+        self, cm: CallManager, mock_observer_ws: AsyncMock
+    ):
+        from src.types import WsMessage, WsMessageType
+
+        cm.register_observer("test-001", mock_observer_ws)
+        cm.unregister_observer("test-001", mock_observer_ws)
+        assert cm.observer_count("test-001") == 0
+
+        await cm.send_to_app("test-001", WsMessage(type=WsMessageType.CAPTION))
+        mock_observer_ws.send_json.assert_not_awaited()
+
+    async def test_unregister_observer_does_not_end_call(
+        self,
+        cm: CallManager,
+        sample_call: ActiveCall,
+        mock_router: AsyncMock,
+        mock_observer_ws: AsyncMock,
+    ):
+        """관전자 해제는 통화 생명주기(call/router)에 영향을 주지 않는다."""
+        cm.register_call("test-001", sample_call)
+        cm.register_router("test-001", mock_router)
+        cm.register_observer("test-001", mock_observer_ws)
+
+        cm.unregister_observer("test-001", mock_observer_ws)
+
+        assert cm.get_call("test-001") is sample_call
+        assert cm.get_router("test-001") is mock_router
+        mock_router.stop.assert_not_awaited()
+
+    async def test_dead_observer_removed_without_breaking_others(
+        self, cm: CallManager, mock_app_ws: AsyncMock
+    ):
+        """전송 실패한 관전 소켓은 제거되고, 발신자/다른 관전자 전송은 계속된다."""
+        from src.types import WsMessage, WsMessageType
+
+        dead = AsyncMock()
+        dead.send_json = AsyncMock(side_effect=RuntimeError("broken pipe"))
+        alive = AsyncMock()
+        alive.send_json = AsyncMock()
+
+        cm.register_app_ws("test-001", mock_app_ws)
+        cm.register_observer("test-001", dead)
+        cm.register_observer("test-001", alive)
+
+        await cm.send_to_app("test-001", WsMessage(type=WsMessageType.CAPTION))
+
+        mock_app_ws.send_json.assert_awaited_once()
+        alive.send_json.assert_awaited_once()
+        assert cm.observer_count("test-001") == 1  # dead 제거됨
+
+    async def test_cleanup_notifies_and_closes_observers(
+        self,
+        cm: CallManager,
+        sample_call: ActiveCall,
+        mock_observer_ws: AsyncMock,
+    ):
+        cm.register_call("test-001", sample_call)
+        cm.register_observer("test-001", mock_observer_ws)
+
+        with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
+            await cm.cleanup_call("test-001", reason="test")
+
+        mock_observer_ws.send_json.assert_awaited_once()
+        sent = mock_observer_ws.send_json.call_args[0][0]
+        assert sent["data"]["status"] == "ended"
+        mock_observer_ws.close.assert_awaited_once()
+        assert cm.observer_count("test-001") == 0
+
+
 @pytest.mark.asyncio
 class TestShutdownAll:
     async def test_shutdown_all(self, cm: CallManager):
