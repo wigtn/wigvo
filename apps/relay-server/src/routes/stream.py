@@ -100,3 +100,57 @@ async def app_websocket(ws: WebSocket, call_id: str):
         logger.error("App WebSocket error (call=%s): %s", call_id, e)
     finally:
         await call_manager.cleanup_call(call_id, reason="app_disconnected")
+
+
+@router.websocket("/calls/{call_id}/monitor")
+async def monitor_websocket(ws: WebSocket, call_id: str):
+    """관전(read-only) WebSocket — 부스 시연용 모니터 화면.
+
+    발신자가 진행 중인 통화의 자막/파이프라인/상태 이벤트를 그대로 수신만 한다.
+    인바운드 오디오/텍스트는 처리하지 않으며(발신자 통화 오염 방지),
+    이 소켓이 끊겨도 cleanup_call을 트리거하지 않는다(통화 계속 진행).
+    """
+    await ws.accept()
+    logger.info("Monitor WebSocket connected (call=%s)", call_id)
+
+    call = call_manager.get_call(call_id)
+    if not call:
+        await ws.send_json(
+            WsMessage(
+                type=WsMessageType.ERROR,
+                data={"message": "Call not found"},
+            ).model_dump()
+        )
+        await ws.close()
+        return
+
+    call_manager.register_observer(call_id, ws)
+
+    # 연결 직후 현재 통화 상태 스냅샷 전송 (화면이 빈 채로 시작하지 않도록)
+    snapshot_status = "connected" if call_manager.get_router(call_id) else "waiting"
+    try:
+        await ws.send_json(
+            WsMessage(
+                type=WsMessageType.CALL_STATUS,
+                data={
+                    "status": snapshot_status,
+                    "source_language": call.source_language,
+                    "target_language": call.target_language,
+                    "communication_mode": call.communication_mode.value,
+                    "call_mode": call.mode.value,
+                },
+            ).model_dump()
+        )
+    except Exception:
+        pass
+
+    try:
+        # 관전자는 송신하지 않는다 — receive는 오직 연결 해제 감지용.
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        logger.info("Monitor WebSocket disconnected (call=%s)", call_id)
+    except Exception as e:
+        logger.error("Monitor WebSocket error (call=%s): %s", call_id, e)
+    finally:
+        call_manager.unregister_observer(call_id, ws)
