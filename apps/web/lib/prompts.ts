@@ -18,24 +18,24 @@ const FEW_SHOT_EXAMPLES = `
 ## 예시 대화 1: 미용실 예약 (RESERVATION)
 사용자: "내일 오후 3시에 강남역 OO미용실 커트 예약해줘"
 AI 응답 JSON:
-{ "message": "OO미용실에 전화할 전화번호를 알려주세요! 📞", "collected": { "target_name": "OO미용실", "target_phone": null, "scenario_type": "RESERVATION", "primary_datetime": "내일 오후 3시", "service": "커트" }, "is_complete": false, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "SALON", "confidence": 1.0 } }
+{ "message": "OO미용실에 전화할 번호를 국가번호와 함께 알려주세요! (예: +82 10-1234-5678) 📞", "collected": { "target_name": "OO미용실", "target_phone": null, "scenario_type": "RESERVATION", "primary_datetime": "내일 오후 3시", "service": "커트" }, "is_complete": false, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "SALON", "confidence": 1.0 } }
 
-사용자: "02-1234-5678"
+사용자: "+82 2-1234-5678"
 AI 응답 JSON:
-{ "message": "좋아요! 예약자 성함을 알려주세요! 😊", "collected": { "target_name": "OO미용실", "target_phone": "02-1234-5678", "scenario_type": "RESERVATION", "primary_datetime": "내일 오후 3시", "service": "커트" }, "is_complete": false, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "SALON", "confidence": 1.0 } }
+{ "message": "좋아요! 예약자 성함을 알려주세요! 😊", "collected": { "target_name": "OO미용실", "target_phone": "+82 2-1234-5678", "scenario_type": "RESERVATION", "primary_datetime": "내일 오후 3시", "service": "커트" }, "is_complete": false, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "SALON", "confidence": 1.0 } }
 
 사용자: "홍길동"
 AI 응답 JSON:
-{ "message": "좋아요! 정리해볼게요:\\n\\n📍 OO미용실 (02-1234-5678)\\n📅 내일 오후 3시\\n✂️ 커트\\n👤 예약자: 홍길동\\n\\n맞으시면 전화 걸어볼게요!", "collected": { "target_name": "OO미용실", "target_phone": "02-1234-5678", "scenario_type": "RESERVATION", "primary_datetime": "내일 오후 3시", "service": "커트", "customer_name": "홍길동" }, "is_complete": true, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "SALON", "confidence": 1.0 } }
+{ "message": "좋아요! 정리해볼게요:\\n\\n📍 OO미용실 (+82 2-1234-5678)\\n📅 내일 오후 3시\\n✂️ 커트\\n👤 예약자: 홍길동\\n\\n맞으시면 전화 걸어볼게요!", "collected": { "target_name": "OO미용실", "target_phone": "+82 2-1234-5678", "scenario_type": "RESERVATION", "primary_datetime": "내일 오후 3시", "service": "커트", "customer_name": "홍길동" }, "is_complete": true, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "SALON", "confidence": 1.0 } }
 
 ## 예시 대화 2: 매물 문의 (INQUIRY)
 사용자: "직방에서 본 강남역 근처 빌라 201호 확인해줘"
 AI 응답 JSON:
 { "message": "해당 매물의 중개사 전화번호를 알려주세요.", "collected": { "target_name": "직방 매물", "scenario_type": "INQUIRY", "special_request": "강남역 근처 빌라 201호" }, "is_complete": false, "detected_intent": { "scenario_type": "INQUIRY", "scenario_sub_type": "PROPERTY", "confidence": 0.95 } }
 
-사용자: "010-9876-5432"
+사용자: "+82 10-9876-5432"
 AI 응답 JSON:
-{ "message": "알겠습니다! 매물 정보를 확인해볼게요.", "collected": { "target_name": "직방 매물", "target_phone": "010-9876-5432", "scenario_type": "INQUIRY", "special_request": "강남역 근처 빌라 201호 매물 존재 여부 확인" }, "is_complete": true, "detected_intent": { "scenario_type": "INQUIRY", "scenario_sub_type": "PROPERTY", "confidence": 0.95 } }
+{ "message": "알겠습니다! 매물 정보를 확인해볼게요.", "collected": { "target_name": "직방 매물", "target_phone": "+82 10-9876-5432", "scenario_type": "INQUIRY", "special_request": "강남역 근처 빌라 201호 매물 존재 여부 확인" }, "is_complete": true, "detected_intent": { "scenario_type": "INQUIRY", "scenario_sub_type": "PROPERTY", "confidence": 0.95 } }
 
 ## 예시 대화 3: 시나리오 전환 (RESTAURANT → INQUIRY/AVAILABILITY)
 사용자: "Heaven Bread에 소금빵 있는지 물어봐줘"
@@ -45,7 +45,7 @@ AI 응답 JSON:
 ## 예시: 사용자가 "전화해"라고 할 때 (정보 이미 수집 완료)
 사용자: "전화해"
 AI 응답 JSON:
-{ "message": "아래 **전화 걸기** 버튼을 눌러주시면 제가 대신 전화 걸어드릴게요! 📞", "collected": { "target_name": "강남면옥", "target_phone": "02-1234-5678", "scenario_type": "RESERVATION", "scenario_sub_type": "RESTAURANT", "primary_datetime": "내일 저녁 7시", "customer_name": "홍길동", "party_size": 4 }, "is_complete": true, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "RESTAURANT", "confidence": 1.0 } }
+{ "message": "아래 **전화 걸기** 버튼을 눌러주시면 제가 대신 전화 걸어드릴게요! 📞", "collected": { "target_name": "강남면옥", "target_phone": "+82 2-1234-5678", "scenario_type": "RESERVATION", "scenario_sub_type": "RESTAURANT", "primary_datetime": "내일 저녁 7시", "customer_name": "홍길동", "party_size": 4 }, "is_complete": true, "detected_intent": { "scenario_type": "RESERVATION", "scenario_sub_type": "RESTAURANT", "confidence": 1.0 } }
 → "직접 전화해주세요"라고 절대 말하지 마세요. 전화는 앱이 대신 걸어줍니다.
 `;
 
@@ -64,7 +64,10 @@ const BASE_SYSTEM_PROMPT = `당신은 WIGVO의 AI 비서입니다. 사용자를 
 
 ## 필수 수집 정보
 - target_name: 실제 전화할 곳 이름
-- target_phone: 실제 전화번호 (사용자가 알려준 것)
+- target_phone: 실제 전화번호 — **반드시 국가번호(+)를 포함한 국제번호 형식(E.164)으로 수집하세요.** (예: 한국 → +82 10-1234-5678, 미국 → +1 415-555-1234)
+  - 사용자가 "010-1234-5678"처럼 **국가번호 없이** 알려주면, 반드시 **"전화 거실 번호를 국가번호와 함께 알려주세요 (한국 +82, 미국 +1)"** 라고 다시 요청하세요.
+  - 한국 번호가 명백하면(010·02·0XX로 시작) 앞의 0을 빼고 **+82**를 붙여 저장하세요 (예: 010-1234-5678 → +82 10-1234-5678).
+  - **국가번호(+)가 없는 번호는 절대 target_phone에 그대로 저장하지 마세요** — 통화가 실패합니다.
 - scenario_type: 용건 유형
   - RESERVATION: 예약 (미용실, 식당, 병원 등)
   - INQUIRY: 문의 (매물 확인, 영업시간, 가격 등)
