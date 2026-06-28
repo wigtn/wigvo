@@ -47,25 +47,16 @@ export async function endRelayCall(callId: string, reason?: string): Promise<voi
 }
 
 /**
- * 한국 전화번호를 E.164 형식으로 변환합니다.
+ * 입력 전화번호를 E.164 형식으로 정규화합니다 (구분문자 제거, `+`/숫자만 유지).
  *
- * | 입력              | 출력             |
- * |-------------------|------------------|
- * | 010-1234-5678     | +821012345678    |
- * | 01012345678       | +821012345678    |
- * | 02-123-4567       | +8221234567      |
- * | +821012345678     | +821012345678    |
+ * 국가코드를 임의로 주입하지 않습니다 — 사용자가 `+국가코드`를 포함한 국제번호로
+ * 입력해야 합니다. 유효성(E.164)은 isValidPhoneNumber / relay 검증이 보증합니다.
+ *
+ * | 입력                 | 출력             |
+ * |----------------------|------------------|
+ * | +1 415-555-1234      | +14155551234     |
+ * | +82 10-1234-5678     | +821012345678    |
  */
 export function formatPhoneToE164(phone: string): string {
-  const cleaned = phone.replace(/[^\d+]/g, '');
-
-  if (cleaned.startsWith('+')) {
-    return cleaned;
-  }
-
-  if (cleaned.startsWith('0')) {
-    return '+82' + cleaned.slice(1);
-  }
-
-  return '+82' + cleaned;
+  return phone.replace(/[^\d+]/g, '');
 }

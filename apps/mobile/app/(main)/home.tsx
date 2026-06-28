@@ -88,7 +88,7 @@ export default function HomeScreen() {
         <Text style={styles.label}>Phone Number</Text>
         <TextInput
           style={styles.input}
-          placeholder="+82-10-1234-5678"
+          placeholder="+1 415 555 1234"
           placeholderTextColor="#9CA3AF"
           value={phoneNumber}
           onChangeText={setPhoneNumber}
