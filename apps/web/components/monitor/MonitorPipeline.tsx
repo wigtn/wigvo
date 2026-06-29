@@ -168,12 +168,14 @@ export default function MonitorPipeline() {
       : null;
 
   return (
-    <div className="rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-6 py-7">
+    <div className="flex flex-1 flex-col rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-6 py-7">
       <div className="flex items-center justify-between mb-4">
         <span className="text-slate-300 text-sm font-semibold tracking-widest">LIVE PIPELINE</span>
         <span className="text-xs text-slate-500">real-time stage tracing</span>
       </div>
 
+      {/* 파이프라인 행들을 카드 세로 중앙에 배치 (위로 몰리지 않게) */}
+      <div className="flex flex-1 flex-col justify-center gap-3">
       {/* Session A: Caller → Callee (STT → Translate → TTS) */}
       <div className="flex items-center gap-1 overflow-x-auto py-2">
         <span className="text-[10px] text-emerald-400/90 font-bold w-11 shrink-0">A·SEND</span>
@@ -216,7 +218,7 @@ export default function MonitorPipeline() {
       </div>
 
       {/* Session B: Callee → Caller (3-stage filter + STT + translate + TTS) */}
-      <div className="flex items-center gap-1 overflow-x-auto py-2 mt-2">
+      <div className="flex items-center gap-1 overflow-x-auto py-2">
         <span className="text-[10px] text-cyan-400/90 font-bold w-11 shrink-0">B·RECV</span>
         <EndPoint label="Callee" Icon={Phone} active={bAnyHot} />
         {SESSION_B_STAGES.map((s) => {
@@ -264,6 +266,7 @@ export default function MonitorPipeline() {
         <span className="ml-2 text-xs text-cyan-400/80 font-mono shrink-0">
           {latencyBadge(metrics?.session_b_e2e_latencies_ms, '~2684ms')}
         </span>
+      </div>
       </div>
     </div>
   );
