@@ -441,6 +441,14 @@ class SessionAHandler:
         transcript = event.get("transcript", "")
         if not transcript:
             return
+        # 발신자 input STT 환각 차단: 선풍기/잡음에서 whisper가 만드는 자막 크레딧·노이즈
+        # ("시청해주셔서 감사합니다", "MBC 뉴스..." 등)는 원문 자막으로 띄우지 않고 버린다.
+        # (번역 출력은 _handle_transcript_done에서 별도 필터 — 여기는 입력 STT 표시 차단)
+        if is_caller_hallucination(transcript):
+            logger.warning("[SessionA] Caller STT hallucination filtered: %s", transcript[:80])
+            if self._call:
+                self._call.call_metrics.hallucinations_blocked += 1
+            return
         self._last_user_stt = transcript  # 번역 품질 평가용 원문 저장
         logger.info("[SessionA] User STT: %s", transcript[:80])
         if self._on_user_transcription:
