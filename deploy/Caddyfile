@@ -1,0 +1,7 @@
+# Automatic HTTPS (Let's Encrypt) for the relay subdomain.
+# reverse_proxy passes WebSocket upgrades through transparently.
+# Requires: DNS relay.wigvo.wigtn.com -> VM IP, and ports 80/443 open.
+relay.wigvo.wigtn.com {
+	encode zstd gzip
+	reverse_proxy relay:8080
+}
