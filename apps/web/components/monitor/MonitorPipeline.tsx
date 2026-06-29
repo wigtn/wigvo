@@ -60,8 +60,8 @@ const SESSION_B_STAGES: StageDef[] = [
 function Arrow({ active }: { active: boolean }) {
   return (
     <div className="flex items-center shrink-0" aria-hidden>
-      <div className={`h-[3px] w-6 rounded transition-colors duration-200 ${active ? 'bg-teal-400 animate-pulse' : 'bg-slate-700'}`} />
-      <div className={`-ml-1 text-sm leading-none transition-colors duration-200 ${active ? 'text-teal-400' : 'text-slate-700'}`}>▶</div>
+      <div className={`h-[2px] w-2.5 rounded transition-colors duration-200 ${active ? 'bg-teal-400 animate-pulse' : 'bg-slate-700'}`} />
+      <div className={`-ml-1 text-[10px] leading-none transition-colors duration-200 ${active ? 'text-teal-400' : 'text-slate-700'}`}>▶</div>
     </div>
   );
 }
@@ -85,15 +85,15 @@ function StagePill({
 }) {
   return (
     <div
-      className={`relative flex w-28 flex-col items-center justify-center rounded-xl border px-2 py-2.5 transition-all duration-200 ${nodeClass(
+      className={`relative flex w-[72px] flex-col items-center justify-center rounded-lg border px-1 py-1.5 transition-all duration-200 ${nodeClass(
         tone,
         status,
         hot,
       )} ${head ? 'ring-2 ring-white/70 scale-105' : ''}`}
     >
-      <Icon className="size-5 mb-1" />
-      <span className="text-sm font-semibold leading-tight whitespace-nowrap">{label}</span>
-      <span className="w-full truncate text-center text-xs leading-tight opacity-80 h-4">{hot ? detail : ''}</span>
+      <Icon className="size-4 mb-0.5" />
+      <span className="text-xs font-semibold leading-tight whitespace-nowrap">{label}</span>
+      <span className="w-full truncate text-center text-[10px] leading-tight opacity-80 h-3">{hot ? detail : ''}</span>
     </div>
   );
 }
@@ -101,14 +101,14 @@ function StagePill({
 function EndPoint({ label, Icon, active }: { label: string; Icon: typeof Mic; active: boolean }) {
   return (
     <div
-      className={`flex w-24 flex-col items-center justify-center rounded-xl border px-2 py-2.5 transition-all duration-200 ${
+      className={`flex w-14 flex-col items-center justify-center rounded-lg border px-1 py-1.5 transition-all duration-200 ${
         active
           ? 'border-teal-400 bg-teal-400/15 text-teal-200 shadow-[0_0_22px_rgba(45,212,191,0.45)]'
           : 'border-slate-700 bg-slate-800/40 text-slate-400'
       }`}
     >
-      <Icon className="size-5 mb-1" />
-      <span className="text-sm font-semibold leading-tight whitespace-nowrap">{label}</span>
+      <Icon className="size-4 mb-0.5" />
+      <span className="text-xs font-semibold leading-tight whitespace-nowrap">{label}</span>
     </div>
   );
 }
@@ -159,8 +159,8 @@ export default function MonitorPipeline() {
       </div>
 
       {/* Session A: Caller → Callee (fast path) */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-emerald-400/90 font-bold w-16 shrink-0">A·SEND</span>
+      <div className="flex items-center gap-1 overflow-x-auto">
+        <span className="text-[10px] text-emerald-400/90 font-bold w-11 shrink-0">A·SEND</span>
         <EndPoint label="Caller" Icon={Mic} active={aSpeaking} />
         <Arrow active={aSpeaking} />
         <StagePill
@@ -180,14 +180,14 @@ export default function MonitorPipeline() {
       </div>
 
       {/* Session B: Callee → Caller (3-stage filter + STT + translate) */}
-      <div className="flex items-center gap-2 flex-wrap mt-4">
-        <span className="text-xs text-cyan-400/90 font-bold w-16 shrink-0">B·RECV</span>
+      <div className="flex items-center gap-1 overflow-x-auto mt-3">
+        <span className="text-[10px] text-cyan-400/90 font-bold w-11 shrink-0">B·RECV</span>
         <EndPoint label="Callee" Icon={Phone} active={bAnyHot} />
         {SESSION_B_STAGES.map((s) => {
           const node: PipeNode = pipeline.b[s.key];
           const hot = isHot(node.at);
           return (
-            <div key={s.key} className="flex items-center gap-2 shrink-0">
+            <div key={s.key} className="flex items-center gap-0.5 shrink-0">
               <Arrow active={hot} />
               <StagePill
                 label={s.label}
