@@ -269,6 +269,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         // hallucinations_blocked 증가 = 이번에 환각/에코 누출을 차단함
         const blocked = m.hallucinations_blocked ?? 0;
         if (blocked > blockedCountRef.current) {
+          signalB('stt', 'block', 'hallucination'); // STT 단계에서 환각 drop 라이브 표시
           pushEvent('guard', 'Hallucination blocked', 'hallucination');
           blockedCountRef.current = blocked;
         }

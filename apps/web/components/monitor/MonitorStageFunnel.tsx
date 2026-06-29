@@ -20,7 +20,7 @@ interface SubStep {
   label: string;
   desc: string;
   active: boolean;
-  kind?: 'drop' | 'pass'; // outcome branch — only marked when live-active
+  kind?: 'drop' | 'pass' | 'bargein'; // outcome branch — only marked when live-active
 }
 
 interface Stage {
@@ -63,6 +63,11 @@ export default function MonitorStageFunnel() {
           : 0
     : 0;
 
+  // Silero VAD: speech 감지 vs barge-in (drop 없음 — 침묵은 신호 부재일 뿐)
+  const vadNode = pipeline.b.silero_vad;
+  const vadBargein = isHot(vadNode.at) && vadNode.status === 'bargein';
+  const vadSpeech = isHot(vadNode.at) && !vadBargein;
+
   // Binary stage (drop branch ① / pass branch ②), active branch from bState
   const twoStep = (key: PipeStageKey, dropLabel: string, dropDesc: string, passLabel: string, passDesc: string): SubStep[] => {
     const st = bState(key);
@@ -99,7 +104,11 @@ export default function MonitorStageFunnel() {
       Icon: Volume2,
       desc: 'Detect speech segments',
       state: bState('silero_vad'),
-      substeps: twoStep('silero_vad', 'Silence', 'no speech detected, held back', 'Speech', 'voice segment detected → passes'),
+      // VAD는 content를 drop하지 않음 — 실제 라이브 신호는 speech 감지 / barge-in(끼어듦)
+      substeps: [
+        { n: 1, label: 'Speech', desc: 'voice segment detected', active: vadSpeech, kind: 'pass' },
+        { n: 2, label: 'Barge-in', desc: 'recipient cuts in while the bot speaks', active: vadBargein, kind: 'bargein' },
+      ],
     },
     {
       key: 'stt',
@@ -152,8 +161,12 @@ export default function MonitorStageFunnel() {
                     <span className="flex-1 truncate text-slate-500">— {ss.desc}</span>
                     {/* DROP/PASS는 지금 그 단계가 실제로 일어날 때만 */}
                     {ss.active && ss.kind && (
-                      <span className={`shrink-0 font-bold ${ss.kind === 'drop' ? 'text-red-300' : 'text-emerald-300'}`}>
-                        {ss.kind === 'drop' ? '⊘ DROP' : '✓ PASS'}
+                      <span
+                        className={`shrink-0 font-bold ${
+                          ss.kind === 'drop' ? 'text-red-300' : ss.kind === 'bargein' ? 'text-amber-300' : 'text-emerald-300'
+                        }`}
+                      >
+                        {ss.kind === 'drop' ? '⊘ DROP' : ss.kind === 'bargein' ? '⚡ BARGE-IN' : '✓ PASS'}
                       </span>
                     )}
                   </li>
