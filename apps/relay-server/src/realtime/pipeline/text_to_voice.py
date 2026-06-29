@@ -321,6 +321,20 @@ class TextToVoicePipeline(BasePipeline):
                 logger.debug("Waiting for Session A to finish before sending text...")
                 await self.session_a.wait_for_done(timeout=5.0)
 
+            # 발신자 타이핑 원문을 outbound 캡션으로 발신 (보투보의 _on_user_transcription과 동일 역할).
+            # 관전 모니터가 "원문 + 번역"을 한 버블로 보여줄 수 있게 한다.
+            await self._app_ws_send(
+                WsMessage(
+                    type=WsMessageType.CAPTION,
+                    data={
+                        "role": "user",
+                        "text": text,
+                        "direction": "outbound",
+                        "language": self.call.source_language,
+                    },
+                )
+            )
+
             await self._app_ws_send(
                 WsMessage(
                     type=WsMessageType.TRANSLATION_STATE,
