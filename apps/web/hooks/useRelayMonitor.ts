@@ -74,6 +74,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
   const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<{ disconnect: () => void } | null>(null);
   const blockedCountRef = useRef(0); // hallucinations_blocked 증가 감지용
+  const callerTurnRef = useRef<string | null>(null); // 발신자 현재 턴 버블 id(원문+번역 병합용)
 
   const handleMessage = useCallback((msg: RelayWsMessage) => {
     switch (msg.type) {
@@ -101,6 +102,43 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
             signalB('stt', 'active', 'STT...');
           }
         }
+
+        // 발신자(outbound) 턴: 원문(role=user) + 번역(role=ai) 두 캡션을 한 버블로 병합.
+        // 메인 = 원문(originalText), 아래 = 번역(text). 보투보·텍투보 공통.
+        if (direction === 'outbound') {
+          const lang = (msg.data.language as string) ?? '';
+          const isOriginal = speaker === 'user';
+          setCaptions((prev) => {
+            const last = prev.length > 0 ? prev[prev.length - 1] : null;
+            // 같은 턴: 직전 버블이 현재 caller 턴이고, "이미 번역이 찬 상태의 새 원문"이 아닐 때
+            const sameTurn =
+              !!last && last.id === callerTurnRef.current && !(isOriginal && (last.text ?? '') !== '');
+            if (sameTurn && last) {
+              const updated = [...prev];
+              updated[updated.length - 1] = isOriginal
+                ? { ...last, originalText: (last.originalText ?? '') + text }
+                : { ...last, text: (last.text ?? '') + text };
+              return updated;
+            }
+            captionCounterRef.current += 1;
+            const id = `caption-${captionCounterRef.current}`;
+            callerTurnRef.current = id;
+            const entry: CaptionEntry = {
+              id,
+              speaker: 'user',
+              text: isOriginal ? '' : text,
+              originalText: isOriginal ? text : undefined,
+              language: lang,
+              isFinal: false,
+              timestamp: Date.now(),
+            };
+            return [...prev, entry];
+          });
+          streamingRef.current = null;
+          break;
+        }
+        // 수신자 발화 = 발신자 턴 종료
+        callerTurnRef.current = null;
 
         const cur = streamingRef.current;
 
