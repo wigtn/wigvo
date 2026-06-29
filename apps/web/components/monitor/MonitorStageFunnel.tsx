@@ -20,6 +20,7 @@ interface SubStep {
   label: string;
   desc: string;
   active: boolean;
+  kind?: 'drop' | 'pass'; // 이 단계의 결과 — 흡수(drop) / 돌파(pass)
 }
 
 interface Row {
@@ -69,7 +70,16 @@ function FunnelGroup({ title, dir, rows, outcome }: { title: string; dir: string
                         {ss.n === 1 ? '①' : ss.n === 2 ? '②' : '③'}
                       </span>
                       <span className="shrink-0 font-semibold">{ss.label}</span>
-                      <span className="text-slate-500">— {ss.desc}</span>
+                      <span className="flex-1 truncate text-slate-500">— {ss.desc}</span>
+                      {ss.kind && (
+                        <span
+                          className={`shrink-0 font-bold ${
+                            ss.kind === 'drop' ? 'text-red-300' : 'text-emerald-300'
+                          } ${ss.active ? '' : 'opacity-50'}`}
+                        >
+                          {ss.kind === 'drop' ? '⊘ DROP' : '✓ PASS'}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -150,8 +160,8 @@ export default function MonitorStageFunnel() {
     : 0;
   const echoSubsteps: SubStep[] = [
     { n: 1, label: 'Window active', desc: 'inject silence while bot speaks', active: ehStep === 1 },
-    { n: 2, label: 'Echo absorbed', desc: 'first return frame = PSTN echo, dropped', active: ehStep === 2 },
-    { n: 3, label: 'Breakthrough', desc: 'real speech → gate opens, passes', active: ehStep === 3 },
+    { n: 2, label: 'Echo absorbed', desc: 'first return frame = PSTN echo', active: ehStep === 2, kind: 'drop' },
+    { n: 3, label: 'Breakthrough', desc: 'real speech → gate opens', active: ehStep === 3, kind: 'pass' },
   ];
   const bRows: Row[] = B_STAGES.map((s) => ({
     label: s.label,
