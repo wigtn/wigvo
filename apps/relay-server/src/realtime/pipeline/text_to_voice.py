@@ -252,8 +252,18 @@ class TextToVoicePipeline(BasePipeline):
     # --- Echo Gate Breakthrough 콜백 ---
 
     async def _on_echo_breakthrough(self) -> None:
-        """Echo gate breakthrough 감지 — 에코 오염 버퍼 폐기."""
+        """Echo gate breakthrough 감지 — 에코 오염 버퍼 폐기.
+
+        Local VAD 경로에서는 onset 복원을 pre-speech 버퍼가 담당한다
+        (echo window 중 오염분은 _pre_speech_buf.clear()로 자체 폐기).
+        따라서 Session B 입력 버퍼를 비우지 않는다 — 비우면 SPEAKING 전환 시
+        flush한 발화 onset까지 같이 지워져 앞부분이 잘린다.
+        입력 버퍼 폐기는 pre-speech 버퍼가 없는 Server VAD(legacy) 경로에서만 수행한다.
+        """
         try:
+            if self.local_vad is not None:
+                self.session_b.clear_pending_output()
+                return
             logger.warning("Echo gate breakthrough — discarding contaminated buffers")
             await self.session_b.clear_input_buffer()
             self.session_b.clear_pending_output()
