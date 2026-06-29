@@ -50,8 +50,9 @@ function signalB(
 function pushEvent(
   kind: Parameters<ReturnType<typeof useMonitorStore.getState>['pushEvent']>[0],
   label: string,
+  signal?: Parameters<ReturnType<typeof useMonitorStore.getState>['pushEvent']>[2],
 ) {
-  useMonitorStore.getState().pushEvent(kind, label);
+  useMonitorStore.getState().pushEvent(kind, label, signal);
 }
 
 export interface UseRelayMonitorReturn {
@@ -259,7 +260,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
 
       case WsMessageType.INTERRUPT_ALERT:
         signalB('silero_vad', 'bargein', 'callee barge-in');
-        pushEvent('bargein', 'Recipient interrupted');
+        pushEvent('bargein', 'Recipient interrupted', 'recipient_interrupted');
         break;
 
       case WsMessageType.METRICS: {
@@ -268,7 +269,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         // hallucinations_blocked 증가 = 이번에 환각/에코 누출을 차단함
         const blocked = m.hallucinations_blocked ?? 0;
         if (blocked > blockedCountRef.current) {
-          pushEvent('guard', 'Hallucination blocked');
+          pushEvent('guard', 'Hallucination blocked', 'hallucination');
           blockedCountRef.current = blocked;
         }
         break;
@@ -276,7 +277,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
 
       case WsMessageType.GUARDRAIL_TRIGGERED: {
         const level = (msg.data.level as string) ?? '';
-        pushEvent('guard', level ? `Guardrail L${level} triggered` : 'Guardrail triggered');
+        pushEvent('guard', level ? `Guardrail L${level} triggered` : 'Guardrail triggered', 'guardrail');
         break;
       }
 
@@ -288,10 +289,10 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         if (stage === 'echo_gate') {
           if (event.includes('absorb')) {
             signalB('echo_gate', 'block', 'echo absorbed');
-            pushEvent('echo', 'Echo absorbed');
+            pushEvent('echo', 'Echo absorbed', 'echo_absorbed');
           } else if (event.includes('break')) {
             signalB('echo_gate', 'bargein', 'barge-in');
-            pushEvent('bargein', 'Echo gate barge-in');
+            pushEvent('bargein', 'Echo gate barge-in', 'echo_bargein');
           } else if (event.includes('deactiv')) signalB('echo_gate', 'idle', '');
           else signalB('echo_gate', 'active', 'gate closed');
         } else if (stage === 'energy_gate') {

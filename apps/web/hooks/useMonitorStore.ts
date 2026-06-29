@@ -45,10 +45,20 @@ export interface MonitorMetrics {
 
 // 결정적 순간(에코 흡수·돌파·가드레일)을 부스 이벤트 피드에 표시
 export type MonitorEventKind = 'echo' | 'bargein' | 'guard' | 'info';
+
+// ACTIVITY 카탈로그: 추적하는 결정적 신호 5종 (고정 표시 + 신호별 카운트)
+export type MonitorSignalKey =
+  | 'echo_absorbed'
+  | 'recipient_interrupted'
+  | 'echo_bargein'
+  | 'hallucination'
+  | 'guardrail';
+
 export interface MonitorEvent {
   id: number;
   kind: MonitorEventKind;
   label: string;
+  signal?: MonitorSignalKey;
   at: number;
 }
 
@@ -87,12 +97,13 @@ interface MonitorState {
   events: MonitorEvent[];
   echoBlocked: number; // 에코 흡수(잡아낸) 누적 횟수
   guardBlocked: number; // 환각/가드레일 차단 누적 횟수
+  signalCounts: Record<MonitorSignalKey, number>; // ACTIVITY 신호별 누적 횟수
 
   // 동기화 (MonitorProvider가 훅 state를 주입)
   syncState: (partial: Partial<MonitorState>) => void;
 
   // 부스 이벤트 피드 (useRelayMonitor가 결정적 순간마다 호출)
-  pushEvent: (kind: MonitorEventKind, label: string) => void;
+  pushEvent: (kind: MonitorEventKind, label: string, signal?: MonitorSignalKey) => void;
 
   // 파이프라인 신호 (useRelayMonitor가 WS 이벤트로 호출)
   signalA: (phase: APhase, detail?: string) => void;
@@ -113,6 +124,13 @@ const initialState = {
   events: [] as MonitorEvent[],
   echoBlocked: 0,
   guardBlocked: 0,
+  signalCounts: {
+    echo_absorbed: 0,
+    recipient_interrupted: 0,
+    echo_bargein: 0,
+    hallucination: 0,
+    guardrail: 0,
+  } as Record<MonitorSignalKey, number>,
 };
 
 let _eventId = 0;
@@ -122,12 +140,15 @@ export const useMonitorStore = create<MonitorState>((set, get) => ({
 
   syncState: (partial) => set(partial),
 
-  pushEvent: (kind, label) => {
+  pushEvent: (kind, label, signal) => {
     const now = Date.now();
     set((state) => ({
-      events: [...state.events.slice(-29), { id: ++_eventId, kind, label, at: now }],
+      events: [...state.events.slice(-29), { id: ++_eventId, kind, label, signal, at: now }],
       echoBlocked: state.echoBlocked + (kind === 'echo' ? 1 : 0),
       guardBlocked: state.guardBlocked + (kind === 'guard' ? 1 : 0),
+      signalCounts: signal
+        ? { ...state.signalCounts, [signal]: (state.signalCounts[signal] ?? 0) + 1 }
+        : state.signalCounts,
     }));
   },
 
