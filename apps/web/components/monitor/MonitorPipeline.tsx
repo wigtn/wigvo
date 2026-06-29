@@ -60,8 +60,8 @@ const SESSION_B_STAGES: StageDef[] = [
 function Arrow({ active }: { active: boolean }) {
   return (
     <div className="flex items-center shrink-0" aria-hidden>
-      <div className={`h-[2px] w-2.5 rounded transition-colors duration-200 ${active ? 'bg-teal-400 animate-pulse' : 'bg-slate-700'}`} />
-      <div className={`-ml-1 text-[10px] leading-none transition-colors duration-200 ${active ? 'text-teal-400' : 'text-slate-700'}`}>▶</div>
+      <div className={`h-[2px] w-2.5 rounded transition-colors duration-500 ease-out ${active ? 'bg-teal-400 animate-pulse' : 'bg-slate-700'}`} />
+      <div className={`-ml-1 text-[10px] leading-none transition-colors duration-500 ease-out ${active ? 'text-teal-400' : 'text-slate-700'}`}>▶</div>
     </div>
   );
 }
@@ -127,7 +127,7 @@ export default function MonitorPipeline() {
   // decay 재계산용 가벼운 ticker
   const [now, setNow] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 80);
+    const id = setInterval(() => setNow(Date.now()), 150);
     return () => clearInterval(id);
   }, []);
 
