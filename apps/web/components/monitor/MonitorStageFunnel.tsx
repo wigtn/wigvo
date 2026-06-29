@@ -1,10 +1,10 @@
 'use client';
 
 // MonitorStageFunnel — ACTIVITY panel: the B·RECV filter stages where caller audio
-// can be dropped. One line per stage; a stage shows ✓ (passing) / ⊘ DROP (caught)
-// ONLY while it is live, idle stays dim (·). Footer = overall outcome (PASS / DROPPED).
-// Only the 4 filter stages are shown (Echo Gate, Energy, Silero VAD, STT); Translate is
-// just delivery. Derived from store pipeline state; no store/relay changes.
+// can be dropped. Each stage lists its internal steps with a short explanation, so a
+// booth observer can read what the stage does. The ⊘ DROP / ✓ PASS mark on a step is
+// shown ONLY while that step is actually happening (live) — idle = quiet gray text, so
+// the marks stay meaningful. Footer = overall outcome. No store/relay changes.
 
 import { useEffect, useState } from 'react';
 import { useMonitorStore, type PipeStageKey } from '@/hooks/useMonitorStore';
@@ -15,13 +15,24 @@ const DECAY_MS = 1800;
 type StageState = 'drop' | 'pass' | 'idle';
 type IconType = typeof ShieldCheck;
 
-// The 4 filter stages where audio can actually be dropped
-const FILTER_STAGES: { key: PipeStageKey; label: string; Icon: IconType; desc: string }[] = [
-  { key: 'echo_gate', label: 'Echo Gate', Icon: ShieldCheck, desc: 'Block bot voice echo' },
-  { key: 'energy_gate', label: 'Energy', Icon: Activity, desc: 'Filter low-energy noise' },
-  { key: 'silero_vad', label: 'Silero VAD', Icon: Volume2, desc: 'Detect speech segments' },
-  { key: 'stt', label: 'STT', Icon: FileText, desc: 'Transcribe · filter hallucination' },
-];
+interface SubStep {
+  n: number;
+  label: string;
+  desc: string;
+  active: boolean;
+  kind?: 'drop' | 'pass'; // outcome branch — only marked when live-active
+}
+
+interface Stage {
+  key: PipeStageKey;
+  label: string;
+  Icon: IconType;
+  desc: string;
+  state: StageState;
+  substeps: SubStep[];
+}
+
+const CIRCLED = ['①', '②', '③'];
 
 export default function MonitorStageFunnel() {
   const pipeline = useMonitorStore((s) => s.pipeline);
@@ -40,8 +51,68 @@ export default function MonitorStageFunnel() {
     return node.status === 'block' ? 'drop' : 'pass'; // active/pass/done/bargein → pass
   };
 
+  // Echo Gate internal step from status: active=①, block=②, bargein=③
+  const ehNode = pipeline.b.echo_gate;
+  const ehStep = isHot(ehNode.at)
+    ? ehNode.status === 'bargein'
+      ? 3
+      : ehNode.status === 'block'
+        ? 2
+        : ehNode.status === 'active'
+          ? 1
+          : 0
+    : 0;
+
+  // Binary stage (drop branch ① / pass branch ②), active branch from bState
+  const twoStep = (key: PipeStageKey, dropLabel: string, dropDesc: string, passLabel: string, passDesc: string): SubStep[] => {
+    const st = bState(key);
+    return [
+      { n: 1, label: dropLabel, desc: dropDesc, active: st === 'drop', kind: 'drop' },
+      { n: 2, label: passLabel, desc: passDesc, active: st === 'pass', kind: 'pass' },
+    ];
+  };
+
+  const STAGES: Stage[] = [
+    {
+      key: 'echo_gate',
+      label: 'Echo Gate',
+      Icon: ShieldCheck,
+      desc: 'Block bot voice echo',
+      state: bState('echo_gate'),
+      substeps: [
+        { n: 1, label: 'Window active', desc: 'inject silence while the bot speaks', active: ehStep === 1 },
+        { n: 2, label: 'Echo absorbed', desc: 'first return frame = PSTN echo', active: ehStep === 2, kind: 'drop' },
+        { n: 3, label: 'Breakthrough', desc: 'louder/continued audio = real speech', active: ehStep === 3, kind: 'pass' },
+      ],
+    },
+    {
+      key: 'energy_gate',
+      label: 'Energy',
+      Icon: Activity,
+      desc: 'Filter low-energy noise',
+      state: bState('energy_gate'),
+      substeps: twoStep('energy_gate', 'Low energy', 'background noise, below threshold', 'Voice energy', 'above threshold → passes'),
+    },
+    {
+      key: 'silero_vad',
+      label: 'Silero VAD',
+      Icon: Volume2,
+      desc: 'Detect speech segments',
+      state: bState('silero_vad'),
+      substeps: twoStep('silero_vad', 'Silence', 'no speech detected, held back', 'Speech', 'voice segment detected → passes'),
+    },
+    {
+      key: 'stt',
+      label: 'STT',
+      Icon: FileText,
+      desc: 'Transcribe · filter hallucination',
+      state: bState('stt'),
+      substeps: twoStep('stt', 'Hallucination', 'blocklist / garbage transcript', 'Transcript', 'real words recognized → passes'),
+    },
+  ];
+
   const passed = isHot(pipeline.b.translate_b.at) && pipeline.b.translate_b.status !== 'block';
-  const dropStage = FILTER_STAGES.find((s) => bState(s.key) === 'drop');
+  const dropStage = STAGES.find((s) => s.state === 'drop');
   const outcome: { kind: 'pass' | 'drop'; label: string } | null = passed
     ? { kind: 'pass', label: '✓ PASS · delivered' }
     : dropStage
@@ -55,27 +126,39 @@ export default function MonitorStageFunnel() {
         <span className="text-xs text-slate-500">filter stages — where audio drops</span>
       </div>
 
-      <ul className="flex flex-col gap-1">
-        {FILTER_STAGES.map((s) => {
-          const st = bState(s.key);
-          const live = st !== 'idle';
-          const cls = st === 'drop' ? 'text-red-300' : st === 'pass' ? 'text-emerald-300' : 'text-slate-600';
+      <ul className="flex flex-col gap-2.5">
+        {STAGES.map((s) => {
+          const live = s.state !== 'idle';
+          const iconCls = s.state === 'drop' ? 'text-red-300' : s.state === 'pass' ? 'text-emerald-300' : 'text-slate-500';
           return (
-            <li
-              key={s.key}
-              className={`flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors duration-300 ${
-                st === 'drop' ? 'bg-red-500/10' : st === 'pass' ? 'bg-emerald-500/5' : ''
-              }`}
-            >
-              <s.Icon className={`size-4 shrink-0 ${cls}`} />
-              <span className={`flex-1 text-sm font-medium ${live ? 'text-slate-200' : 'text-slate-500'}`}>
-                {s.label}
-                <span className="ml-2 text-xs font-normal text-slate-500">{s.desc}</span>
-              </span>
-              {/* DROP/PASS는 지금 실제로 그 스테이지에서 일어날 때만 — idle은 흐린 · */}
-              <span className={`shrink-0 text-sm font-bold tabular-nums ${st === 'drop' ? 'text-red-300' : st === 'pass' ? 'text-emerald-300' : 'text-slate-700'}`}>
-                {st === 'drop' ? '⊘ DROP' : st === 'pass' ? '✓' : '·'}
-              </span>
+            <li key={s.key} className="flex flex-col">
+              <div className="flex items-center gap-3">
+                <s.Icon className={`size-4 shrink-0 ${iconCls}`} />
+                <span className={`text-sm font-semibold ${live ? 'text-slate-100' : 'text-slate-300'}`}>{s.label}</span>
+                <span className="text-xs font-normal text-slate-500">{s.desc}</span>
+              </div>
+              <ul className="ml-7 mt-1 flex flex-col gap-0.5 border-l border-slate-700/60 pl-3">
+                {s.substeps.map((ss) => (
+                  <li
+                    key={ss.n}
+                    className={`flex items-baseline gap-2 rounded px-1.5 py-0.5 text-xs transition-colors duration-300 ${
+                      ss.active ? 'bg-amber-400/15' : ''
+                    }`}
+                  >
+                    <span className={`shrink-0 font-bold ${ss.active ? 'text-amber-300' : 'text-slate-600'}`}>
+                      {CIRCLED[ss.n - 1]}
+                    </span>
+                    <span className={`shrink-0 font-semibold ${ss.active ? 'text-amber-100' : 'text-slate-400'}`}>{ss.label}</span>
+                    <span className="flex-1 truncate text-slate-500">— {ss.desc}</span>
+                    {/* DROP/PASS는 지금 그 단계가 실제로 일어날 때만 */}
+                    {ss.active && ss.kind && (
+                      <span className={`shrink-0 font-bold ${ss.kind === 'drop' ? 'text-red-300' : 'text-emerald-300'}`}>
+                        {ss.kind === 'drop' ? '⊘ DROP' : '✓ PASS'}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </li>
           );
         })}
