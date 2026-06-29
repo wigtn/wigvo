@@ -15,7 +15,7 @@ export const RESTAURANT_SYSTEM_PROMPT = `당신은 사용자를 대신해 식당
 | 필드 | 설명 | 예시 |
 |------|------|------|
 | target_name | 식당 이름 | "강남면옥", "을지로 골뱅이집" |
-| target_phone | 전화번호 | "02-1234-5678" |
+| target_phone | 전화번호 | "+82 2-1234-5678" |
 | primary_datetime | 예약 일시 | "내일 저녁 7시", "토요일 점심" |
 | party_size | 인원수 | 2, 4, 6 |
 | customer_name | 예약자 이름 | "홍길동" (**반드시 수집! 없으면 is_complete를 true로 하지 마세요**) |
@@ -258,11 +258,11 @@ export const RESTAURANT_FEW_SHOT_EXAMPLES = [
   // 예시 5: 전화번호 입력 → 예약자 이름 물어봄 (아직 완료 아님!)
   {
     role: 'user' as const,
-    content: '02-1234-5678',
+    content: '+82 2-1234-5678',
   },
   {
     role: 'assistant' as const,
-    content: `{"message":"좋아요! 거의 다 됐어요 👍\\n\\n마지막으로, 예약자 성함을 알려주세요! 👤\\n전화할 때 예약자 이름이 꼭 필요해요!","collected":{"target_name":"강남면옥","target_phone":"02-1234-5678","scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","primary_datetime":"내일 저녁 7시","party_size":4},"is_complete":false,"detected_intent":{"scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","confidence":1.0}}`,
+    content: `{"message":"좋아요! 거의 다 됐어요 👍\\n\\n마지막으로, 예약자 성함을 알려주세요! 👤\\n전화할 때 예약자 이름이 꼭 필요해요!","collected":{"target_name":"강남면옥","target_phone":"+82 2-1234-5678","scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","primary_datetime":"내일 저녁 7시","party_size":4},"is_complete":false,"detected_intent":{"scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","confidence":1.0}}`,
   },
   // 예시 5-1: 예약자 이름 입력 → 완료!
   {
@@ -271,15 +271,15 @@ export const RESTAURANT_FEW_SHOT_EXAMPLES = [
   },
   {
     role: 'assistant' as const,
-    content: `{"message":"완벽해요! 정리해볼게요 📋\\n\\n📍 **강남면옥**\\n📞 02-1234-5678\\n📅 내일 저녁 7시\\n👥 4명\\n👤 예약자: 홍길동\\n\\n✅ 맞으면 **전화 걸기** 버튼을 눌러주세요!\\n✏️ 수정할 게 있으면 말씀해주세요!","collected":{"target_name":"강남면옥","target_phone":"02-1234-5678","scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","primary_datetime":"내일 저녁 7시","customer_name":"홍길동","party_size":4},"is_complete":true,"detected_intent":{"scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","confidence":1.0}}`,
+    content: `{"message":"완벽해요! 정리해볼게요 📋\\n\\n📍 **강남면옥**\\n📞 +82 2-1234-5678\\n📅 내일 저녁 7시\\n👥 4명\\n👤 예약자: 홍길동\\n\\n✅ 맞으면 **전화 걸기** 버튼을 눌러주세요!\\n✏️ 수정할 게 있으면 말씀해주세요!","collected":{"target_name":"강남면옥","target_phone":"+82 2-1234-5678","scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","primary_datetime":"내일 저녁 7시","customer_name":"홍길동","party_size":4},"is_complete":true,"detected_intent":{"scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","confidence":1.0}}`,
   },
   // 예시 6: 한 번에 모든 정보 (이름 빠짐 → 아직 미완료)
   {
     role: 'user' as const,
-    content: '을지로 골뱅이집 내일 저녁 6시 3명 예약해줘. 전화번호는 02-9999-8888이야',
+    content: '을지로 골뱅이집 내일 저녁 6시 3명 예약해줘. 전화번호는 +82 2-9999-8888이야',
   },
   {
     role: 'assistant' as const,
-    content: `{"message":"거의 다 됐어요! 👍\\n\\n마지막으로, 예약자 성함을 알려주세요! 👤","collected":{"target_name":"을지로 골뱅이집","target_phone":"02-9999-8888","scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","primary_datetime":"내일 저녁 6시","party_size":3},"is_complete":false,"detected_intent":{"scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","confidence":1.0}}`,
+    content: `{"message":"거의 다 됐어요! 👍\\n\\n마지막으로, 예약자 성함을 알려주세요! 👤","collected":{"target_name":"을지로 골뱅이집","target_phone":"+82 2-9999-8888","scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","primary_datetime":"내일 저녁 6시","party_size":3},"is_complete":false,"detected_intent":{"scenario_type":"RESERVATION","scenario_sub_type":"RESTAURANT","confidence":1.0}}`,
   },
 ];
