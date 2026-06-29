@@ -60,8 +60,8 @@ const SESSION_B_STAGES: StageDef[] = [
 function Arrow({ active }: { active: boolean }) {
   return (
     <div className="flex items-center shrink-0" aria-hidden>
-      <div className={`h-[2px] w-2.5 rounded transition-colors duration-200 ${active ? 'bg-teal-400 animate-pulse' : 'bg-slate-700'}`} />
-      <div className={`-ml-1 text-[10px] leading-none transition-colors duration-200 ${active ? 'text-teal-400' : 'text-slate-700'}`}>▶</div>
+      <div className={`h-[2px] w-2.5 rounded transition-colors duration-500 ease-out ${active ? 'bg-teal-400 animate-pulse' : 'bg-slate-700'}`} />
+      <div className={`-ml-1 text-[10px] leading-none transition-colors duration-500 ease-out ${active ? 'text-teal-400' : 'text-slate-700'}`}>▶</div>
     </div>
   );
 }
@@ -85,7 +85,7 @@ function StagePill({
 }) {
   return (
     <div
-      className={`relative flex w-[72px] flex-col items-center justify-center rounded-lg border px-1 py-1.5 transition-all duration-200 ${nodeClass(
+      className={`relative flex w-[72px] flex-col items-center justify-center rounded-lg border px-1 py-1.5 transition-all duration-500 ease-out ${nodeClass(
         tone,
         status,
         hot,
@@ -101,7 +101,7 @@ function StagePill({
 function EndPoint({ label, Icon, active }: { label: string; Icon: typeof Mic; active: boolean }) {
   return (
     <div
-      className={`flex w-14 flex-col items-center justify-center rounded-lg border px-1 py-1.5 transition-all duration-200 ${
+      className={`flex w-14 flex-col items-center justify-center rounded-lg border px-1 py-1.5 transition-all duration-500 ease-out ${
         active
           ? 'border-teal-400 bg-teal-400/15 text-teal-200 shadow-[0_0_22px_rgba(45,212,191,0.45)]'
           : 'border-slate-700 bg-slate-800/40 text-slate-400'
