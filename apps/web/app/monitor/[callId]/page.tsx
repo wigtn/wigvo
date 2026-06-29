@@ -14,6 +14,7 @@ import MonitorProvider from '@/components/monitor/MonitorProvider';
 import MonitorReplay from '@/components/monitor/MonitorReplay';
 import MonitorStatusBar from '@/components/monitor/MonitorStatusBar';
 import MonitorPipeline from '@/components/monitor/MonitorPipeline';
+import MonitorEvents from '@/components/monitor/MonitorEvents';
 import MonitorTranscript from '@/components/monitor/MonitorTranscript';
 
 // 관전 WS URL 도출 (PRD C1):
@@ -85,8 +86,9 @@ export default function MonitorCallPage() {
       {/* 본문: 진행중이면 좌 파이프라인 + 우 자막 / 종료면 자막 전체폭(저장된 기록) */}
       {isActive ? (
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <div className="min-h-0 overflow-y-auto">
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
             <MonitorPipeline />
+            <MonitorEvents />
           </div>
           <div className="min-h-0">
             <MonitorTranscript />
