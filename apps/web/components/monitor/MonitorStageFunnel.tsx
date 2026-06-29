@@ -15,11 +15,19 @@ const DECAY_MS = 1800;
 type StageState = 'drop' | 'pass' | 'idle';
 type IconType = typeof ShieldCheck;
 
+interface SubStep {
+  n: number;
+  label: string;
+  desc: string;
+  active: boolean;
+}
+
 interface Row {
   label: string;
   Icon: IconType;
   desc: string;
   state: StageState;
+  substeps?: SubStep[]; // 단계별 내부 동작 설명 (Echo Gate 등)
 }
 
 type Outcome = { kind: 'pass' | 'drop'; label: string } | null;
@@ -37,18 +45,35 @@ function FunnelGroup({ title, dir, rows, outcome }: { title: string; dir: string
           const markCls = r.state === 'drop' ? 'text-red-300' : r.state === 'pass' ? 'text-emerald-300' : 'text-slate-700';
           const bgCls = r.state === 'drop' ? 'bg-red-500/10' : r.state === 'pass' ? 'bg-emerald-500/5' : '';
           return (
-            <li
-              key={r.label}
-              className={`flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-300 ${bgCls}`}
-            >
-              <r.Icon className={`size-4 shrink-0 ${iconCls}`} />
-              <span className={`flex-1 text-sm font-medium ${r.state === 'idle' ? 'text-slate-600' : 'text-slate-200'}`}>
-                {r.label}
-                <span className="ml-2 text-xs font-normal text-slate-500">{r.desc}</span>
-              </span>
-              <span className={`shrink-0 text-sm font-bold tabular-nums ${markCls}`}>
-                {r.state === 'drop' ? '⊘ DROP' : r.state === 'pass' ? '✓' : '·'}
-              </span>
+            <li key={r.label} className="flex flex-col">
+              <div className={`flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-300 ${bgCls}`}>
+                <r.Icon className={`size-4 shrink-0 ${iconCls}`} />
+                <span className={`flex-1 text-sm font-medium ${r.state === 'idle' ? 'text-slate-600' : 'text-slate-200'}`}>
+                  {r.label}
+                  <span className="ml-2 text-xs font-normal text-slate-500">{r.desc}</span>
+                </span>
+                <span className={`shrink-0 text-sm font-bold tabular-nums ${markCls}`}>
+                  {r.state === 'drop' ? '⊘ DROP' : r.state === 'pass' ? '✓' : '·'}
+                </span>
+              </div>
+              {r.substeps && (
+                <ul className="ml-7 mt-0.5 flex flex-col gap-0.5 border-l border-slate-700/70 pl-3">
+                  {r.substeps.map((ss) => (
+                    <li
+                      key={ss.n}
+                      className={`flex items-baseline gap-2 rounded px-1.5 py-0.5 text-xs transition-colors duration-300 ${
+                        ss.active ? 'bg-amber-400/15 text-amber-200' : 'text-slate-500'
+                      }`}
+                    >
+                      <span className={`shrink-0 font-bold ${ss.active ? 'text-amber-300' : 'text-slate-600'}`}>
+                        {ss.n === 1 ? '①' : ss.n === 2 ? '②' : '③'}
+                      </span>
+                      <span className="shrink-0 font-semibold">{ss.label}</span>
+                      <span className="text-slate-500">— {ss.desc}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           );
         })}
@@ -112,7 +137,29 @@ export default function MonitorStageFunnel() {
     { key: 'stt', label: 'STT', Icon: FileText, desc: 'Transcribe · filter hallucination' },
     { key: 'translate_b', label: 'Translate', Icon: Languages, desc: 'Translate → deliver to caller' },
   ];
-  const bRows: Row[] = B_STAGES.map((s) => ({ label: s.label, Icon: s.Icon, desc: s.desc, state: bState(s.key) }));
+  // Echo Gate 내부 3단계: status로 현재 단계 도출 (active=①, block=②, bargein=③)
+  const ehNode = pipeline.b.echo_gate;
+  const ehStep = isHot(ehNode.at)
+    ? ehNode.status === 'bargein'
+      ? 3
+      : ehNode.status === 'block'
+        ? 2
+        : ehNode.status === 'active'
+          ? 1
+          : 0
+    : 0;
+  const echoSubsteps: SubStep[] = [
+    { n: 1, label: 'Window active', desc: 'inject silence while bot speaks', active: ehStep === 1 },
+    { n: 2, label: 'Echo absorbed', desc: 'first return frame = PSTN echo, dropped', active: ehStep === 2 },
+    { n: 3, label: 'Breakthrough', desc: 'real speech → gate opens, passes', active: ehStep === 3 },
+  ];
+  const bRows: Row[] = B_STAGES.map((s) => ({
+    label: s.label,
+    Icon: s.Icon,
+    desc: s.desc,
+    state: bState(s.key),
+    substeps: s.key === 'echo_gate' ? echoSubsteps : undefined,
+  }));
   const bPassed = isHot(pipeline.b.translate_b.at) && pipeline.b.translate_b.status !== 'block';
   const bDrop = B_STAGES.find((s) => bState(s.key) === 'drop');
   const bOutcome: Outcome = bPassed
