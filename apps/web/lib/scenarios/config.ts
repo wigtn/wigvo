@@ -278,7 +278,7 @@ export function getScenarioGreeting(
     }
 
     if (communicationMode && communicationMode !== 'full_agent') {
-      return "I'll make a direct call for you! Where would you like to call?";
+      return "I'll make a direct call for you! Tell me the place name and phone number — please include the country code (e.g. +1, +82).";
     }
 
     const enGreetings: Record<ScenarioType, Record<string, string>> = {
@@ -313,7 +313,7 @@ export function getScenarioGreeting(
   }
 
   if (communicationMode && communicationMode !== 'full_agent') {
-    return '직접 통화 모드로 전화를 걸어드릴게요! 어디에 전화하시겠어요? (장소 이름과 전화번호만 알려주세요)';
+    return '직접 통화 모드로 전화를 걸어드릴게요! 장소 이름과 전화번호를 알려주세요 — 번호는 국가번호를 포함해 주세요 (예: +82, +1).';
   }
 
   const greetings: Record<ScenarioType, Record<string, string>> = {
