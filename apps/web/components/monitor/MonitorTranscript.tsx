@@ -15,6 +15,10 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
   const isCaller = entry.speaker === 'user' || entry.speaker === 'ai';
   const speakerLabel = isCaller ? 'Caller' : 'Callee';
 
+  // 메인 = 실제로 한 말(원문), 아래 = 번역. 원문이 없으면 가진 텍스트만 표시.
+  const spoken = entry.originalText ?? entry.text;
+  const translated = entry.originalText ? entry.text : null;
+
   return (
     <div className={cn('flex w-full mb-2.5', isCaller ? 'justify-end' : 'justify-start')}>
       <div
@@ -33,8 +37,8 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
         >
           {speakerLabel}
         </div>
-        <p className="text-base font-medium">{entry.text}</p>
-        {entry.originalText && <p className="mt-1 text-xs text-slate-400 italic">{entry.originalText}</p>}
+        <p className="text-base font-medium">{spoken}</p>
+        {translated && <p className="mt-1 text-xs text-slate-400 italic">{translated}</p>}
       </div>
     </div>
   );
