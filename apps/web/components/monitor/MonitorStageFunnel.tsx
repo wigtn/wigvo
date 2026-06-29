@@ -163,12 +163,29 @@ export default function MonitorStageFunnel() {
     { n: 2, label: 'Echo absorbed', desc: 'first return frame = PSTN echo', active: ehStep === 2, kind: 'drop' },
     { n: 3, label: 'Breakthrough', desc: 'real speech → gate opens', active: ehStep === 3, kind: 'pass' },
   ];
+
+  // Binary-stage sub-steps: drop branch (①) vs pass branch (②), highlighted live by bState
+  const twoStep = (key: PipeStageKey, dropLabel: string, dropDesc: string, passLabel: string, passDesc: string): SubStep[] => {
+    const st = bState(key);
+    return [
+      { n: 1, label: dropLabel, desc: dropDesc, active: st === 'drop', kind: 'drop' },
+      { n: 2, label: passLabel, desc: passDesc, active: st === 'pass', kind: 'pass' },
+    ];
+  };
+
+  const substepsByKey: Partial<Record<PipeStageKey, SubStep[]>> = {
+    echo_gate: echoSubsteps,
+    energy_gate: twoStep('energy_gate', 'Low energy', 'background noise, below threshold', 'Voice energy', 'above threshold'),
+    silero_vad: twoStep('silero_vad', 'Silence', 'no speech detected, held back', 'Speech', 'voice segment detected'),
+    stt: twoStep('stt', 'Hallucination', 'blocklist / garbage transcript', 'Transcript', 'real words recognized'),
+  };
+
   const bRows: Row[] = B_STAGES.map((s) => ({
     label: s.label,
     Icon: s.Icon,
     desc: s.desc,
     state: bState(s.key),
-    substeps: s.key === 'echo_gate' ? echoSubsteps : undefined,
+    substeps: substepsByKey[s.key],
   }));
   const bPassed = isHot(pipeline.b.translate_b.at) && pipeline.b.translate_b.status !== 'block';
   const bDrop = B_STAGES.find((s) => bState(s.key) === 'drop');
