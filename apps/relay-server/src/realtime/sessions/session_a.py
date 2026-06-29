@@ -15,6 +15,7 @@ from typing import Any, Callable, Coroutine
 
 from src.config import settings
 from src.guardrail.checker import GuardrailChecker, GuardrailLevel
+from src.realtime.sessions.hallucination import is_caller_hallucination
 from src.realtime.sessions.session_manager import RealtimeSession
 from src.tools.executor import FunctionExecutor
 from src.types import ActiveCall, CallMode, CostTokens, TranscriptEntry
@@ -296,6 +297,14 @@ class SessionAHandler:
                     self._call.call_metrics.hallucinations_blocked += 1
                 return
             self._audio_committed_at = 0.0
+
+        # 발신자 환각 차단: 구조적 노이즈·토큰 반복·자막 크레딧 (절대 정상 발화 아님).
+        # session_b와 동일 철학을 발신자 측에도 적용 (오탐 위험 낮은 패턴만).
+        if is_caller_hallucination(transcript):
+            logger.warning("[SessionA] Caller hallucination blocked: %s", transcript[:80])
+            if self._call:
+                self._call.call_metrics.hallucinations_blocked += 1
+            return
 
         logger.info("[SessionA] Translation complete: %s", transcript[:80])
 
