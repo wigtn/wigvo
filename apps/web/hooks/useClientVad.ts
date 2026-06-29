@@ -29,8 +29,10 @@ export function useClientVad({
   const onSpeechCommittedRef = useRef(onSpeechCommitted);
   onSpeechCommittedRef.current = onSpeechCommitted;
 
-  // Pre-speech ring buffer: keeps last N chunks for smooth onset
-  const PRE_BUFFER_CHUNKS = 3; // ~300ms at 100ms/chunk
+  // Pre-speech ring buffer: keeps last N chunks for smooth onset.
+  // speechOnsetDelay(150ms) + 발화 onset 램프를 충분히 덮도록 ~600ms로 확대
+  // (3→6). 발신자 발화 앞부분이 잘리던 문제 완화. 감지 로직은 그대로.
+  const PRE_BUFFER_CHUNKS = 6; // ~600ms at 100ms/chunk
   const preBufferRef = useRef<string[]>([]);
 
   const vadRef = useRef<ClientVAD>(
