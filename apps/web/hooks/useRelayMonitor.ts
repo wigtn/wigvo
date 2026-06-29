@@ -75,6 +75,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
   const wsRef = useRef<{ disconnect: () => void } | null>(null);
   const blockedCountRef = useRef(0); // hallucinations_blocked 증가 감지용
   const callerTurnRef = useRef<string | null>(null); // 발신자 현재 턴 버블 id(원문+번역 병합용)
+  const calleeTurnRef = useRef<string | null>(null); // 수신자 현재 턴 버블 id(원문+번역 병합용)
 
   const handleMessage = useCallback((msg: RelayWsMessage) => {
     switch (msg.type) {
@@ -154,68 +155,54 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
           streamingRef.current = null;
           break;
         }
-        // 수신자 발화 = 발신자 턴 종료
+        // 수신자 발화 시작 = 발신자 턴 종료
         callerTurnRef.current = null;
 
-        const cur = streamingRef.current;
-
-        if (cur && cur.direction === direction && cur.stage === stage && cur.speaker === speaker) {
+        // 수신자(inbound) 턴: 원문(stage 1) + 번역(stage 2)을 한 버블로 병합 (발신자와 동일 방식).
+        // 스트리밍/순서 무관 페어링. 메인 = 원문(originalText), 아래 = 번역(text).
+        // 턴은 TRANSLATION_STATE 'caption_done'(수신자 번역 완료) / 발신자 발화에서 닫는다.
+        {
+          const lang = (msg.data.language as string) ?? '';
+          const isOriginalIn = stage === 1;
           setCaptions((prev) => {
-            if (prev.length === 0) return prev;
             const updated = [...prev];
-            const last = updated[updated.length - 1];
-            updated[updated.length - 1] = { ...last, text: last.text + text };
-            return updated;
-          });
-        } else if (stage === 2 && direction === 'inbound') {
-          setCaptions((prev) => {
-            const lastStage1Idx =
-              prev.length > 0 && prev[prev.length - 1].stage === 1 && prev[prev.length - 1].speaker === speaker
-                ? prev.length - 1
-                : -1;
-
-            if (lastStage1Idx >= 0) {
-              const stage1 = prev[lastStage1Idx];
-              captionCounterRef.current += 1;
-              const merged: CaptionEntry = {
-                id: `caption-${captionCounterRef.current}`,
-                speaker,
-                text,
-                originalText: stage1.text,
-                language: (msg.data.language as string) ?? '',
-                isFinal: false,
-                timestamp: Date.now(),
-                stage: 2,
-              };
-              return [...prev.slice(0, lastStage1Idx), merged];
+            if (isOriginalIn) {
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].speaker === 'recipient' && !updated[i].originalText) {
+                  updated[i] = { ...updated[i], originalText: text };
+                  return updated;
+                }
+              }
+            } else {
+              if (calleeTurnRef.current) {
+                const i = updated.findIndex((c) => c.id === calleeTurnRef.current);
+                if (i >= 0) {
+                  updated[i] = { ...updated[i], text: (updated[i].text ?? '') + text };
+                  return updated;
+                }
+              }
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].speaker === 'recipient' && !updated[i].text) {
+                  calleeTurnRef.current = updated[i].id;
+                  updated[i] = { ...updated[i], text };
+                  return updated;
+                }
+              }
             }
-
             captionCounterRef.current += 1;
-            const entry: CaptionEntry = {
-              id: `caption-${captionCounterRef.current}`,
-              speaker,
-              text,
-              language: (msg.data.language as string) ?? '',
+            const id = `caption-${captionCounterRef.current}`;
+            if (!isOriginalIn) calleeTurnRef.current = id;
+            updated.push({
+              id,
+              speaker: 'recipient',
+              text: isOriginalIn ? '' : text,
+              originalText: isOriginalIn ? text : undefined,
+              language: lang,
               isFinal: false,
               timestamp: Date.now(),
-              stage,
-            };
-            return [...prev, entry];
+            });
+            return updated;
           });
-          streamingRef.current = { direction, stage, speaker };
-        } else {
-          captionCounterRef.current += 1;
-          const entry: CaptionEntry = {
-            id: `caption-${captionCounterRef.current}`,
-            speaker,
-            text,
-            language: (msg.data.language as string) ?? '',
-            isFinal: false,
-            timestamp: Date.now(),
-            stage,
-          };
-          setCaptions((prev) => [...prev, entry]);
-          streamingRef.current = { direction, stage, speaker };
         }
         break;
       }
@@ -264,6 +251,8 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         }
         if (state === 'caption_done') {
           streamingRef.current = null;
+          // 수신자 번역 완료 → 다음 inbound 캡션은 새 턴 버블로 시작
+          calleeTurnRef.current = null;
         }
         break;
       }
