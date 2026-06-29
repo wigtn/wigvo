@@ -15,16 +15,16 @@ interface StageRow {
   key: PipeStageKey;
   label: string;
   Icon: typeof ShieldCheck;
-  desc: string; // 무엇을 거르는지 짧은 설명
+  desc: string; // what this stage filters (rendered as secondary label)
 }
 
-// B·RECV 순서대로 — 오디오가 위에서 아래로 흐름
+// In B·RECV order — audio flows top to bottom
 const STAGES: StageRow[] = [
-  { key: 'echo_gate', label: 'Echo Gate', Icon: ShieldCheck, desc: '봇 음성 에코 차단' },
-  { key: 'energy_gate', label: 'Energy', Icon: Activity, desc: '저에너지 노이즈 차단' },
-  { key: 'silero_vad', label: 'Silero VAD', Icon: Volume2, desc: '발화 구간 검출' },
-  { key: 'stt', label: 'STT', Icon: FileText, desc: '음성→텍스트 · 환각 차단' },
-  { key: 'translate_b', label: 'Translate', Icon: Languages, desc: '번역 → 발신자 전달' },
+  { key: 'echo_gate', label: 'Echo Gate', Icon: ShieldCheck, desc: 'Blocks bot voice echo' },
+  { key: 'energy_gate', label: 'Energy', Icon: Activity, desc: 'Filters low-energy noise' },
+  { key: 'silero_vad', label: 'Silero VAD', Icon: Volume2, desc: 'Detects speech segments' },
+  { key: 'stt', label: 'STT', Icon: FileText, desc: 'Speech-to-text · filters hallucination' },
+  { key: 'translate_b', label: 'Translate', Icon: Languages, desc: 'Translate → deliver to caller' },
 ];
 
 type StageState = 'drop' | 'pass' | 'idle';
