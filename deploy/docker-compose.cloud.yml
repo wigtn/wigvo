@@ -1,0 +1,42 @@
+name: wigvo-cloud
+# US-region RELAY deploy (single VM). DB = Supabase managed (US). Web = Vercel.
+# SECURITY: all secrets live in deploy/.env (gitignored) — NEVER commit real values.
+# NOTE: relay is STATEFUL + single-process (--workers 1; all call state in an
+#       in-memory singleton; every WS of a call must hit the same process).
+#       Do NOT add replicas without per-call routing — scale via a fixed process
+#       pool + per-call routing or a second VM instead.
+
+services:
+  relay:
+    platform: linux/amd64
+    build:
+      context: ../apps/relay-server
+      dockerfile: Dockerfile
+    image: wigvo-relay:cloud
+    container_name: wigvo-relay
+    restart: unless-stopped
+    env_file:
+      - .env                 # gitignored — real OPENAI/TWILIO/DATABASE_URL/etc.
+    environment:
+      PORT: "8080"
+      RELAY_SERVER_PORT: "8080"
+    expose:
+      - "8080"               # internal only; NOT published to host. Caddy fronts it.
+
+  caddy:
+    image: caddy:2
+    container_name: wigvo-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - relay
+
+volumes:
+  caddy_data:
+  caddy_config:
