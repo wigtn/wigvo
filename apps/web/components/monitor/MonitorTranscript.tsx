@@ -11,15 +11,16 @@ import type { CaptionEntry } from '@/shared/call-types';
 import { cn } from '@/lib/utils';
 
 function Bubble({ entry }: { entry: CaptionEntry }) {
-  const isUser = entry.speaker === 'user';
-  const speakerLabel = isUser ? 'Caller' : entry.speaker === 'ai' ? 'AI' : 'Callee';
+  // 관전 화면은 2자(발신자↔수신자) 대화. assistant(ai) 출력은 발신자 측 통역 발화이므로 Caller로 묶는다.
+  const isCaller = entry.speaker === 'user' || entry.speaker === 'ai';
+  const speakerLabel = isCaller ? 'Caller' : 'Callee';
 
   return (
-    <div className={cn('flex w-full mb-4', isUser ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex w-full mb-4', isCaller ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
           'max-w-[80%] rounded-2xl px-5 py-3.5 leading-relaxed',
-          isUser
+          isCaller
             ? 'bg-teal-500/20 border border-teal-400/40 text-teal-50 rounded-br-md'
             : 'bg-slate-800/70 border border-slate-600/50 text-slate-100 rounded-bl-md',
         )}
@@ -27,7 +28,7 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
         <div
           className={cn(
             'text-xs font-semibold mb-1.5 uppercase tracking-widest',
-            isUser ? 'text-teal-300/80' : 'text-slate-400',
+            isCaller ? 'text-teal-300/80' : 'text-slate-400',
           )}
         >
           {speakerLabel}
