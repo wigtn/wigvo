@@ -21,27 +21,37 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
       - uses: google-github-actions/setup-gcloud@v2
+      - name: Write deploy SSH key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VM_DEPLOY_SSH_KEY }}" > ~/.ssh/wigvo_deploy
+          chmod 600 ~/.ssh/wigvo_deploy
+          # Reconstruct the public key (also validates the private key parses).
+          ssh-keygen -y -f ~/.ssh/wigvo_deploy > ~/.ssh/wigvo_deploy.pub
       - name: Pull & rebuild relay on the VM (IAP SSH)
         run: |
           set -euo pipefail
+          # OS Login is disabled on this instance; auth is via the `deploy` user
+          # whose public key lives in instance metadata ssh-keys. The matching
+          # private key comes from the VM_DEPLOY_SSH_KEY secret. The SA needs only
+          # roles/iap.tunnelResourceAccessor + compute.viewer — no metadata writes.
           deploy() {
-            gcloud compute ssh wigvo-relay \
+            gcloud compute ssh deploy@wigvo-relay \
               --project=wigtn-voice-only --zone=us-west1-a --tunnel-through-iap \
+              --ssh-key-file="$HOME/.ssh/wigvo_deploy" \
               --ssh-flag="-o StrictHostKeyChecking=no" \
               --ssh-flag="-o ConnectTimeout=25" \
               --command='cd /opt/wigvo/wigvo && git fetch origin && git reset --hard origin/main && cd deploy && sudo docker compose -f docker-compose.cloud.yml up -d --build'
           }
-          # First attempt also imports the runner's ephemeral SSH key into the
-          # service account's OS Login profile; the key can take a few seconds
-          # to propagate to the VM, so retry on "Permission denied (publickey)".
           n=0
           until deploy; do
             n=$((n + 1))
-            if [ "$n" -ge 5 ]; then
+            if [ "$n" -ge 4 ]; then
               echo "::error::IAP SSH deploy failed after $n attempts"
               exit 1
             fi
-            echo "SSH attempt $n failed — waiting 20s for OS Login key propagation, then retrying..."
-            sleep 20
+            echo "SSH attempt $n failed — retrying in 15s..."
+            sleep 15
           done
           echo "Deploy command completed."
