@@ -158,11 +158,21 @@ export default function MonitorPipeline() {
         <span className="text-xs text-slate-500">real-time stage tracing</span>
       </div>
 
-      {/* Session A: Caller → Callee (fast path) */}
+      {/* Session A: Caller → Callee (STT → Translate → TTS) */}
       <div className="flex items-center gap-1 overflow-x-auto">
         <span className="text-[10px] text-emerald-400/90 font-bold w-11 shrink-0">A·SEND</span>
         <EndPoint label="Caller" Icon={Mic} active={aSpeaking} />
         <Arrow active={aSpeaking} />
+        <StagePill
+          label="STT"
+          detail={aSpeaking ? 'recognizing' : ''}
+          tone="blue"
+          status={aSpeaking ? 'active' : 'idle'}
+          hot={aSpeaking}
+          head={aHot && aPhase === 'speaking'}
+          Icon={FileText}
+        />
+        <Arrow active={aTranslating} />
         <StagePill
           label="Translate"
           detail={aTranslating ? 'translating' : ''}
@@ -173,13 +183,23 @@ export default function MonitorPipeline() {
           Icon={Languages}
         />
         <Arrow active={aDelivered} />
+        <StagePill
+          label="TTS"
+          detail={aDelivered ? 'speaking' : ''}
+          tone="violet"
+          status={aDelivered ? 'active' : 'idle'}
+          hot={aDelivered}
+          head={aHot && aPhase === 'delivered'}
+          Icon={Volume2}
+        />
+        <Arrow active={aDelivered} />
         <EndPoint label="Callee" Icon={Phone} active={aDelivered} />
         <span className="ml-2 text-xs text-emerald-400/80 font-mono shrink-0">
           {latencyBadge(metrics?.session_a_latencies_ms, '~555ms')}
         </span>
       </div>
 
-      {/* Session B: Callee → Caller (3-stage filter + STT + translate) */}
+      {/* Session B: Callee → Caller (3-stage filter + STT + translate + TTS) */}
       <div className="flex items-center gap-1 overflow-x-auto mt-3">
         <span className="text-[10px] text-cyan-400/90 font-bold w-11 shrink-0">B·RECV</span>
         <EndPoint label="Callee" Icon={Phone} active={bAnyHot} />
@@ -201,6 +221,16 @@ export default function MonitorPipeline() {
             </div>
           );
         })}
+        <Arrow active={isHot(pipeline.b.translate_b.at)} />
+        <StagePill
+          label="TTS"
+          detail={isHot(pipeline.b.translate_b.at) ? 'speaking' : ''}
+          tone="violet"
+          status={isHot(pipeline.b.translate_b.at) ? 'active' : 'idle'}
+          hot={isHot(pipeline.b.translate_b.at)}
+          head={false}
+          Icon={Volume2}
+        />
         <Arrow active={isHot(pipeline.b.translate_b.at)} />
         <EndPoint label="Caller" Icon={Mic} active={isHot(pipeline.b.translate_b.at)} />
         <span className="ml-2 text-xs text-cyan-400/80 font-mono shrink-0">
