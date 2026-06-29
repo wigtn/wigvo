@@ -7,6 +7,7 @@ on:
       - 'apps/relay-server/**'
       - 'deploy/**'
       - 'uv.lock'
+  workflow_dispatch: {}
 
 concurrency:
   group: deploy-relay-vm
@@ -22,6 +23,25 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v2
       - name: Pull & rebuild relay on the VM (IAP SSH)
         run: |
-          gcloud compute ssh wigvo-relay \
-            --project=wigtn-voice-only --zone=us-west1-a --tunnel-through-iap \
-            --command='cd /opt/wigvo/wigvo && git fetch origin && git reset --hard origin/main && cd deploy && sudo docker compose -f docker-compose.cloud.yml up -d --build'
+          set -euo pipefail
+          deploy() {
+            gcloud compute ssh wigvo-relay \
+              --project=wigtn-voice-only --zone=us-west1-a --tunnel-through-iap \
+              --ssh-flag="-o StrictHostKeyChecking=no" \
+              --ssh-flag="-o ConnectTimeout=25" \
+              --command='cd /opt/wigvo/wigvo && git fetch origin && git reset --hard origin/main && cd deploy && sudo docker compose -f docker-compose.cloud.yml up -d --build'
+          }
+          # First attempt also imports the runner's ephemeral SSH key into the
+          # service account's OS Login profile; the key can take a few seconds
+          # to propagate to the VM, so retry on "Permission denied (publickey)".
+          n=0
+          until deploy; do
+            n=$((n + 1))
+            if [ "$n" -ge 5 ]; then
+              echo "::error::IAP SSH deploy failed after $n attempts"
+              exit 1
+            fi
+            echo "SSH attempt $n failed — waiting 20s for OS Login key propagation, then retrying..."
+            sleep 20
+          done
+          echo "Deploy command completed."
