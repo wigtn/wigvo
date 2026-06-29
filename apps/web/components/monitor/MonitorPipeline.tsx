@@ -74,6 +74,7 @@ function StagePill({
   hot,
   head,
   Icon,
+  dropped = false,
 }: {
   label: string;
   detail: string;
@@ -82,6 +83,7 @@ function StagePill({
   hot: boolean;
   head: boolean;
   Icon: typeof Mic;
+  dropped?: boolean;
 }) {
   return (
     <div
@@ -93,7 +95,14 @@ function StagePill({
     >
       <Icon className="size-4 mb-0.5" />
       <span className="text-xs font-semibold leading-tight whitespace-nowrap">{label}</span>
-      <span className="w-full truncate text-center text-[10px] leading-tight opacity-80 h-3">{hot ? detail : ''}</span>
+      {/* 걸려서 drop된 스테이지는 detail 슬롯에 빨간 DROP 표시 (레이아웃 변화 없음) */}
+      <span
+        className={`w-full truncate text-center text-[10px] leading-tight h-3 ${
+          dropped ? 'font-bold text-red-300' : 'opacity-80'
+        }`}
+      >
+        {dropped ? '⊘ DROP' : hot ? detail : ''}
+      </span>
     </div>
   );
 }
@@ -150,6 +159,13 @@ export default function MonitorPipeline() {
   const aTranslating = aHot && (aPhase === 'translating' || aPhase === 'delivered');
   const aDelivered = aHot && aPhase === 'delivered';
   const bAnyHot = SESSION_B_STAGES.some((s) => isHot(pipeline.b[s.key].at));
+
+  // B·RECV 결과: translate까지 도달 → PASS, frontier 스테이지가 block(에코 흡수/노이즈 거절) → DROP
+  const bOutcome: 'pass' | 'drop' | null = isHot(pipeline.b.translate_b.at)
+    ? 'pass'
+    : headKey && pipeline.b[headKey].status === 'block'
+      ? 'drop'
+      : null;
 
   return (
     <div className="rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-6 py-5">
@@ -217,6 +233,7 @@ export default function MonitorPipeline() {
                 hot={hot}
                 head={headKey === s.key}
                 Icon={s.Icon}
+                dropped={hot && node.status === 'block'}
               />
             </div>
           );
@@ -233,6 +250,17 @@ export default function MonitorPipeline() {
         />
         <Arrow active={isHot(pipeline.b.translate_b.at)} />
         <EndPoint label="Caller" Icon={Mic} active={isHot(pipeline.b.translate_b.at)} />
+        {bOutcome && (
+          <span
+            className={`ml-2 shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold transition-colors duration-300 ${
+              bOutcome === 'pass'
+                ? 'border-emerald-400/60 bg-emerald-400/15 text-emerald-200'
+                : 'border-red-400/60 bg-red-400/15 text-red-200'
+            }`}
+          >
+            {bOutcome === 'pass' ? '✓ PASS' : '⊘ DROP'}
+          </span>
+        )}
         <span className="ml-2 text-xs text-cyan-400/80 font-mono shrink-0">
           {latencyBadge(metrics?.session_b_e2e_latencies_ms, '~2684ms')}
         </span>
