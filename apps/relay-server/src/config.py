@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     max_call_duration_ms: int = 600_000
     call_warning_ms: int = 480_000  # 8분 경고
 
+    # 동시통화 하드캡 (데모 안정성). 상한 초과 시 새 통화를 거절한다.
+    # relay 이벤트루프 + OpenAI Realtime/Twilio 동시성 한도 + 비용을 함께 보호.
+    # 단일 프로세스(--workers 1) 기준 안전 상한; 부하테스트로 확정 후 조정.
+    max_concurrent_calls: int = 10
+
     # First message timeouts (C-3)
     recipient_answer_timeout_s: int = 45
 
