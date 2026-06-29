@@ -45,7 +45,7 @@ async def start_call(req: CallStartRequest):
     # 클라이언트는 503 detail의 active/max로 "대기" UX를 띄우고 재시도하면 된다.
     # (등록은 핸들러 후반부에서 이뤄지므로 이 카운트는 '이미 진행 중인' 통화 수.
     #  동시 start 요청이 겹치면 1~2개 초과 가능한 soft cap — 데모 규모에선 무시 가능.)
-    active = call_manager.active_call_count()
+    active = call_manager.active_call_count
     if active >= settings.max_concurrent_calls:
         logger.warning(
             "At capacity: %d/%d active — rejecting call %s",
