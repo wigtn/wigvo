@@ -103,27 +103,44 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
           }
         }
 
-        // 발신자(outbound) 턴: 원문(role=user) + 번역(role=ai) 두 캡션을 한 버블로 병합.
-        // 메인 = 원문(originalText), 아래 = 번역(text). 보투보·텍투보 공통.
+        // 발신자(outbound) 턴: 원문(role=user) + 번역(role=ai)을 한 버블로 병합.
+        // ⚠️ Realtime에서 원문 STT가 번역보다 늦게 오는 경우가 흔함 → 순서 무관하게 페어링.
+        //   - 번역(ai): 열린 번역 버블(callerTurnRef)에 누적, 없으면 원문만 있는 버블에 붙이거나 새로.
+        //   - 원문(user): "원문이 아직 없는 가장 최근 발신자 버블"에 붙임(늦게 와도 페어링됨).
+        //   - 턴은 TRANSLATION_STATE 'done'(번역 완료) / 수신자 발화에서 닫는다.
+        // 메인 = 원문(originalText), 아래 = 번역(text).
         if (direction === 'outbound') {
           const lang = (msg.data.language as string) ?? '';
           const isOriginal = speaker === 'user';
           setCaptions((prev) => {
-            const last = prev.length > 0 ? prev[prev.length - 1] : null;
-            // 같은 턴: 직전 버블이 현재 caller 턴이고, "이미 번역이 찬 상태의 새 원문"이 아닐 때
-            const sameTurn =
-              !!last && last.id === callerTurnRef.current && !(isOriginal && (last.text ?? '') !== '');
-            if (sameTurn && last) {
-              const updated = [...prev];
-              updated[updated.length - 1] = isOriginal
-                ? { ...last, originalText: (last.originalText ?? '') + text }
-                : { ...last, text: (last.text ?? '') + text };
-              return updated;
+            const updated = [...prev];
+            if (isOriginal) {
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].speaker === 'user' && !updated[i].originalText) {
+                  updated[i] = { ...updated[i], originalText: text };
+                  return updated;
+                }
+              }
+            } else {
+              if (callerTurnRef.current) {
+                const i = updated.findIndex((c) => c.id === callerTurnRef.current);
+                if (i >= 0) {
+                  updated[i] = { ...updated[i], text: (updated[i].text ?? '') + text };
+                  return updated;
+                }
+              }
+              for (let i = updated.length - 1; i >= 0; i--) {
+                if (updated[i].speaker === 'user' && !updated[i].text) {
+                  callerTurnRef.current = updated[i].id;
+                  updated[i] = { ...updated[i], text };
+                  return updated;
+                }
+              }
             }
             captionCounterRef.current += 1;
             const id = `caption-${captionCounterRef.current}`;
-            callerTurnRef.current = id;
-            const entry: CaptionEntry = {
+            if (!isOriginal) callerTurnRef.current = id;
+            updated.push({
               id,
               speaker: 'user',
               text: isOriginal ? '' : text,
@@ -131,8 +148,8 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
               language: lang,
               isFinal: false,
               timestamp: Date.now(),
-            };
-            return [...prev, entry];
+            });
+            return updated;
           });
           streamingRef.current = null;
           break;
@@ -240,7 +257,11 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
       case WsMessageType.TRANSLATION_STATE: {
         const state = msg.data.state as string;
         if (state === 'processing') signalA('translating', 'translating');
-        else if (state === 'done') signalA('delivered');
+        else if (state === 'done') {
+          signalA('delivered');
+          // 발신자 번역 완료 → 다음 outbound 캡션은 새 턴 버블로 시작 (원문은 늦게 와도 직전 버블에 페어링됨)
+          callerTurnRef.current = null;
+        }
         if (state === 'caption_done') {
           streamingRef.current = null;
         }
