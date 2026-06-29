@@ -23,6 +23,10 @@ function getQueryClient(): ReturnType<typeof postgres> {
     max: 10,
     idle_timeout: 30,
     connect_timeout: 10,
+    // Supabase Transaction Pooler (port 6543, used on Vercel serverless) runs in
+    // transaction mode and does not support prepared statements. postgres-js uses
+    // them by default, so disable to avoid "prepared statement does not exist".
+    prepare: false,
   });
   if (process.env.NODE_ENV !== 'production') {
     globalThis.__wigvoPg = client;
