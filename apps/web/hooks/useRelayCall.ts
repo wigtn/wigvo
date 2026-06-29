@@ -362,17 +362,8 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
   const sendText = useCallback(
     (text: string) => {
       ws.sendText(text);
-      // Add local caption immediately so the user sees their text in the chat
-      captionCounterRef.current += 1;
-      const entry: CaptionEntry = {
-        id: `caption-${captionCounterRef.current}`,
-        speaker: 'user',
-        text,
-        language: '',
-        isFinal: true,
-        timestamp: Date.now(),
-      };
-      setCaptions((prev) => [...prev, entry]);
+      // 낙관적 로컬 캡션은 추가하지 않는다. relay가 입력 텍스트를 outbound 'user' 캡션으로
+      // 에코하므로(보투보의 STT 캡션과 동일 경로), 로컬까지 넣으면 발신자 화면에 중복 표시된다.
       streamingRef.current = null;
     },
     [ws],
