@@ -1,0 +1,27 @@
+name: Deploy Relay (US VM)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/relay-server/**'
+      - 'deploy/**'
+      - 'uv.lock'
+
+concurrency:
+  group: deploy-relay-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Pull & rebuild relay on the VM (IAP SSH)
+        run: |
+          gcloud compute ssh wigvo-relay \
+            --project=wigtn-voice-only --zone=us-west1-a --tunnel-through-iap \
+            --command='cd /opt/wigvo/wigvo && git fetch origin && git reset --hard origin/main && cd deploy && sudo docker compose -f docker-compose.cloud.yml up -d --build'
