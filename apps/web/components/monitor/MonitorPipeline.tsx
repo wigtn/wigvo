@@ -85,15 +85,15 @@ function StagePill({
 }) {
   return (
     <div
-      className={`relative flex flex-col items-center justify-center rounded-xl border px-4 py-3 min-w-[104px] transition-all duration-200 ${nodeClass(
+      className={`relative flex w-28 flex-col items-center justify-center rounded-xl border px-2 py-2.5 transition-all duration-200 ${nodeClass(
         tone,
         status,
         hot,
       )} ${head ? 'ring-2 ring-white/70 scale-105' : ''}`}
     >
-      <Icon className="size-6 mb-1" />
+      <Icon className="size-5 mb-1" />
       <span className="text-sm font-semibold leading-tight whitespace-nowrap">{label}</span>
-      <span className="text-xs leading-tight opacity-80 h-4 whitespace-nowrap">{hot ? detail : ''}</span>
+      <span className="w-full truncate text-center text-xs leading-tight opacity-80 h-4">{hot ? detail : ''}</span>
     </div>
   );
 }
@@ -101,13 +101,13 @@ function StagePill({
 function EndPoint({ label, Icon, active }: { label: string; Icon: typeof Mic; active: boolean }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-xl border px-4 py-3 min-w-[92px] transition-all duration-200 ${
+      className={`flex w-24 flex-col items-center justify-center rounded-xl border px-2 py-2.5 transition-all duration-200 ${
         active
           ? 'border-teal-400 bg-teal-400/15 text-teal-200 shadow-[0_0_22px_rgba(45,212,191,0.45)]'
           : 'border-slate-700 bg-slate-800/40 text-slate-400'
       }`}
     >
-      <Icon className="size-6 mb-1" />
+      <Icon className="size-5 mb-1" />
       <span className="text-sm font-semibold leading-tight whitespace-nowrap">{label}</span>
     </div>
   );

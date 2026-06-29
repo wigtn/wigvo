@@ -16,10 +16,10 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
   const speakerLabel = isCaller ? 'Caller' : 'Callee';
 
   return (
-    <div className={cn('flex w-full mb-4', isCaller ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex w-full mb-2.5', isCaller ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[80%] rounded-2xl px-5 py-3.5 leading-relaxed',
+          'max-w-[78%] rounded-xl px-3.5 py-2 leading-snug',
           isCaller
             ? 'bg-teal-500/20 border border-teal-400/40 text-teal-50 rounded-br-md'
             : 'bg-slate-800/70 border border-slate-600/50 text-slate-100 rounded-bl-md',
@@ -27,24 +27,41 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
       >
         <div
           className={cn(
-            'text-xs font-semibold mb-1.5 uppercase tracking-widest',
+            'text-[10px] font-semibold mb-0.5 uppercase tracking-widest',
             isCaller ? 'text-teal-300/80' : 'text-slate-400',
           )}
         >
           {speakerLabel}
         </div>
-        <p className="text-xl font-medium">{entry.text}</p>
-        {entry.originalText && <p className="mt-1.5 text-sm text-slate-400 italic">{entry.originalText}</p>}
+        <p className="text-base font-medium">{entry.text}</p>
+        {entry.originalText && <p className="mt-1 text-xs text-slate-400 italic">{entry.originalText}</p>}
       </div>
     </div>
   );
 }
 
+// AI 시스템 발화(자기소개 고지·타이핑 필러)는 실제 대화가 아니므로 관전 화면에서 숨긴다.
+const SYSTEM_SIGNATURES = [
+  'AI translation',
+  'on behalf of a customer',
+  'relay their message',
+  'relaying their message',
+  'AI 번역',
+  '번역 서비스',
+  '메시지를 작성',
+  '잠시만 기다',
+];
+const isSystemBoilerplate = (text: string) =>
+  SYSTEM_SIGNATURES.some((sig) => text.includes(sig));
+
 export default function MonitorTranscript() {
   const captions = useMonitorStore((s) => s.captions);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const shown = useMemo(() => captions.filter((c) => c.stage !== 1), [captions]);
+  const shown = useMemo(
+    () => captions.filter((c) => c.stage !== 1 && !isSystemBoilerplate(c.text)),
+    [captions],
+  );
 
   useEffect(() => {
     const el = scrollRef.current;

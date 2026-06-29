@@ -124,6 +124,16 @@ async def twilio_media_stream(ws: WebSocket, call_id: str):
     listen_task = asyncio.create_task(dual_session.listen_all())
     call_manager.register_listen_task(call_id, listen_task)
 
+    # 수신자 픽업 알림: Twilio 미디어 스트림 연결 = 통화 응답됨.
+    # 첫 발화를 기다리지 않고 이 시점에 connected를 알려 앱/관전 화면이 즉시 연결 상태가 된다.
+    # (first_message가 첫 발화 시 다시 connected를 보내지만 동일 상태라 무해)
+    await send_to_app(
+        WsMessage(
+            type=WsMessageType.CALL_STATUS,
+            data={"status": "connected", "message": "통화가 연결되었습니다."},
+        )
+    )
+
     try:
         while True:
             raw = await ws.receive_text()
