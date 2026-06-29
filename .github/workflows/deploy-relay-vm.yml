@@ -27,31 +27,50 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.VM_DEPLOY_SSH_KEY }}" > ~/.ssh/wigvo_deploy
           chmod 600 ~/.ssh/wigvo_deploy
-          # Reconstruct the public key (also validates the private key parses).
-          ssh-keygen -y -f ~/.ssh/wigvo_deploy > ~/.ssh/wigvo_deploy.pub
-      - name: Pull & rebuild relay on the VM (IAP SSH)
+      - name: Pull & rebuild relay on the VM (IAP tunnel + ssh)
+        env:
+          REMOTE_CMD: >-
+            cd /opt/wigvo/wigvo &&
+            sudo git fetch origin --quiet &&
+            sudo git reset --hard origin/main &&
+            cd deploy &&
+            sudo docker compose -f docker-compose.cloud.yml up -d --build
         run: |
-          set -euo pipefail
-          # OS Login is disabled on this instance; auth is via the `deploy` user
-          # whose public key lives in instance metadata ssh-keys. The matching
-          # private key comes from the VM_DEPLOY_SSH_KEY secret. The SA needs only
-          # roles/iap.tunnelResourceAccessor + compute.viewer — no metadata writes.
-          deploy() {
-            gcloud compute ssh deploy@wigvo-relay \
-              --project=wigtn-voice-only --zone=us-west1-a --tunnel-through-iap \
-              --ssh-key-file="$HOME/.ssh/wigvo_deploy" \
-              --ssh-flag="-o StrictHostKeyChecking=no" \
-              --ssh-flag="-o ConnectTimeout=25" \
-              --command='cd /opt/wigvo/wigvo && git fetch origin && git reset --hard origin/main && cd deploy && sudo docker compose -f docker-compose.cloud.yml up -d --build'
+          set -uo pipefail
+          # gcloud's `compute ssh` insists on pushing the runner key into project
+          # SSH metadata (which the deploy SA cannot write). Instead open a raw IAP
+          # tunnel and use plain ssh as the metadata-provisioned `deploy` user, whose
+          # key is already in the VM's authorized_keys. Repo is root-owned (cloned by
+          # the startup script) so git runs under sudo, same as docker compose.
+          run_deploy() {
+            gcloud compute start-iap-tunnel wigvo-relay 22 \
+              --project=wigtn-voice-only --zone=us-west1-a \
+              --local-host-port=localhost:2222 >/tmp/iap.log 2>&1 &
+            local tpid=$!
+            local ready=0
+            for i in $(seq 1 25); do
+              if (exec 3<>/dev/tcp/127.0.0.1/2222) 2>/dev/null; then exec 3>&-; ready=1; break; fi
+              sleep 2
+            done
+            if [ "$ready" != "1" ]; then
+              echo "IAP tunnel did not open:"; cat /tmp/iap.log
+              kill "$tpid" 2>/dev/null; return 1
+            fi
+            ssh -i "$HOME/.ssh/wigvo_deploy" \
+              -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=25 -p 2222 deploy@127.0.0.1 "$REMOTE_CMD"
+            local rc=$?
+            kill "$tpid" 2>/dev/null; wait "$tpid" 2>/dev/null
+            return $rc
           }
           n=0
-          until deploy; do
+          until run_deploy; do
             n=$((n + 1))
             if [ "$n" -ge 4 ]; then
-              echo "::error::IAP SSH deploy failed after $n attempts"
+              echo "::error::IAP deploy failed after $n attempts"
               exit 1
             fi
-            echo "SSH attempt $n failed — retrying in 15s..."
+            echo "Deploy attempt $n failed — retrying in 15s..."
             sleep 15
           done
           echo "Deploy command completed."
