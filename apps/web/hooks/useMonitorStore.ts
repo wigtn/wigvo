@@ -35,10 +35,21 @@ export interface LivePipeline {
   lastAt: number;
 }
 
-// MonitorPipeline의 지연 배지에 필요한 부분만 (relay metrics 전체 중 일부)
+// MonitorPipeline의 지연 배지 + 부스 카운터에 쓰는 부분만 (relay metrics 전체 중 일부)
 export interface MonitorMetrics {
   session_a_latencies_ms?: number[];
   session_b_e2e_latencies_ms?: number[];
+  echo_suppressions?: number;
+  hallucinations_blocked?: number;
+}
+
+// 결정적 순간(에코 흡수·돌파·가드레일)을 부스 이벤트 피드에 표시
+export type MonitorEventKind = 'echo' | 'bargein' | 'guard' | 'info';
+export interface MonitorEvent {
+  id: number;
+  kind: MonitorEventKind;
+  label: string;
+  at: number;
 }
 
 // 관전 연결 시 call_status 스냅샷에서 받는 통화 메타
@@ -73,9 +84,15 @@ interface MonitorState {
   snapshot: MonitorSnapshot | null;
   metrics: MonitorMetrics | null;
   pipeline: LivePipeline;
+  events: MonitorEvent[];
+  echoBlocked: number; // 에코 흡수(잡아낸) 누적 횟수
+  guardBlocked: number; // 환각/가드레일 차단 누적 횟수
 
   // 동기화 (MonitorProvider가 훅 state를 주입)
   syncState: (partial: Partial<MonitorState>) => void;
+
+  // 부스 이벤트 피드 (useRelayMonitor가 결정적 순간마다 호출)
+  pushEvent: (kind: MonitorEventKind, label: string) => void;
 
   // 파이프라인 신호 (useRelayMonitor가 WS 이벤트로 호출)
   signalA: (phase: APhase, detail?: string) => void;
@@ -93,12 +110,26 @@ const initialState = {
   snapshot: null as MonitorSnapshot | null,
   metrics: null as MonitorMetrics | null,
   pipeline: freshPipeline() as LivePipeline,
+  events: [] as MonitorEvent[],
+  echoBlocked: 0,
+  guardBlocked: 0,
 };
+
+let _eventId = 0;
 
 export const useMonitorStore = create<MonitorState>((set, get) => ({
   ...initialState,
 
   syncState: (partial) => set(partial),
+
+  pushEvent: (kind, label) => {
+    const now = Date.now();
+    set((state) => ({
+      events: [...state.events.slice(-29), { id: ++_eventId, kind, label, at: now }],
+      echoBlocked: state.echoBlocked + (kind === 'echo' ? 1 : 0),
+      guardBlocked: state.guardBlocked + (kind === 'guard' ? 1 : 0),
+    }));
+  },
 
   signalA: (phase, detail = '') => {
     const now = Date.now();

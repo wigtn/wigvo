@@ -47,6 +47,13 @@ function signalB(
   useMonitorStore.getState().signalB(stage, status, detail);
 }
 
+function pushEvent(
+  kind: Parameters<ReturnType<typeof useMonitorStore.getState>['pushEvent']>[0],
+  label: string,
+) {
+  useMonitorStore.getState().pushEvent(kind, label);
+}
+
 export interface UseRelayMonitorReturn {
   callStatus: MonitorCallStatus;
   captions: CaptionEntry[];
@@ -66,6 +73,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
   const streamingRef = useRef<{ direction: string; stage: number | undefined; speaker: string } | null>(null);
   const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsRef = useRef<{ disconnect: () => void } | null>(null);
+  const blockedCountRef = useRef(0); // hallucinations_blocked 증가 감지용
 
   const handleMessage = useCallback((msg: RelayWsMessage) => {
     switch (msg.type) {
@@ -203,11 +211,26 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
 
       case WsMessageType.INTERRUPT_ALERT:
         signalB('silero_vad', 'bargein', 'callee barge-in');
+        pushEvent('bargein', 'Recipient interrupted');
         break;
 
-      case WsMessageType.METRICS:
-        useMonitorStore.getState().syncState({ metrics: msg.data as unknown as MonitorMetrics });
+      case WsMessageType.METRICS: {
+        const m = msg.data as unknown as MonitorMetrics;
+        useMonitorStore.getState().syncState({ metrics: m });
+        // hallucinations_blocked 증가 = 이번에 환각/에코 누출을 차단함
+        const blocked = m.hallucinations_blocked ?? 0;
+        if (blocked > blockedCountRef.current) {
+          pushEvent('guard', 'Hallucination blocked');
+          blockedCountRef.current = blocked;
+        }
         break;
+      }
+
+      case WsMessageType.GUARDRAIL_TRIGGERED: {
+        const level = (msg.data.level as string) ?? '';
+        pushEvent('guard', level ? `Guardrail L${level} triggered` : 'Guardrail triggered');
+        break;
+      }
 
       case WsMessageType.PIPELINE_EVENT: {
         const stage = msg.data.stage as string;
@@ -215,9 +238,13 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         const rmsVal = msg.data.rms ?? msg.data.peak_rms;
         const rmsTxt = rmsVal != null ? `RMS ${rmsVal}` : '';
         if (stage === 'echo_gate') {
-          if (event.includes('absorb')) signalB('echo_gate', 'block', 'echo absorbed');
-          else if (event.includes('break')) signalB('echo_gate', 'bargein', 'barge-in');
-          else if (event.includes('deactiv')) signalB('echo_gate', 'idle', '');
+          if (event.includes('absorb')) {
+            signalB('echo_gate', 'block', 'echo absorbed');
+            pushEvent('echo', 'Echo absorbed');
+          } else if (event.includes('break')) {
+            signalB('echo_gate', 'bargein', 'barge-in');
+            pushEvent('bargein', 'Echo gate barge-in');
+          } else if (event.includes('deactiv')) signalB('echo_gate', 'idle', '');
           else signalB('echo_gate', 'active', 'gate closed');
         } else if (stage === 'energy_gate') {
           signalB('energy_gate', event === 'accept' ? 'pass' : 'block', rmsTxt);
