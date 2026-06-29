@@ -13,12 +13,23 @@ const KIND: Record<MonitorEventKind, { Icon: typeof ShieldCheck; text: string; d
   info: { Icon: Activity, text: 'text-slate-300', dot: 'bg-slate-500' },
 };
 
-function Counter({ label, value, tone }: { label: string; value: number; tone: 'orange' | 'red' }) {
+function Counter({
+  Icon,
+  label,
+  value,
+  tone,
+}: {
+  Icon: typeof ShieldCheck;
+  label: string;
+  value: number;
+  tone: 'orange' | 'red';
+}) {
   const cls = tone === 'orange' ? 'border-orange-400/40 text-orange-200' : 'border-red-400/40 text-red-200';
   return (
     <span className={`flex items-center gap-1.5 rounded-full border bg-slate-800/50 px-3 py-1 text-sm ${cls}`}>
+      <Icon className="size-4 shrink-0" />
+      <span className="text-slate-300">{label}</span>
       <span className="font-bold tabular-nums">{value}</span>
-      <span className="text-slate-400">{label}</span>
     </span>
   );
 }
@@ -32,11 +43,11 @@ export default function MonitorEvents() {
 
   return (
     <div className="rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-5 py-4">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold tracking-widest text-slate-300">ACTIVITY</span>
-        <div className="flex gap-2">
-          <Counter label="echoes" value={echoBlocked} tone="orange" />
-          <Counter label="blocked" value={guardBlocked} tone="red" />
+        <div className="flex flex-wrap gap-2">
+          <Counter Icon={ShieldCheck} label="Echoes blocked" value={echoBlocked} tone="orange" />
+          <Counter Icon={AlertTriangle} label="AI errors blocked" value={guardBlocked} tone="red" />
         </div>
       </div>
 
