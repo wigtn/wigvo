@@ -190,13 +190,13 @@ OpenAI Realtime 세션 끊김 시 30초 링 버퍼가 미전송 오디오를 보
 
 | 구간 | P50 | P95 | Mean | N |
 |------|----:|----:|-----:|--:|
-| **Session A** (User→수신자) | **557 ms** | 1156 ms | 617 ms | 814턴 |
-| **Session B E2E** (수신자→User) | **2868 ms** | 15482 ms | 3997 ms | 744턴 |
-| Session B STT만 | 2675 ms | 15547 ms | 3868 ms | 744턴 |
-| Session B 번역만 | 104 ms | 1934 ms | 535 ms | 585턴 |
-| 첫 메시지 레이턴시 | 1215 ms | 6890 ms | 2081 ms | 162건 |
+| **Session A** (User→수신자) | **555 ms** | 1169 ms | 619 ms | 814턴 |
+| **Session B E2E** (수신자→User) | **2684 ms** | 9963 ms | 3650 ms | 744턴 |
+| Session B STT만 | 2601 ms | 9392 ms | 3544 ms | 744턴 |
+| Session B 번역만 | 84 ms | 1961 ms | 535 ms | 585턴 |
+| 첫 메시지 레이턴시 | 1531 ms | 6585 ms | 2315 ms | 162건 |
 
-Session A **557ms 중앙값**은 인터랙티브 통신 범위 내. STT(Whisper)가 Session B E2E의 **87.3%**를 차지. Session B ~2.9초 중앙값은 전문 동시통역 ear-voice span(2–5초)의 하한.
+Session A **555ms 중앙값**은 인터랙티브 통신 범위 내. STT(Whisper)가 Session B E2E의 **97.1%**를 차지 (STT 평균 3544 ms / E2E 평균 3650 ms). Session B ~2.7초 중앙값은 전문 동시통역 ear-voice span(2–5초)의 하한.
 
 <div align="center">
 <img src="docs/paper/figures/figure4_utterance_scatter.png" alt="발화 길이 vs 레이턴시" width="85%" />
@@ -350,9 +350,9 @@ uv run python -m tests.run --test call --phone +82... --scenario restaurant --au
 |------|------------:|----------:|------|
 | **Session A P50** | 555 ms | 611 ms | 분산 범위 내 |
 | **Session A P95** | 1169 ms | 751 ms | 더 좁은 분포 (6턴) |
-| **Session B E2E P50** | 2868 ms | 7823 ms | 긴 한국어 발화 (STT = E2E의 97.8%) |
-| **Session B STT P50** | 2675 ms | 6959 ms | V2V 모드 — Realtime API가 STT+번역+TTS 처리 |
-| **첫 메시지** | 1215 ms | 787 ms | 더 빠른 콜드 스타트 |
+| **Session B E2E P50** | 2684 ms | 7823 ms | 긴 한국어 발화 (STT = E2E의 97.1%) |
+| **Session B STT P50** | 2601 ms | 6959 ms | V2V 모드 — Realtime API가 STT+번역+TTS 처리 |
+| **첫 메시지** | 1531 ms | 787 ms | 더 빠른 콜드 스타트 |
 | **분당 비용** | $0.27 | **$0.18** | 33% 절감 |
 | **에코 루프** | 0 / 148건 | 0 | 제로 톨러런스 유지 |
 | **에코 게이트 활성화** | 7.0/건 | 5 | |
