@@ -55,6 +55,15 @@ function pushEvent(
   useMonitorStore.getState().pushEvent(kind, label, signal);
 }
 
+// ACTIVITY 로그 append — 단계별 DROP/PASS/BARGE-IN 결정 지점에서만 호출 (세션 누적).
+function logActivity(
+  stage: Parameters<ReturnType<typeof useMonitorStore.getState>['logActivity']>[0],
+  kind: Parameters<ReturnType<typeof useMonitorStore.getState>['logActivity']>[1],
+  detail = '',
+) {
+  useMonitorStore.getState().logActivity(stage, kind, detail);
+}
+
 export interface UseRelayMonitorReturn {
   callStatus: MonitorCallStatus;
   captions: CaptionEntry[];
@@ -100,6 +109,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
           if (stage === 2) {
             signalB('stt', 'done');
             signalB('translate_b', 'done', 'translated');
+            // PASS 로그는 여기(delta마다)가 아니라 턴 종료 시 1줄만 — caption_done 참조
           } else {
             signalB('stt', 'active', 'STT...');
           }
@@ -253,6 +263,8 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         if (state === 'caption_done') {
           streamingRef.current = null;
           // 수신자 번역 완료 → 다음 inbound 캡션은 새 턴 버블로 시작
+          // ACTIVITY 로그: 수신자 턴이 끝까지 전달됨 = 1턴 1줄 PASS (delta마다 X)
+          if (calleeTurnRef.current) logActivity('translate_b', 'pass', 'delivered');
           calleeTurnRef.current = null;
         }
         break;
@@ -260,6 +272,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
 
       case WsMessageType.INTERRUPT_ALERT:
         signalB('silero_vad', 'bargein', 'callee barge-in');
+        logActivity('silero_vad', 'bargein', 'callee barge-in');
         pushEvent('bargein', 'Recipient interrupted', 'recipient_interrupted');
         break;
 
@@ -270,6 +283,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         const blocked = m.hallucinations_blocked ?? 0;
         if (blocked > blockedCountRef.current) {
           signalB('stt', 'block', 'hallucination'); // STT 단계에서 환각 drop 라이브 표시
+          logActivity('stt', 'drop', 'hallucination');
           pushEvent('guard', 'Hallucination blocked', 'hallucination');
           blockedCountRef.current = blocked;
         }
@@ -290,14 +304,20 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         if (stage === 'echo_gate') {
           if (event.includes('absorb')) {
             signalB('echo_gate', 'block', 'echo absorbed');
+            logActivity('echo_gate', 'drop', 'echo absorbed');
             pushEvent('echo', 'Echo absorbed', 'echo_absorbed');
           } else if (event.includes('break')) {
             signalB('echo_gate', 'bargein', 'barge-in');
+            logActivity('echo_gate', 'bargein', 'barge-in');
             pushEvent('bargein', 'Echo gate barge-in', 'echo_bargein');
           } else if (event.includes('deactiv')) signalB('echo_gate', 'idle', '');
           else signalB('echo_gate', 'active', 'gate closed');
         } else if (stage === 'energy_gate') {
           signalB('energy_gate', event === 'accept' ? 'pass' : 'block', rmsTxt);
+          // relay는 accept↔reject 전환 시에만 이벤트를 쏨(frame마다 X, voice_to_voice.py:333)
+          // → 범람 없음. accept(PASS)는 끝단 translate_b PASS와 중복이라 생략하고,
+          //   reject(배경소음 차단)만 로그 — 다른 로그에 안 나타나는 고유 신호.
+          if (event !== 'accept') logActivity('energy_gate', 'drop', rmsTxt || 'low energy');
         } else if (stage === 'silero_vad') {
           signalB(
             'silero_vad',
