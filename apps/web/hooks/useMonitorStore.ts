@@ -62,13 +62,17 @@ export interface MonitorEvent {
   at: number;
 }
 
-// ACTIVITY 로그: 파이프라인이 내린 결정적 DROP/PASS/BARGE-IN을 세션 내내 한 줄씩 누적.
+// ACTIVITY 로그: "되짚을 가치가 있는 사건"만 세션 내내 한 줄씩 누적.
+// 실시간 단계 흐름은 LIVE PIPELINE이 보여주므로 중복하지 않는다. 로그는 기록용 —
+//   (1) 완료된 대화 턴(양방향 'delivered' PASS)  (2) 시스템 개입(필터 DROP/BARGE-IN).
 // (라이브 funnel과 달리 사라지지 않음 — 부스 관전자가 스크롤해서 다시 볼 수 있게)
 export type ActivityKind = 'drop' | 'pass' | 'bargein';
+// 로그 stage = 필터 단계(개입) + 'delivered'(턴 전달 완료, 방향은 detail에)
+export type ActivityStage = PipeStageKey | 'delivered';
 export interface ActivityLogEntry {
   id: number;
   at: number;
-  stage: PipeStageKey;
+  stage: ActivityStage;
   kind: ActivityKind;
   detail: string;
 }
@@ -117,8 +121,8 @@ interface MonitorState {
   // 부스 이벤트 피드 (useRelayMonitor가 결정적 순간마다 호출)
   pushEvent: (kind: MonitorEventKind, label: string, signal?: MonitorSignalKey) => void;
 
-  // ACTIVITY 로그 append (useRelayMonitor가 단계별 DROP/PASS 결정마다 호출)
-  logActivity: (stage: PipeStageKey, kind: ActivityKind, detail?: string) => void;
+  // ACTIVITY 로그 append (useRelayMonitor가 턴 전달/필터 개입마다 호출)
+  logActivity: (stage: ActivityStage, kind: ActivityKind, detail?: string) => void;
 
   // 파이프라인 신호 (useRelayMonitor가 WS 이벤트로 호출)
   signalA: (phase: APhase, detail?: string) => void;

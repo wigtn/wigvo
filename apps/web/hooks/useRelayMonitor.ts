@@ -26,6 +26,8 @@ import {
   type MonitorCallStatus,
   type MonitorMetrics,
   type MonitorSnapshot,
+  type ActivityStage,
+  type ActivityKind,
 } from './useMonitorStore';
 
 const ROLE_TO_SPEAKER: Record<string, CaptionEntry['speaker']> = {
@@ -55,12 +57,8 @@ function pushEvent(
   useMonitorStore.getState().pushEvent(kind, label, signal);
 }
 
-// ACTIVITY 로그 append — 단계별 DROP/PASS/BARGE-IN 결정 지점에서만 호출 (세션 누적).
-function logActivity(
-  stage: Parameters<ReturnType<typeof useMonitorStore.getState>['logActivity']>[0],
-  kind: Parameters<ReturnType<typeof useMonitorStore.getState>['logActivity']>[1],
-  detail = '',
-) {
+// ACTIVITY 로그 append — 턴 전달/필터 개입 등 "기록할 사건"마다 호출 (세션 누적).
+function logActivity(stage: ActivityStage, kind: ActivityKind, detail = '') {
   useMonitorStore.getState().logActivity(stage, kind, detail);
 }
 
@@ -257,6 +255,10 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
         if (state === 'processing') signalA('translating', 'translating');
         else if (state === 'done') {
           signalA('delivered');
+          // ACTIVITY 로그: 발신자 턴이 수신자에게 전달됨 = 1턴 1줄 PASS.
+          // 단, 수신자가 'done'보다 먼저 말하면 callerTurnRef가 :168에서 이미 null →
+          // 그 턴은 로그 누락(정상 턴테이킹에선 'done'이 먼저라 드묾, 도배보다 누락이 안전).
+          if (callerTurnRef.current) logActivity('delivered', 'pass', 'caller → callee');
           // 발신자 번역 완료 → 다음 outbound 캡션은 새 턴 버블로 시작 (원문은 늦게 와도 직전 버블에 페어링됨)
           callerTurnRef.current = null;
         }
@@ -264,7 +266,7 @@ export function useRelayMonitor(wsUrl: string | null): UseRelayMonitorReturn {
           streamingRef.current = null;
           // 수신자 번역 완료 → 다음 inbound 캡션은 새 턴 버블로 시작
           // ACTIVITY 로그: 수신자 턴이 끝까지 전달됨 = 1턴 1줄 PASS (delta마다 X)
-          if (calleeTurnRef.current) logActivity('translate_b', 'pass', 'delivered');
+          if (calleeTurnRef.current) logActivity('delivered', 'pass', 'callee → caller');
           calleeTurnRef.current = null;
         }
         break;

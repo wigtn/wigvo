@@ -7,10 +7,11 @@
 // useMonitorStore.activityLog (appended at signalB decision points). No relay changes.
 
 import { useMemo } from 'react';
-import { useMonitorStore, type PipeStageKey, type ActivityKind } from '@/hooks/useMonitorStore';
-import { ShieldCheck, Activity, Volume2, FileText, Languages } from 'lucide-react';
+import { useMonitorStore, type ActivityStage, type ActivityKind } from '@/hooks/useMonitorStore';
+import { ShieldCheck, Activity, Volume2, FileText, Languages, CheckCircle2 } from 'lucide-react';
 
-const STAGE_LABEL: Record<PipeStageKey, string> = {
+const STAGE_LABEL: Record<ActivityStage, string> = {
+  delivered: 'Delivered',
   echo_gate: 'Echo Gate',
   energy_gate: 'Energy',
   silero_vad: 'Silero VAD',
@@ -18,7 +19,8 @@ const STAGE_LABEL: Record<PipeStageKey, string> = {
   translate_b: 'Translate',
 };
 
-const STAGE_ICON: Record<PipeStageKey, typeof ShieldCheck> = {
+const STAGE_ICON: Record<ActivityStage, typeof ShieldCheck> = {
+  delivered: CheckCircle2,
   echo_gate: ShieldCheck,
   energy_gate: Activity,
   silero_vad: Volume2,
@@ -43,16 +45,16 @@ export default function MonitorActivityLog() {
   const rows = useMemo(() => [...log].reverse(), [log]); // 최신이 위로
 
   return (
-    <div className="flex min-h-0 flex-col rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-5 py-4">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-5 py-4">
+      <div className="mb-3 flex shrink-0 items-center justify-between">
         <span className="text-sm font-semibold tracking-widest text-slate-300">ACTIVITY</span>
-        <span className="text-xs text-slate-500">filter log — every drop / pass this call ({log.length})</span>
+        <span className="text-xs text-slate-500">event log — turns delivered + filter interventions ({log.length})</span>
       </div>
 
       {rows.length === 0 ? (
         <p className="py-2 text-sm text-slate-600">No activity yet — waiting for audio</p>
       ) : (
-        <ul aria-live="polite" className="flex max-h-72 flex-col gap-0.5 overflow-y-auto pr-1">
+        <ul aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pr-1">
           {rows.map((e) => {
             const Icon = STAGE_ICON[e.stage];
             const k = KIND[e.kind];

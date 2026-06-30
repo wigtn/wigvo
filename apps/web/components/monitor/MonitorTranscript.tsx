@@ -20,25 +20,25 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
   const translated = entry.originalText ? entry.text : null;
 
   return (
-    <div className={cn('flex w-full mb-2.5', isCaller ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex w-full mb-1.5', isCaller ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[78%] rounded-xl px-3.5 py-2 leading-snug',
+          'max-w-[80%] rounded-lg px-3 py-1.5 leading-snug',
           isCaller
-            ? 'bg-teal-500/20 border border-teal-400/40 text-teal-50 rounded-br-md'
-            : 'bg-slate-800/70 border border-slate-600/50 text-slate-100 rounded-bl-md',
+            ? 'bg-teal-500/20 border border-teal-400/40 text-teal-50 rounded-br-sm'
+            : 'bg-slate-800/70 border border-slate-600/50 text-slate-100 rounded-bl-sm',
         )}
       >
         <div
           className={cn(
-            'text-[10px] font-semibold mb-0.5 uppercase tracking-widest',
+            'text-[9px] font-semibold mb-0.5 uppercase tracking-widest',
             isCaller ? 'text-teal-300/80' : 'text-slate-400',
           )}
         >
           {speakerLabel}
         </div>
-        <p className="text-base font-medium">{spoken}</p>
-        {translated && <p className="mt-1 text-xs text-slate-400 italic">{translated}</p>}
+        <p className="text-sm font-medium">{spoken}</p>
+        {translated && <p className="mt-0.5 text-xs text-slate-400 italic">{translated}</p>}
       </div>
     </div>
   );
@@ -74,10 +74,10 @@ export default function MonitorTranscript() {
 
   return (
     <div className="flex h-full flex-col rounded-2xl border border-[#1E293B] bg-[#0B1220]/80">
-      <div className="shrink-0 border-b border-[#1E293B] px-6 py-3">
+      <div className="shrink-0 border-b border-[#1E293B] px-4 py-2.5">
         <span className="text-sm font-semibold tracking-widest text-slate-300">TRANSCRIPT</span>
       </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3">
         {shown.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-lg text-slate-600">Waiting for conversation…</p>
