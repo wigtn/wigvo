@@ -168,14 +168,14 @@ export default function MonitorPipeline() {
       : null;
 
   return (
-    <div className="flex flex-1 flex-col rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-6 py-7">
-      <div className="flex items-center justify-between mb-4">
+    <div className="flex shrink-0 flex-col rounded-2xl border border-[#1E293B] bg-[#0B1220]/80 px-6 py-4">
+      <div className="flex items-center justify-between mb-3">
         <span className="text-slate-300 text-sm font-semibold tracking-widest">LIVE PIPELINE</span>
         <span className="text-xs text-slate-500">real-time stage tracing</span>
       </div>
 
-      {/* 파이프라인 행들을 카드 세로 중앙에 배치 (위로 몰리지 않게) */}
-      <div className="flex flex-1 flex-col justify-center gap-3">
+      {/* 파이프라인 두 행 — 자연 높이로 컴팩트 (카드를 키우지 않음) */}
+      <div className="flex flex-col gap-2">
       {/* Session A: Caller → Callee (STT → Translate → TTS) */}
       <div className="flex items-center gap-1 overflow-x-auto py-2">
         <span className="text-[10px] text-emerald-400/90 font-bold w-11 shrink-0">A·SEND</span>
