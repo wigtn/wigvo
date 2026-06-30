@@ -62,6 +62,17 @@ export interface MonitorEvent {
   at: number;
 }
 
+// ACTIVITY 로그: 파이프라인이 내린 결정적 DROP/PASS/BARGE-IN을 세션 내내 한 줄씩 누적.
+// (라이브 funnel과 달리 사라지지 않음 — 부스 관전자가 스크롤해서 다시 볼 수 있게)
+export type ActivityKind = 'drop' | 'pass' | 'bargein';
+export interface ActivityLogEntry {
+  id: number;
+  at: number;
+  stage: PipeStageKey;
+  kind: ActivityKind;
+  detail: string;
+}
+
 // 관전 연결 시 call_status 스냅샷에서 받는 통화 메타
 export interface MonitorSnapshot {
   sourceLanguage?: string;
@@ -95,6 +106,7 @@ interface MonitorState {
   metrics: MonitorMetrics | null;
   pipeline: LivePipeline;
   events: MonitorEvent[];
+  activityLog: ActivityLogEntry[]; // 단계별 DROP/PASS 누적 로그 (세션 한정, 스크롤)
   echoBlocked: number; // 에코 흡수(잡아낸) 누적 횟수
   guardBlocked: number; // 환각/가드레일 차단 누적 횟수
   signalCounts: Record<MonitorSignalKey, number>; // ACTIVITY 신호별 누적 횟수
@@ -104,6 +116,9 @@ interface MonitorState {
 
   // 부스 이벤트 피드 (useRelayMonitor가 결정적 순간마다 호출)
   pushEvent: (kind: MonitorEventKind, label: string, signal?: MonitorSignalKey) => void;
+
+  // ACTIVITY 로그 append (useRelayMonitor가 단계별 DROP/PASS 결정마다 호출)
+  logActivity: (stage: PipeStageKey, kind: ActivityKind, detail?: string) => void;
 
   // 파이프라인 신호 (useRelayMonitor가 WS 이벤트로 호출)
   signalA: (phase: APhase, detail?: string) => void;
@@ -122,6 +137,7 @@ const initialState = {
   metrics: null as MonitorMetrics | null,
   pipeline: freshPipeline() as LivePipeline,
   events: [] as MonitorEvent[],
+  activityLog: [] as ActivityLogEntry[],
   echoBlocked: 0,
   guardBlocked: 0,
   signalCounts: {
@@ -149,6 +165,14 @@ export const useMonitorStore = create<MonitorState>((set, get) => ({
       signalCounts: signal
         ? { ...state.signalCounts, [signal]: (state.signalCounts[signal] ?? 0) + 1 }
         : state.signalCounts,
+    }));
+  },
+
+  logActivity: (stage, kind, detail = '') => {
+    const now = Date.now();
+    set((state) => ({
+      // 최근 200줄만 유지 (메모리 가드) — 스크롤로 다시 볼 수 있게 누적
+      activityLog: [...state.activityLog.slice(-199), { id: ++_eventId, at: now, stage, kind, detail }],
     }));
   },
 
