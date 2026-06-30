@@ -267,15 +267,15 @@ Evaluated on **162 instrumented PSTN calls** (169 total, since Feb 23, 2026) for
 
 | Stage | P50 | P95 | Mean | N |
 |-------|----:|----:|-----:|--:|
-| **Session A** (User→Recipient) | **557 ms** | 1156 ms | 617 ms | 814 turns |
-| **Session B E2E** (Recipient→User) | **2868 ms** | 15482 ms | 3997 ms | 744 turns |
-| Session B STT only | 2675 ms | 15547 ms | 3868 ms | 744 turns |
-| Session B Translation only | 104 ms | 1934 ms | 535 ms | 585 turns |
-| First message latency | 1215 ms | 6890 ms | 2081 ms | 162 calls |
+| **Session A** (User→Recipient) | **555 ms** | 1169 ms | 619 ms | 814 turns |
+| **Session B E2E** (Recipient→User) | **2684 ms** | 9963 ms | 3650 ms | 744 turns |
+| Session B STT only | 2601 ms | 9392 ms | 3544 ms | 744 turns |
+| Session B Translation only | 84 ms | 1961 ms | 535 ms | 585 turns |
+| First message latency | 1531 ms | 6585 ms | 2315 ms | 162 calls |
 
-Session A achieves **555 ms median**, within the range for interactive communication. STT (Whisper) dominates Session B latency, accounting for **87.3%** of end-to-end time. The P95 (15482 ms) is driven by PSTN VAD stuck events — server-side VAD on noisy telephone audio occasionally delays `speech_stopped` detection.
+Session A achieves **555 ms median**, within the range for interactive communication. STT (Whisper) dominates Session B latency, accounting for **97.1%** of end-to-end time (STT mean 3544 ms / E2E mean 3650 ms). The P95 (9963 ms) is driven by PSTN VAD stuck events — server-side VAD on noisy telephone audio occasionally delays `speech_stopped` detection.
 
-While Session B's ~2.9 s median exceeds ITU-T G.114's 150 ms one-way threshold, that standard applies to same-language dialogue. A more appropriate baseline is professional simultaneous interpretation, where ear-voice span ranges from **2 to 5 s**; Session B falls at the lower bound.
+While Session B's ~2.7 s median exceeds ITU-T G.114's 150 ms one-way threshold, that standard applies to same-language dialogue. A more appropriate baseline is professional simultaneous interpretation, where ear-voice span ranges from **2 to 5 s**; Session B falls at the lower bound.
 
 <div align="center">
 <img src="docs/paper/figures/figure4_utterance_scatter.png" alt="Utterance Length vs Latency" width="85%" />
@@ -321,12 +321,12 @@ No existing system performs bidirectional cross-lingual speech translation over 
 | Google Duplex | PSTN | | N/D |
 | Vapi | WebRTC/PSTN | | ~965 ms* |
 | Bland.ai | PSTN | | < 400 ms* |
-| **WIGVO Session A** | **PSTN** | **✓** | **557 ms P50** |
-| **WIGVO Session B** | **PSTN** | **✓** | **2868 ms P50** |
+| **WIGVO Session A** | **PSTN** | **✓** | **555 ms P50** |
+| **WIGVO Session B** | **PSTN** | **✓** | **2684 ms P50** |
 
 *Vendor-reported; independent reviews report higher values. All non-WIGVO systems are monolingual (no cross-lingual translation).*
 
-Twilio's industry benchmark for AI voice agents targets 1115 ms median turn gap. Session A (557 ms) falls well within this target; Session B (2868 ms) exceeds it but includes cross-lingual translation that monolingual agents do not perform.
+Twilio's industry benchmark for AI voice agents targets 1115 ms median turn gap. Session A (555 ms) falls well within this target; Session B (2684 ms) exceeds it but includes cross-lingual translation that monolingual agents do not perform.
 
 ---
 
@@ -495,9 +495,9 @@ A real V2V call to a Korean immigration office — English-speaking caller inqui
 |--------|------------------:|------------:|------|
 | **Session A P50** | 555 ms | 611 ms | Consistent within variance |
 | **Session A P95** | 1169 ms | 751 ms | Tighter distribution (6 turns) |
-| **Session B E2E P50** | 2868 ms | 7823 ms | Longer Korean utterances (STT = 97.8% of E2E) |
-| **Session B STT P50** | 2675 ms | 6959 ms | V2V mode — Realtime API handles STT+translate+TTS |
-| **First message** | 1215 ms | 787 ms | Faster cold start |
+| **Session B E2E P50** | 2684 ms | 7823 ms | Longer Korean utterances (STT = 97.1% of E2E) |
+| **Session B STT P50** | 2601 ms | 6959 ms | V2V mode — Realtime API handles STT+translate+TTS |
+| **First message** | 1531 ms | 787 ms | Faster cold start |
 | **Cost/min** | $0.27 | **$0.18** | 33% lower |
 | **Echo loops** | 0 / 148 calls | 0 | Zero tolerance maintained |
 | **Echo gate activations** | 7.0/call | 5 | |
