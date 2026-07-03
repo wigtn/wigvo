@@ -85,12 +85,12 @@ export default function MonitorCallPage() {
 
       {/* 본문: 진행중이면 좌 파이프라인 + 우 자막 / 종료면 자막 전체폭(저장된 기록) */}
       {isActive ? (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr]">
-          <div className="flex min-h-0 flex-col gap-4">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[2.9fr_0.8fr]">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4">
             <MonitorPipeline />
             <MonitorActivityLog />
           </div>
-          <div className="min-h-0">
+          <div className="min-h-0 min-w-0">
             <MonitorTranscript />
           </div>
         </div>

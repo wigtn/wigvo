@@ -20,10 +20,10 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
   const translated = entry.originalText ? entry.text : null;
 
   return (
-    <div className={cn('flex w-full mb-1.5', isCaller ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex w-full mb-2', isCaller ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[80%] rounded-lg px-3 py-1.5 leading-snug',
+          'max-w-[85%] rounded-xl px-4 py-2 leading-snug',
           isCaller
             ? 'bg-teal-500/20 border border-teal-400/40 text-teal-50 rounded-br-sm'
             : 'bg-slate-800/70 border border-slate-600/50 text-slate-100 rounded-bl-sm',
@@ -31,14 +31,14 @@ function Bubble({ entry }: { entry: CaptionEntry }) {
       >
         <div
           className={cn(
-            'text-[9px] font-semibold mb-0.5 uppercase tracking-widest',
+            'text-[10px] font-semibold mb-1 uppercase tracking-widest',
             isCaller ? 'text-teal-300/80' : 'text-slate-400',
           )}
         >
           {speakerLabel}
         </div>
-        <p className="text-sm font-medium">{spoken}</p>
-        {translated && <p className="mt-0.5 text-xs text-slate-400 italic">{translated}</p>}
+        <p className="text-base font-medium">{spoken}</p>
+        {translated && <p className="mt-1 text-sm text-slate-400 italic">{translated}</p>}
       </div>
     </div>
   );
