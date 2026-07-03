@@ -40,7 +40,6 @@ class SessionAHandler:
         on_function_call_result: Callable[[str, dict], Coroutine] | None = None,
         on_transcript_complete: Callable[[str, str], Coroutine] | None = None,
         on_user_transcription: Callable[[str], Coroutine] | None = None,
-        on_user_speech_stopped: Callable[[], Coroutine] | None = None,
         context_prune_keep: int = 1,
     ):
         """
@@ -65,7 +64,6 @@ class SessionAHandler:
         self._on_response_done = on_response_done
         self._on_transcript_complete = on_transcript_complete
         self._on_user_transcription = on_user_transcription
-        self._on_user_speech_stopped = on_user_speech_stopped
         self._guardrail = guardrail
         self._on_guardrail_filler = on_guardrail_filler
         self._on_guardrail_corrected_tts = on_guardrail_corrected_tts
@@ -174,17 +172,6 @@ class SessionAHandler:
         await self._prune_conversation_items(keep_last=self._context_prune_keep)
         self.mark_generating()
         await self.session.commit_audio()
-
-    async def create_user_response(self) -> None:
-        """Server VAD 모드: 자동 커밋된 오디오에 응답만 생성한다 (커밋 없음).
-
-        commit_user_audio()와 달리 commit_audio()를 호출하지 않는다 — server VAD가
-        이미 input_audio_buffer를 커밋했으므로 이중 커밋을 방지한다.
-        prune/타이밍은 _handle_user_speech_stopped에서 이미 수행됨.
-        ⚠️ UNTESTED: 실통화로 turn-taking 검증 필요.
-        """
-        self.mark_generating()
-        await self.session.create_response()
 
     async def send_user_text(self, text: str) -> None:
         """User 텍스트를 Session A에 전달 (Agent Mode / Push-to-Talk).
@@ -448,11 +435,6 @@ class SessionAHandler:
         # Server VAD 모드: 이전 턴 아이템 삭제 (response.create 자동 호출 전)
         await self._prune_conversation_items(keep_last=self._context_prune_keep)
         logger.debug("[SessionA] User speech stopped")
-        # Server VAD 모드: OpenAI가 오디오를 자동 커밋했으므로 파이프라인이 응답 생성을
-        # 트리거한다 (client VAD의 commit 대체). client VAD는 turn_detection=null이라
-        # 이 이벤트 자체가 발생하지 않으므로 콜백은 server VAD에서만 호출됨.
-        if self._on_user_speech_stopped:
-            await self._on_user_speech_stopped()
 
     async def _handle_user_transcription(self, event: dict[str, Any]) -> None:
         """User 음성 STT 결과 (Whisper) → App에 원문 자막으로 전달 + 원문 임시 저장."""

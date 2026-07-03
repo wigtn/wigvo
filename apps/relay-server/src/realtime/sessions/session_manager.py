@@ -115,39 +115,15 @@ class RealtimeSession:
             "turn_detection": (
                 {
                     "type": "server_vad",
-                    # 세션별 VAD 파라미터 (config에 설정 시 우선, 없으면 session_b 기본값 폴백)
-                    "threshold": (
-                        self.config.vad_threshold
-                        if self.config.vad_threshold is not None
-                        else settings.session_b_vad_threshold
-                    ),
-                    "silence_duration_ms": (
-                        self.config.vad_silence_ms
-                        if self.config.vad_silence_ms is not None
-                        else settings.session_b_vad_silence_ms
-                    ),
-                    "prefix_padding_ms": (
-                        self.config.vad_prefix_padding_ms
-                        if self.config.vad_prefix_padding_ms is not None
-                        else settings.session_b_vad_prefix_padding_ms
-                    ),
+                    "threshold": settings.session_b_vad_threshold,
+                    "silence_duration_ms": settings.session_b_vad_silence_ms,
+                    "prefix_padding_ms": settings.session_b_vad_prefix_padding_ms,
                     "create_response": False,
                 }
                 if self.config.vad_mode == VadMode.SERVER
                 else None  # VadMode.LOCAL / CLIENT / PUSH_TO_TALK → null (수동 제어)
             ),
         }
-
-        # 입력 노이즈 리덕션 (GA: audio.input.noise_reduction) — 발신자 마이크 소음 대비.
-        # near_field(헤드셋/이어폰) | far_field(노트북/룸). vad_mode와 무관하게 VAD/STT 이전에 잡음 제거.
-        # ⚠️ 형식은 반드시 객체 {"type": ...} — 문자열로 보내면 세션이 invalid_request_error로 실패.
-        if self.config.noise_reduction and self.config.noise_reduction != "none":
-            audio_input["noise_reduction"] = {"type": self.config.noise_reduction}
-            logger.info(
-                "[%s] input noise_reduction enabled: %s",
-                self.label,
-                self.config.noise_reduction,
-            )
 
         # 2단계 자막: 입력 음성 전사 활성화 (PRD 5.4) — GA에선 audio.input.transcription
         if self.config.input_audio_transcription:
@@ -396,8 +372,7 @@ class DualSessionManager:
         stt_model = "whisper-1"
 
         # Session A: User → 수신자 (PRD 3.2 / M-4)
-        # 발신자 전용 VAD/노이즈 설정 — 에코 게이팅 대상이 아니라 callee와 분리해 튜닝한다.
-        # Client VAD 시 turn_detection=null (클라이언트가 발화 종료 판단); noise_reduction은 vad_mode와 무관하게 적용.
+        # Client VAD 시 turn_detection=null (서버가 아닌 클라이언트가 발화 종료 판단)
         self.session_a = RealtimeSession(
             label="SessionA",
             config=SessionConfig(
@@ -407,10 +382,6 @@ class DualSessionManager:
                 input_audio_format="pcm16",
                 output_audio_format="g711_ulaw",  # Twilio로 출력
                 vad_mode=vad_mode,
-                vad_threshold=settings.session_a_vad_threshold,
-                vad_silence_ms=settings.session_a_vad_silence_ms,
-                vad_prefix_padding_ms=settings.session_a_vad_prefix_padding_ms,
-                noise_reduction=settings.session_a_noise_reduction,
                 input_audio_transcription={"model": stt_model, "language": source_language},
             ),
         )
@@ -426,10 +397,6 @@ class DualSessionManager:
                 input_audio_format="g711_ulaw",  # Twilio에서 입력
                 output_audio_format="pcm16",  # App으로 출력
                 vad_mode=session_b_vad_mode,
-                vad_threshold=settings.session_b_vad_threshold,
-                vad_silence_ms=settings.session_b_vad_silence_ms,
-                vad_prefix_padding_ms=settings.session_b_vad_prefix_padding_ms,
-                # noise_reduction 미설정(None) — callee(PSTN G.711) 파이프라인은 논문 평가 그대로 유지
                 modalities=session_b_modalities,
                 input_audio_transcription={"model": stt_model, "language": target_language},  # 2단계 자막: 원문 STT + 언어 힌트 (PRD 5.4)
             ),
