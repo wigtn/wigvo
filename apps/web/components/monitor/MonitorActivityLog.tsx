@@ -8,7 +8,7 @@
 
 import { useMemo } from 'react';
 import { useMonitorStore, type ActivityStage, type ActivityKind } from '@/hooks/useMonitorStore';
-import { ShieldCheck, Activity, Volume2, FileText, Languages, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Activity, AudioLines, Captions, Languages, CheckCircle2 } from 'lucide-react';
 
 const STAGE_LABEL: Record<ActivityStage, string> = {
   delivered: 'Delivered',
@@ -23,8 +23,8 @@ const STAGE_ICON: Record<ActivityStage, typeof ShieldCheck> = {
   delivered: CheckCircle2,
   echo_gate: ShieldCheck,
   energy_gate: Activity,
-  silero_vad: Volume2,
-  stt: FileText,
+  silero_vad: AudioLines,
+  stt: Captions,
   translate_b: Languages,
 };
 
