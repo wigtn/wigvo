@@ -120,12 +120,7 @@ export async function POST(
           collectedData.source_language || call.sourceLanguage || 'ko',
         target_language:
           collectedData.target_language || call.targetLanguage || 'en',
-        // relay(V2V/T2V) 발신자 VAD: 기본 client(브라우저). NEXT_PUBLIC_RELAY_CALLER_VAD=server 로
-        // OpenAI 서버 VAD 전환(연속 스트리밍). agent 모드는 항상 server. ⚠️ server는 실통화 검증 후 사용.
-        vad_mode:
-          callMode === 'relay'
-            ? ((process.env.NEXT_PUBLIC_RELAY_CALLER_VAD as 'client' | 'server') || 'client')
-            : 'server',
+        vad_mode: callMode === 'relay' ? 'client' : 'server',
         collected_data: collectedData as unknown as Record<string, unknown>,
         system_prompt_override: systemPromptOverride,
         communication_mode: communicationMode,

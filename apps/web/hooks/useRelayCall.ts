@@ -11,7 +11,6 @@ import {
 } from '@/shared/call-types';
 import { useRelayWebSocket } from './useRelayWebSocket';
 import { useClientVad } from './useClientVad';
-import { useWebAudioRecorder } from './useWebAudioRecorder';
 import { useWebAudioPlayer } from './useWebAudioPlayer';
 import { useRelayCallStore, type CallMetrics, type EventLogEntry } from './useRelayCallStore';
 
@@ -285,24 +284,9 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
     }
   }, [ws.status, callStatus]);
 
-  // 발신자 턴 감지 모드: 'server'면 OpenAI 서버 VAD(연속 스트리밍), 기본은 'client'(브라우저 VAD).
-  // NEXT_PUBLIC_RELAY_CALLER_VAD=server 로 활성화. 기본값 client → 기존 동작 그대로(안전 롤백).
-  const serverVad = process.env.NEXT_PUBLIC_RELAY_CALLER_VAD === 'server';
-
-  // audioInput 활성 + 뮤트 아님 + WS 연결 (두 경로 공통 조건)
+  // Client VAD — active only when audioInput is enabled and not muted
   const vadEnabled = modeConfig.audioInput && !isMuted && wsUrl !== null && ws.status === 'connected';
 
-  // Server VAD 모드: 브라우저 VAD 게이팅 없이 전체 오디오를 연속 스트리밍 → OpenAI 서버 VAD가
-  // 턴을 감지·자동 커밋한다. committed는 서버가 판단하므로 클라이언트가 보내지 않는다.
-  // ⚠️ UNTESTED: 실통화로 turn-taking 검증 필수. barge-in(발화 시 재생 중단)은 미구현(서버 이벤트로 후속).
-  useWebAudioRecorder({
-    onChunk: (base64Audio: string) => {
-      ws.sendAudioChunk(base64Audio);
-    },
-    enabled: serverVad && vadEnabled,
-  });
-
-  // Client VAD 모드(기본): 브라우저가 발화 구간만 전송 + committed 신호. server 모드에선 비활성.
   const { isSpeaking } = useClientVad({
     onSpeechAudio: (base64Audio: string) => {
       if (!userSpeakingRef.current) {
@@ -315,7 +299,7 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
       userSpeakingRef.current = false;
       ws.sendVadState('committed');
     },
-    enabled: !serverVad && vadEnabled,
+    enabled: vadEnabled,
   });
 
   // Call duration timer
