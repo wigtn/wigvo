@@ -147,6 +147,12 @@ class SessionConfig(BaseModel):
     vad_mode: VadMode = VadMode.SERVER
     input_audio_transcription: dict[str, str] | None = None  # e.g. {"model": "whisper-1"}
     modalities: list[str] = Field(default_factory=lambda: ["text", "audio"])
+    # Server VAD 파라미터 (vad_mode=SERVER일 때만 적용). None이면 session_b_* 기본값으로 폴백.
+    vad_threshold: float | None = None
+    vad_silence_ms: int | None = None
+    vad_prefix_padding_ms: int | None = None
+    # 입력 노이즈 리덕션 타입: "near_field" | "far_field" | None/"none"(비활성)
+    noise_reduction: str | None = None
 
 
 # --- Twilio Media Stream Events ---
