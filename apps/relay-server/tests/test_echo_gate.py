@@ -629,3 +629,57 @@ class TestEchoGateOnEvent:
         gate._activate()
         gate._deactivate()
         await asyncio.sleep(0)
+
+
+class TestEchoGateDisabled:
+    """echo_gate_enabled=False (핸드셋 모드) — 게이트가 오디오를 전혀 억제하지 않음."""
+
+    def _make_gate(self, enabled: bool):
+        session_b = MagicMock()
+        session_b.clear_input_buffer = AsyncMock()
+        return EchoGateManager(
+            session_b=session_b,
+            local_vad=None,
+            call_metrics=CallMetrics(),
+            echo_margin_s=0.3,
+            max_echo_window_s=1.0,
+            enabled=enabled,
+        )
+
+    def test_disabled_activate_does_not_open_window(self):
+        """enabled=False면 _activate()가 echo window를 열지 않는다."""
+        gate = self._make_gate(enabled=False)
+        gate._activate()
+        assert gate.in_echo_window is False
+        assert gate.is_suppressing is False
+
+    def test_disabled_filter_passes_loud_audio(self):
+        """enabled=False면 activate 이후에도 고에너지 오디오가 그대로 통과(삭제 안 됨)."""
+        gate = self._make_gate(enabled=False)
+        gate._activate()  # no-op
+        loud_audio = bytes([0x00] * 160)  # 고 RMS
+        with patch("src.realtime.pipeline.echo_gate.settings") as mock_settings:
+            mock_settings.echo_energy_threshold_rms = 400.0
+            result = gate.filter_audio(loud_audio)
+        assert result == loud_audio  # silence(0xFF)로 대체되지 않음
+
+    @pytest.mark.asyncio
+    async def test_disabled_on_tts_done_starts_no_settling(self):
+        """enabled=False면 on_tts_done()이 cooldown/settling을 시작하지 않는다."""
+        gate = self._make_gate(enabled=False)
+        gate.on_tts_chunk(160)   # _activate no-op
+        gate.on_tts_done()       # _start_cooldown 스킵
+        await asyncio.sleep(0)
+        assert gate.in_echo_window is False
+        assert gate.is_suppressing is False
+        assert gate.should_process_vad(10.0) is True  # VAD 항상 통과
+
+    def test_enabled_control_absorbs_loud_audio(self):
+        """대조군: enabled=True(기본)면 window 중 첫 고에너지는 흡수(silence)된다."""
+        gate = self._make_gate(enabled=True)
+        gate._activate()
+        loud_audio = bytes([0x00] * 160)
+        with patch("src.realtime.pipeline.echo_gate.settings") as mock_settings:
+            mock_settings.echo_energy_threshold_rms = 400.0
+            result = gate.filter_audio(loud_audio)
+        assert result == b"\xff" * 160  # 흡수됨
