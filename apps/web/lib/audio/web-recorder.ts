@@ -1,47 +1,12 @@
 /**
  * Web Audio API microphone recorder.
  * Captures PCM16 audio chunks via AudioWorklet (ScriptProcessorNode fallback).
- * Noise reduction: high-pass filter + Speex denoiser (WASM AudioWorklet),
- * on top of the browser's built-in noiseSuppression/echoCancellation.
  * Output: base64-encoded PCM16 chunks (1600 samples = 100ms @ 16kHz).
  */
 
-import type { SpeexWorkletNode } from '@sapphi-red/web-noise-suppressor';
 import { arrayBufferToBase64, float32ToPcm16, SAMPLE_RATE } from './pcm16-utils';
 
 const CHUNK_SIZE = 1600; // 100ms @ 16kHz
-
-// Speex denoiser assets copied from @sapphi-red/web-noise-suppressor dist
-// into public/ (AudioWorklet modules and wasm must be fetched by URL).
-const SPEEX_WORKLET_URL = '/noise-suppressor/speexWorklet.js';
-const SPEEX_WASM_URL = '/noise-suppressor/speex.wasm';
-
-// High-pass cutoff: removes low-frequency rumble/hum below the voice band.
-const HIGHPASS_FREQUENCY_HZ = 100;
-
-interface SpeexAssets {
-  SpeexWorkletNode: typeof SpeexWorkletNode;
-  wasmBinary: ArrayBuffer;
-}
-
-// Loaded once per page; recorder instances are recreated per call.
-// The package is imported dynamically because it touches browser-only
-// globals (AudioWorkletNode) at module scope, which breaks SSR.
-let speexAssetsPromise: Promise<SpeexAssets> | null = null;
-
-function loadSpeexAssets(): Promise<SpeexAssets> {
-  if (!speexAssetsPromise) {
-    speexAssetsPromise = (async () => {
-      const mod = await import('@sapphi-red/web-noise-suppressor');
-      const wasmBinary = await mod.loadSpeex({ url: SPEEX_WASM_URL });
-      return { SpeexWorkletNode: mod.SpeexWorkletNode, wasmBinary };
-    })().catch((err) => {
-      speexAssetsPromise = null;
-      throw err;
-    });
-  }
-  return speexAssetsPromise;
-}
 
 export type ChunkCallback = (base64Audio: string, float32Samples: Float32Array) => void;
 
@@ -93,8 +58,6 @@ export class WebAudioRecorder {
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
   private sourceNode: MediaStreamAudioSourceNode | null = null;
-  private highpassNode: BiquadFilterNode | null = null;
-  private speexNode: SpeexWorkletNode | null = null;
   private workletNode: AudioWorkletNode | null = null;
   private scriptProcessorNode: ScriptProcessorNode | null = null;
   private isActive = false;
@@ -134,32 +97,10 @@ export class WebAudioRecorder {
 
     this.sourceNode = this.audioContext.createMediaStreamSource(this.mediaStream);
 
-    // Noise reduction chain: source → high-pass → Speex denoiser → capture.
-    // The Speex stage is best-effort; if its assets fail to load we fall back
-    // to the browser's built-in noiseSuppression only.
-    this.highpassNode = this.audioContext.createBiquadFilter();
-    this.highpassNode.type = 'highpass';
-    this.highpassNode.frequency.value = HIGHPASS_FREQUENCY_HZ;
-    this.sourceNode.connect(this.highpassNode);
-
-    let captureInput: AudioNode = this.highpassNode;
-    try {
-      const speex = await loadSpeexAssets();
-      await this.audioContext.audioWorklet.addModule(SPEEX_WORKLET_URL);
-      this.speexNode = new speex.SpeexWorkletNode(this.audioContext, {
-        wasmBinary: speex.wasmBinary,
-        maxChannels: 1,
-      });
-      this.highpassNode.connect(this.speexNode);
-      captureInput = this.speexNode;
-    } catch {
-      this.speexNode = null;
-    }
-
     // Try AudioWorklet first, fall back to ScriptProcessorNode
-    const workletAvailable = await this.trySetupWorklet(captureInput);
+    const workletAvailable = await this.trySetupWorklet();
     if (!workletAvailable) {
-      this.setupScriptProcessor(captureInput);
+      this.setupScriptProcessor();
     }
 
     this.isActive = true;
@@ -178,17 +119,6 @@ export class WebAudioRecorder {
     if (this.scriptProcessorNode) {
       this.scriptProcessorNode.disconnect();
       this.scriptProcessorNode = null;
-    }
-
-    if (this.speexNode) {
-      this.speexNode.disconnect();
-      this.speexNode.destroy();
-      this.speexNode = null;
-    }
-
-    if (this.highpassNode) {
-      this.highpassNode.disconnect();
-      this.highpassNode = null;
     }
 
     if (this.sourceNode) {
@@ -214,8 +144,8 @@ export class WebAudioRecorder {
     return this.isActive;
   }
 
-  private async trySetupWorklet(captureInput: AudioNode): Promise<boolean> {
-    if (!this.audioContext) return false;
+  private async trySetupWorklet(): Promise<boolean> {
+    if (!this.audioContext || !this.sourceNode) return false;
 
     try {
       const blob = new Blob([WORKLET_PROCESSOR_CODE], { type: 'application/javascript' });
@@ -230,7 +160,7 @@ export class WebAudioRecorder {
         this.emitChunk(samples);
       };
 
-      captureInput.connect(this.workletNode);
+      this.sourceNode.connect(this.workletNode);
       this.workletNode.connect(this.audioContext.destination);
 
       return true;
@@ -239,8 +169,8 @@ export class WebAudioRecorder {
     }
   }
 
-  private setupScriptProcessor(captureInput: AudioNode): void {
-    if (!this.audioContext) return;
+  private setupScriptProcessor(): void {
+    if (!this.audioContext || !this.sourceNode) return;
 
     // Buffer size 4096 is widely supported
     this.scriptProcessorNode = this.audioContext.createScriptProcessor(4096, 1, 1);
@@ -273,7 +203,7 @@ export class WebAudioRecorder {
       outputData.fill(0);
     };
 
-    captureInput.connect(this.scriptProcessorNode);
+    this.sourceNode.connect(this.scriptProcessorNode);
     this.scriptProcessorNode.connect(this.audioContext.destination);
   }
 

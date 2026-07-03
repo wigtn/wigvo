@@ -2,11 +2,6 @@
  * Client-side VAD (Voice Activity Detection).
  * RMS energy-based speech detection with onset/end delays.
  *
- * Thresholds adapt to the ambient noise floor: non-speech frames feed an
- * asymmetric EMA (fast decay, slow attack) and the effective thresholds are
- * `max(configured minimum, noiseFloor × ratio)`. In a quiet room this
- * degenerates to the fixed configured thresholds.
- *
  * State machine:
  *   SILENCE --(speech for speechOnsetDelay)--> SPEECH
  *   SPEECH --(silence for speechEndDelay)--> COMMITTED
@@ -16,26 +11,12 @@
 export type VadState = 'silence' | 'speech' | 'committed';
 
 export interface VadConfig {
-  /** Minimum RMS to enter speech (floor of the adaptive threshold). */
   speechThreshold: number;
-  /** Minimum RMS to count as silence (floor of the adaptive threshold). */
   silenceThreshold: number;
   speechOnsetDelay: number;
   speechEndDelay: number;
   sampleRate: number;
   chunkSize: number;
-  /** Starting noise-floor estimate (RMS). */
-  noiseFloorInitial: number;
-  /** Hard cap on the noise-floor estimate. */
-  noiseFloorMax: number;
-  /** EMA coefficient when RMS drops below the floor (fast adapt down). */
-  noiseFloorDecay: number;
-  /** EMA coefficient when RMS rises above the floor (slow adapt up). */
-  noiseFloorAttack: number;
-  /** Speech threshold = noiseFloor × this ratio (min: speechThreshold). */
-  speechFloorRatio: number;
-  /** Silence threshold = noiseFloor × this ratio (min: silenceThreshold). */
-  silenceFloorRatio: number;
 }
 
 const DEFAULT_VAD_CONFIG: VadConfig = {
@@ -45,12 +26,6 @@ const DEFAULT_VAD_CONFIG: VadConfig = {
   speechEndDelay: 350,
   sampleRate: 16000,
   chunkSize: 1600,
-  noiseFloorInitial: 0.004,
-  noiseFloorMax: 0.04,
-  noiseFloorDecay: 0.3,
-  noiseFloorAttack: 0.05,
-  speechFloorRatio: 3.0,
-  silenceFloorRatio: 1.8,
 };
 
 export interface VadCallbacks {
@@ -67,12 +42,10 @@ export class ClientVAD {
   private speechStartTime = 0;
   private silenceStartTime = 0;
   private currentRms = 0;
-  private noiseFloor: number;
 
   constructor(config?: Partial<VadConfig>, callbacks?: VadCallbacks) {
     this.config = { ...DEFAULT_VAD_CONFIG, ...config };
     this.callbacks = callbacks ?? {};
-    this.noiseFloor = this.config.noiseFloorInitial;
   }
 
   getState(): VadState {
@@ -83,26 +56,6 @@ export class ClientVAD {
     return this.currentRms;
   }
 
-  getNoiseFloor(): number {
-    return this.noiseFloor;
-  }
-
-  /** Effective speech-onset threshold (noise-floor adaptive). */
-  getSpeechThreshold(): number {
-    return Math.max(
-      this.config.speechThreshold,
-      this.noiseFloor * this.config.speechFloorRatio
-    );
-  }
-
-  /** Effective silence threshold (noise-floor adaptive). */
-  getSilenceThreshold(): number {
-    return Math.max(
-      this.config.silenceThreshold,
-      this.noiseFloor * this.config.silenceFloorRatio
-    );
-  }
-
   /**
    * Process Float32 audio samples and update VAD state.
    * @returns current state after processing
@@ -110,12 +63,11 @@ export class ClientVAD {
   processSamples(samples: Float32Array): VadState {
     const rms = this.calculateRms(samples);
     this.currentRms = rms;
-    this.updateNoiseFloor(rms);
     const now = Date.now();
 
     switch (this.state) {
       case 'silence':
-        if (rms >= this.getSpeechThreshold()) {
+        if (rms >= this.config.speechThreshold) {
           if (this.speechStartTime === 0) {
             this.speechStartTime = now;
           }
@@ -129,7 +81,7 @@ export class ClientVAD {
         break;
 
       case 'speech':
-        if (rms < this.getSilenceThreshold()) {
+        if (rms < this.config.silenceThreshold) {
           if (this.silenceStartTime === 0) {
             this.silenceStartTime = now;
           }
@@ -149,27 +101,12 @@ export class ClientVAD {
     return this.state;
   }
 
-  /** Reset to silence state. Keeps the learned noise floor. */
+  /** Reset to silence state. */
   reset(): void {
     this.transition('silence');
     this.speechStartTime = 0;
     this.silenceStartTime = 0;
     this.currentRms = 0;
-  }
-
-  /**
-   * Track the ambient noise floor from frames classified as non-speech.
-   * Speech-level frames are excluded so talking doesn't inflate the floor;
-   * decay is fast so the floor recovers quickly when noise stops.
-   */
-  private updateNoiseFloor(rms: number): void {
-    if (rms >= this.getSpeechThreshold()) return;
-    const coeff =
-      rms < this.noiseFloor
-        ? this.config.noiseFloorDecay
-        : this.config.noiseFloorAttack;
-    this.noiseFloor += (rms - this.noiseFloor) * coeff;
-    this.noiseFloor = Math.min(this.noiseFloor, this.config.noiseFloorMax);
   }
 
   private calculateRms(samples: Float32Array): number {
