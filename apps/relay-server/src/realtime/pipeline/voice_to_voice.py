@@ -91,6 +91,7 @@ class VoiceToVoicePipeline(BasePipeline):
             on_function_call_result=self._on_function_call_result,
             on_transcript_complete=self._on_turn_complete,
             on_user_transcription=self._on_user_transcription,
+            on_user_speech_stopped=self._on_server_vad_speech_stopped,
         )
 
         # Session B 핸들러: 수신자 -> User
@@ -289,6 +290,26 @@ class VoiceToVoicePipeline(BasePipeline):
         )
         await self.context_manager.inject_context(self.dual_session.session_a)
         await self.session_a.commit_user_audio()
+
+    async def _on_server_vad_speech_stopped(self) -> None:
+        """Server VAD(Session A) 모드: 발신자 발화 종료 → 응답 생성.
+
+        client VAD의 handle_user_audio_commit() 대체 경로. server VAD가 오디오를
+        자동 커밋하므로 commit은 생략하고 pre-response 플로우 + create_response만 수행한다.
+        client VAD(turn_detection=null)에서는 speech_stopped 이벤트가 없어 호출되지 않음.
+        ⚠️ UNTESTED: 실통화로 turn-taking / echo 타이밍 검증 필수.
+        """
+        if self.recovery_a.is_recovering or self.recovery_a.is_degraded:
+            return
+        self.echo_gate.pre_activate()
+        await self._app_ws_send(
+            WsMessage(
+                type=WsMessageType.TRANSLATION_STATE,
+                data={"state": "processing"},
+            )
+        )
+        await self.context_manager.inject_context(self.dual_session.session_a)
+        await self.session_a.create_user_response()
 
     async def handle_user_text(self, text: str) -> None:
         self.call.transcript_history.append({"role": "user", "text": text})
