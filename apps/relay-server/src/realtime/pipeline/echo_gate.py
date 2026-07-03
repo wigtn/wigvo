@@ -45,10 +45,14 @@ class EchoGateManager:
         max_echo_window_s: float | None = 1.2,
         on_breakthrough: Callable[[], Coroutine] | None = None,
         on_event: Callable[[str, str, dict], Any] | None = None,
+        enabled: bool = True,
     ):
         self._session_b = session_b
         self._local_vad = local_vad
         self._call_metrics = call_metrics
+        # 게이트 전체 활성화 여부. False면 어떤 오디오도 억제하지 않고 그대로 통과시킨다
+        # (핸드셋 등 음향 에코가 없는 경로용). settings.echo_gate_enabled에서 주입.
+        self._enabled = enabled
         self._echo_margin_s = echo_margin_s
         self._max_echo_window_s = max_echo_window_s
         self._on_breakthrough = on_breakthrough
@@ -159,6 +163,8 @@ class EchoGateManager:
 
     def on_tts_done(self) -> None:
         """TTS 응답 완료 시 호출 — 동적 cooldown 시작."""
+        if not self._enabled:
+            return
         self._start_cooldown()
 
     def on_recipient_speech(self) -> None:
@@ -173,7 +179,10 @@ class EchoGateManager:
           - RMS > threshold, 두 번째+ → 진짜 발화 → echo gate break (원본 전달)
           - RMS <= threshold → mu-law silence(0xFF)로 대체
         Echo window 외: 원본 그대로 전달.
+        게이트 비활성(_enabled=False)이면 항상 원본 그대로 전달(방어적 가드).
         """
+        if not self._enabled:
+            return audio_bytes
         if self._in_echo_window:
             rms = _ulaw_rms(audio_bytes)
             if rms > settings.echo_energy_threshold_rms:
@@ -240,6 +249,8 @@ class EchoGateManager:
 
     def _activate(self) -> None:
         """Echo window를 활성화한다."""
+        if not self._enabled:
+            return
         if not self._in_echo_window:
             logger.info("Echo window activated — silence injection for Session B input")
             self._call_metrics.echo_suppressions += 1
