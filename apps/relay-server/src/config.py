@@ -99,19 +99,6 @@ class Settings(BaseSettings):
     session_b_vad_prefix_padding_ms: int = 300  # 발화 시작 전 포함할 오디오 (기본 300ms)
     session_b_min_speech_ms: int = 250  # 최소 발화 길이 — 한국어 단어("여보세요?" 290ms) 통과, 순수 노이즈(<200ms) 차단
 
-    # Session A VAD 설정 (발신자 음성 감지 — callee와 분리된 발신자 전용 튜닝)
-    # 발신자는 에코 게이팅 대상이 아니고 브라우저 오디오(깨끗)라 callee(0.8)와 목표가 다르다.
-    # 시끄러운 환경 데모 시 session_a_vad_threshold를 상향(0.7~0.9)하여 소음 오발화를 차단한다.
-    # (server_vad 파라미터는 Session A가 server VAD로 동작할 때만 적용됨)
-    session_a_vad_threshold: float = 0.5
-    session_a_vad_silence_ms: int = 500
-    session_a_vad_prefix_padding_ms: int = 300
-    # 입력 노이즈 리덕션(GA: audio.input.noise_reduction): near_field(헤드셋/이어폰) | far_field(노트북/룸) | none
-    # VAD/STT 이전 단계에서 잡음 제거. vad_mode와 무관하게 적용(client VAD에서도 유효).
-    # 기본 off(none) — main 자동배포가 동작 무변화가 되도록. 부스 테스트 시 env로 켠다:
-    #   SESSION_A_NOISE_REDUCTION=near_field  (⚠️ 형식 오류 시 세션 실패 → 실통화 검증 후 사용)
-    session_a_noise_reduction: str = "none"
-
     # Local VAD (Silero VAD + RMS Energy Gate)
     local_vad_enabled: bool = True
     local_vad_rms_threshold: float = 200.0  # PSTN 배경 소음(50-200) 위로 설정하여 오감지 방지
