@@ -214,7 +214,11 @@ export default function MonitorPipeline() {
         />
         <Arrow active={aDelivered} />
         <EndPoint label="Callee" Icon={Phone} active={aDelivered} />
-        <span className="ml-2 text-xs text-emerald-400/80 font-mono shrink-0">
+        <span
+          className={`ml-2 text-xs text-emerald-400/80 font-mono shrink-0 transition-opacity duration-500 ${
+            aHot ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           {latencyBadge(metrics?.session_a_latencies_ms, '~555ms')}
         </span>
       </div>
@@ -269,7 +273,11 @@ export default function MonitorPipeline() {
             </span>
           )}
         </span>
-        <span className="ml-2 text-xs text-cyan-400/80 font-mono shrink-0">
+        <span
+          className={`ml-2 text-xs text-cyan-400/80 font-mono shrink-0 transition-opacity duration-500 ${
+            bAnyHot ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
           {latencyBadge(metrics?.session_b_e2e_latencies_ms, '~2684ms')}
         </span>
       </div>
