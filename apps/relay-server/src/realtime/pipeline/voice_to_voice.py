@@ -63,6 +63,7 @@ class VoiceToVoicePipeline(BasePipeline):
         self.twilio_handler = twilio_handler
         self._app_ws_send = app_ws_send
         self._call_timer_task: asyncio.Task | None = None
+        self._first_message_fallback_task: asyncio.Task | None = None
         self._prompt_a = prompt_a
         self._prompt_b = prompt_b
 
@@ -205,6 +206,9 @@ class VoiceToVoicePipeline(BasePipeline):
     async def start(self) -> None:
         self.call.started_at = time.time()
         self._call_timer_task = asyncio.create_task(self._call_duration_timer())
+        self._first_message_fallback_task = asyncio.create_task(
+            self._first_message_fallback_timer()
+        )
         self._b_output_drain_task = asyncio.create_task(self._drain_b_output())
         self.recovery_a.start_monitoring()
         self.recovery_b.start_monitoring()
@@ -215,6 +219,13 @@ class VoiceToVoicePipeline(BasePipeline):
             self._call_timer_task.cancel()
             try:
                 await self._call_timer_task
+            except asyncio.CancelledError:
+                pass
+
+        if self._first_message_fallback_task:
+            self._first_message_fallback_task.cancel()
+            try:
+                await self._first_message_fallback_task
             except asyncio.CancelledError:
                 pass
 
@@ -620,6 +631,35 @@ class VoiceToVoicePipeline(BasePipeline):
 
     async def _notify_app(self, msg: WsMessage) -> None:
         await self._app_ws_send(msg)
+
+    # --- First Message Fallback ---
+
+    async def _first_message_fallback_timer(self) -> None:
+        """수신자 발화가 감지되지 않아도 N초 후 인사말을 강제 발사한다.
+
+        수신자가 말없이 받거나 첫 발화가 Local VAD에 안 잡히면 인사말과
+        pre-greeting 오디오 게이트가 영원히 안 열리는 데드락이 된다.
+        media stream 연결(= 통신사 수신 확정) 시점부터 타이머를 돌리고,
+        on_recipient_speech_detected가 first_message_sent 플래그로 멱등이라
+        VAD 경로와 경합해도 인사말은 정확히 1회만 나간다.
+        """
+        try:
+            timeout_s = settings.first_message_fallback_s
+            if timeout_s <= 0:
+                return
+            await asyncio.sleep(timeout_s)
+            if self.call.first_message_sent:
+                return
+            logger.info(
+                "No recipient speech within %.1fs — forcing AI greeting (call=%s)",
+                timeout_s,
+                self.call.call_id,
+            )
+            await self.first_message.on_recipient_speech_detected()
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception("First message fallback timer failed")
 
     # --- 통화 시간 제한 ---
 

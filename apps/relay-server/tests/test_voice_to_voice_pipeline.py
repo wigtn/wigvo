@@ -941,6 +941,59 @@ class TestVoiceToVoiceCallTimer:
 
 
 # ===========================================================================
+# TestVoiceToVoiceFirstMessageFallback
+# ===========================================================================
+
+
+class TestVoiceToVoiceFirstMessageFallback:
+    """수신자 발화 미감지 시 인사말 fallback 타이머 검증.
+
+    수신자가 말없이 받거나 첫 발화가 VAD에 안 잡히면 인사말 게이트가
+    영원히 안 열리는 데드락 방지 — N초 후 인사말 강제 발사.
+    """
+
+    @pytest.mark.asyncio
+    async def test_fallback_fires_greeting_when_no_recipient_speech(self):
+        """timeout까지 수신자 발화가 없으면 인사말을 강제 발사한다."""
+        router = _make_router()
+        router.first_message = MagicMock()
+        router.first_message.on_recipient_speech_detected = AsyncMock()
+
+        with patch("src.realtime.pipeline.voice_to_voice.settings") as mock_s:
+            mock_s.first_message_fallback_s = 0.01
+            await router._first_message_fallback_timer()
+
+        router.first_message.on_recipient_speech_detected.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_fallback_skipped_if_greeting_already_sent(self):
+        """VAD 경로가 먼저 인사말을 발사했으면 fallback은 아무것도 안 한다."""
+        router = _make_router()
+        router.call.first_message_sent = True
+        router.first_message = MagicMock()
+        router.first_message.on_recipient_speech_detected = AsyncMock()
+
+        with patch("src.realtime.pipeline.voice_to_voice.settings") as mock_s:
+            mock_s.first_message_fallback_s = 0.01
+            await router._first_message_fallback_timer()
+
+        router.first_message.on_recipient_speech_detected.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_fallback_disabled_when_nonpositive(self):
+        """first_message_fallback_s <= 0 이면 fallback이 비활성화된다."""
+        router = _make_router()
+        router.first_message = MagicMock()
+        router.first_message.on_recipient_speech_detected = AsyncMock()
+
+        with patch("src.realtime.pipeline.voice_to_voice.settings") as mock_s:
+            mock_s.first_message_fallback_s = 0
+            await router._first_message_fallback_timer()
+
+        router.first_message.on_recipient_speech_detected.assert_not_called()
+
+
+# ===========================================================================
 # TestVoiceToVoiceSessionBTranslation
 # ===========================================================================
 
