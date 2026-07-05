@@ -184,6 +184,11 @@ class TestVoiceToVoicePipelineCreation:
         assert router.recovery_a is not None
         assert router.recovery_b is not None
 
+    def test_first_message_exact_utterance(self):
+        """First Message 핸들러가 exact utterance 모드로 생성된다 (인사말 고정)."""
+        router = _make_router()
+        assert router.first_message._use_exact_utterance is True
+
 
 # ===========================================================================
 # TestVoiceToVoiceUserAudio
