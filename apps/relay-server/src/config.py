@@ -87,6 +87,10 @@ class Settings(BaseSettings):
     whisper_model: str = "whisper-1"
 
     # Echo Gate (에코 피드백 루프 차단)
+    # 전체 on/off: 핸드셋/헤드셋처럼 음향 에코 경로가 없는 통화에서는 OFF 권장.
+    # OFF 시 Session B 입력에 silence injection을 하지 않아 수신자 발화 삭제를 방지한다.
+    # 기본 True(현행 동작 유지). 스피커폰 통화가 섞이면 켜둘 것(에코 재번역 루프 방지).
+    echo_gate_enabled: bool = True
     echo_gate_cooldown_s: float = 2.5  # TTS 완료 후 에코 소멸 대기 (레거시 폴백용)
     echo_post_settling_s: float = 3.0  # Legacy: EchoGateManager에서 미사용 (dynamic settling으로 대체)
     # Dynamic Settling (Silero VAD double gate)
