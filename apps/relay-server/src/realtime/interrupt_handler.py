@@ -50,15 +50,21 @@ class InterruptHandler:
         self._recipient_done_event = asyncio.Event()
         self._recipient_done_event.set()  # 초기 상태: 발화 중 아님
 
-    async def on_recipient_speech_started(self) -> None:
+    async def on_recipient_speech_started(self, allow_interrupt: bool = True) -> None:
         """수신자가 말하기 시작했을 때.
 
         Session A가 TTS를 생성 중이면 즉시 중단한다 (Case 1, 4).
         이전에 보낸 TTS가 Twilio에서 재생 중일 수 있으므로, 항상 Twilio 버퍼를 클리어한다.
+
+        allow_interrupt=False면 발화 상태 추적만 하고 cancel/clear는 하지 않는다
+        (AI 인사말 보호막 — 안내문 재생 중 수신자 발화로 안내문이 잘리는 것 방지).
         """
         self._recipient_speaking = True
         self._last_speech_stopped_at = 0.0  # 쿨다운 리셋
         self._recipient_done_event.clear()
+
+        if not allow_interrupt:
+            return
 
         if self.session_a.is_generating:
             logger.info("Interrupt: recipient speech while Session A generating — cancelling")
