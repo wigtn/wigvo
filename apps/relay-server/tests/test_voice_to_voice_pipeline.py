@@ -202,6 +202,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_sent_to_session_a(self):
         """handle_user_audio가 ring_buffer_a에 쓰고 session_a.send_user_audio를 호출한다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.send_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
@@ -216,6 +217,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_skipped_during_recovery(self):
         """recovery_a.is_recovering=True → session_a.send_user_audio가 호출되지 않는다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.send_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = True
@@ -230,6 +232,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_degraded_mode(self):
         """recovery_a.is_degraded=True → recovery_a.process_degraded_audio를 호출한다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.send_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
@@ -246,6 +249,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_commit_sends_processing_state(self):
         """handle_user_audio_commit이 TRANSLATION_STATE processing을 전송한다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.commit_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
@@ -264,6 +268,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_commit_injects_context(self):
         """handle_user_audio_commit이 context_manager.inject_context를 호출한다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.commit_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
@@ -279,6 +284,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_commit_calls_session_a_commit(self):
         """handle_user_audio_commit이 session_a.commit_user_audio를 호출한다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.commit_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
@@ -294,6 +300,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_commit_pre_activates_echo_gate(self):
         """handle_user_audio_commit이 echo_gate를 선제적으로 활성화한다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.commit_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
@@ -313,6 +320,7 @@ class TestVoiceToVoiceUserAudio:
     async def test_audio_commit_skipped_during_recovery(self):
         """recovery 중 handle_user_audio_commit은 아무것도 하지 않는다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.commit_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = True
@@ -324,9 +332,47 @@ class TestVoiceToVoiceUserAudio:
         router._app_ws_send.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_audio_gated_before_recipient_answers(self):
+        """수신자 첫 발화 전(first_message_sent=False)의 caller 오디오는 전부 무시된다.
+
+        연결 직전 발신자 마이크 소음이 Session A에서 안내문으로 환각되어
+        공식 인사말보다 먼저 재생되는 것을 차단한다.
+        """
+        router = _make_router()
+        router.session_a.send_user_audio = AsyncMock()
+        router.recovery_a = MagicMock()
+        router.recovery_a.is_recovering = False
+        router.recovery_a.is_degraded = False
+
+        assert router.call.first_message_sent is False  # 기본값 = 게이트 닫힘
+
+        audio_b64 = base64.b64encode(b"\x00\x01\x02\x03").decode()
+        await router.handle_user_audio(audio_b64)
+
+        router.session_a.send_user_audio.assert_not_called()
+        assert router.ring_buffer_a.total_written == 0  # 복구 재전송 경로도 차단
+
+    @pytest.mark.asyncio
+    async def test_audio_commit_gated_before_recipient_answers(self):
+        """수신자 첫 발화 전에는 수동 커밋도 무시된다 (빈 버퍼 커밋 방지)."""
+        router = _make_router()
+        router.session_a.commit_user_audio = AsyncMock()
+        router.recovery_a = MagicMock()
+        router.recovery_a.is_recovering = False
+        router.recovery_a.is_degraded = False
+
+        assert router.call.first_message_sent is False  # 기본값 = 게이트 닫힘
+
+        await router.handle_user_audio_commit()
+
+        router.session_a.commit_user_audio.assert_not_called()
+        router._app_ws_send.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_ring_buffer_a_write(self):
         """base64 디코딩된 바이트가 ring_buffer_a에 기록된다."""
         router = _make_router()
+        router.call.first_message_sent = True  # 인사말 게이트 오픈
         router.session_a.send_user_audio = AsyncMock()
         router.recovery_a = MagicMock()
         router.recovery_a.is_recovering = False
