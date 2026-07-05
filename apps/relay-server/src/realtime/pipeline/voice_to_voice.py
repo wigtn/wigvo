@@ -45,6 +45,14 @@ from src.types import (
 
 logger = logging.getLogger(__name__)
 
+# Session A → Twilio 출력 포맷(g711_ulaw, 8kHz mono)의 초당 바이트 수.
+# 인사말 보호막의 예상 재생 시간 계산에 사용.
+_G711_BYTES_PER_SEC = 8000
+# 재생 시작이 relay 전송보다 늦는 만큼(네트워크 + Twilio jitter buffer) 보호막 여유
+_GREETING_PLAYBACK_MARGIN_S = 0.5
+# 보호막 최대 유지 시간 — 세션 드랍 등으로 done이 안 와도 인터럽트가 영구 정지되지 않도록
+_GREETING_SHIELD_MAX_S = 15.0
+
 
 class VoiceToVoicePipeline(BasePipeline):
     """양방향 음성 번역 파이프라인 (EchoGateManager + Interrupt + Recovery)."""
@@ -152,6 +160,16 @@ class VoiceToVoicePipeline(BasePipeline):
         self._user_audio_chunk_count = 0
         # 인사말 게이트로 드랍된 pre-greeting 오디오 청크 수 (첫 드랍 시 1회 로깅)
         self._pre_greeting_drops = 0
+
+        # AI 인사말 보호막: 안내문은 무조건 완주해야 한다.
+        # 인사말은 수신자 첫 발화 "시작" 순간 트리거되므로, TTS 청크가
+        # is_recipient_speaking(발화 중 + 쿨다운) 드랍에 걸려 앞부분이 삭제되고,
+        # 재생 중 수신자 재발화 시 인터럽트 clear로 뒷부분이 잘린다.
+        # 발사 시점부터 예상 재생 완료 시각까지 두 경로를 모두 우회한다.
+        self._greeting_active = False  # 인사말 응답 생성 중 (done 콜백에서 해제)
+        self._greeting_activated_at = 0.0  # 보호막 활성화 시각 (최대 시간 강제 해제용)
+        self._greeting_first_chunk_at = 0.0  # 첫 TTS 청크 시각 (재생 시작 추정)
+        self._greeting_bytes = 0  # 누적 오디오 바이트 (g711 8000 bytes/s)
 
         # Pre-speech buffer: SPEAKING 전환 전 오디오 프레임 보존 (200ms = 20ms × 10)
         self._pre_speech_buf: deque[bytes] = deque(maxlen=10)
@@ -409,9 +427,36 @@ class VoiceToVoicePipeline(BasePipeline):
 
     # --- Session A 콜백 ---
 
+    def _greeting_shield_active(self) -> bool:
+        """인사말 보호막 활성 여부 — 생성 중이거나 예상 재생이 끝나기 전.
+
+        세션 드랍 등으로 done 이벤트가 유실돼도 _GREETING_SHIELD_MAX_S가
+        지나면 강제 해제되어 인터럽트가 영구 정지되지 않는다.
+        """
+        now = time.monotonic()
+        if (
+            self._greeting_activated_at > 0
+            and now - self._greeting_activated_at > _GREETING_SHIELD_MAX_S
+        ):
+            return False
+        if self._greeting_active:
+            return True
+        if self._greeting_first_chunk_at > 0:
+            playback_end = (
+                self._greeting_first_chunk_at
+                + self._greeting_bytes / _G711_BYTES_PER_SEC
+                + _GREETING_PLAYBACK_MARGIN_S
+            )
+            return now < playback_end
+        return False
+
     async def _on_session_a_tts(self, audio_bytes: bytes) -> None:
-        if self.interrupt.is_recipient_speaking:
+        if self.interrupt.is_recipient_speaking and not self._greeting_shield_active():
             return
+        if self._greeting_active:
+            if self._greeting_first_chunk_at == 0.0:
+                self._greeting_first_chunk_at = time.monotonic()
+            self._greeting_bytes += len(audio_bytes)
         is_first = self.echo_gate.on_tts_chunk(len(audio_bytes))
         if is_first:
             # 첫 메시지 레이턴시 측정 (pipeline start → first TTS to Twilio)
@@ -444,6 +489,11 @@ class VoiceToVoicePipeline(BasePipeline):
         )
 
     async def _on_session_a_done(self) -> None:
+        # 인사말 응답 종료 — 이후에는 예상 재생 완료 시각까지만 보호막 유지.
+        # 단, 인사말 오디오가 아직 안 나왔으면(first_chunk 미기록) 이 done은
+        # 인사말 이전 응답(발신자 텍스트/취소된 환각)의 것이므로 해제하지 않는다.
+        if self._greeting_active and self._greeting_first_chunk_at > 0:
+            self._greeting_active = False
         self.echo_gate.on_tts_done()
         await self._app_ws_send(
             WsMessage(
@@ -572,9 +622,20 @@ class VoiceToVoicePipeline(BasePipeline):
             self.echo_gate.on_recipient_speech()
 
         if not self.call.first_message_sent:
+            self._greeting_active = True  # 인사말 보호막 — 첫 TTS 청크 전에 활성화
+            self._greeting_activated_at = time.monotonic()
             await self.first_message.on_recipient_speech_detected()
         else:
-            await self.interrupt.on_recipient_speech_started()
+            shielded = self._greeting_shield_active()
+            if shielded:
+                logger.info(
+                    "[Greeting shield] Recipient speech during AI greeting — "
+                    "interrupt suppressed (call=%s)",
+                    self.call.call_id,
+                )
+            await self.interrupt.on_recipient_speech_started(
+                allow_interrupt=not shielded
+            )
 
     async def _on_recipient_stopped(self) -> None:
         await self.context_manager.inject_context(self.dual_session.session_b)
@@ -655,6 +716,8 @@ class VoiceToVoicePipeline(BasePipeline):
                 timeout_s,
                 self.call.call_id,
             )
+            self._greeting_active = True  # 인사말 보호막 (VAD 경로와 동일)
+            self._greeting_activated_at = time.monotonic()
             await self.first_message.on_recipient_speech_detected()
         except asyncio.CancelledError:
             pass

@@ -994,6 +994,118 @@ class TestVoiceToVoiceFirstMessageFallback:
 
 
 # ===========================================================================
+# TestVoiceToVoiceGreetingShield
+# ===========================================================================
+
+
+class TestVoiceToVoiceGreetingShield:
+    """AI 인사말 보호막 검증 — 안내문은 무조건 완주해야 한다.
+
+    인사말은 수신자 첫 발화 시작 순간 트리거되므로, TTS 청크가
+    is_recipient_speaking(발화 중 + 1.5s 쿨다운) 드랍 로직에 걸려
+    앞부분이 통째로 삭제되는 문제(prod 콜 0b76c79f/8ee94fdc)를 차단한다.
+    """
+
+    @pytest.mark.asyncio
+    async def test_shield_activated_on_greeting_dispatch(self):
+        """수신자 첫 발화 → 인사말 발사와 동시에 보호막이 켜진다."""
+        router = _make_router()
+        router.first_message.on_recipient_speech_detected = AsyncMock()
+        router.interrupt = MagicMock()
+
+        await router._on_recipient_started()
+
+        assert router._greeting_shield_active() is True
+
+    @pytest.mark.asyncio
+    async def test_greeting_tts_not_dropped_while_recipient_speaking(self):
+        """보호막 활성 중에는 수신자 발화 중이어도 인사말 TTS가 전송된다."""
+        router = _make_router()
+        router.interrupt = MagicMock()
+        router.interrupt.is_recipient_speaking = True
+        router._greeting_active = True
+
+        await router._on_session_a_tts(b"\xFF" * 800)
+
+        router.twilio_handler.send_audio.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_normal_tts_dropped_while_recipient_speaking(self):
+        """보호막이 없으면 기존대로 수신자 발화 중 TTS는 드랍된다."""
+        router = _make_router()
+        router.interrupt = MagicMock()
+        router.interrupt.is_recipient_speaking = True
+
+        await router._on_session_a_tts(b"\xFF" * 800)
+
+        router.twilio_handler.send_audio.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_interrupt_clear_suppressed_during_shield(self):
+        """보호막 활성 중 수신자 발화는 인터럽트(cancel + Twilio clear)를 발동하지 않는다."""
+        router = _make_router()
+        router.call.first_message_sent = True
+        router.interrupt = MagicMock()
+        router.interrupt.on_recipient_speech_started = AsyncMock()
+        router._greeting_active = True
+
+        await router._on_recipient_started()
+
+        router.interrupt.on_recipient_speech_started.assert_awaited_once_with(
+            allow_interrupt=False
+        )
+
+    @pytest.mark.asyncio
+    async def test_shield_expires_after_estimated_playback(self):
+        """인사말 응답 종료 + 예상 재생 시간(+마진)이 지나면 보호막이 풀린다."""
+        router = _make_router()
+        router.interrupt = MagicMock()
+        router.interrupt.is_recipient_speaking = True
+        router._greeting_active = True
+
+        with patch(
+            "src.realtime.pipeline.voice_to_voice._GREETING_PLAYBACK_MARGIN_S", 0.0
+        ):
+            # 인사말 청크 0.1초 분량(g711 8000 bytes/s) 전송 후 응답 종료
+            await router._on_session_a_tts(b"\xFF" * 800)
+            router._greeting_active = False  # _on_session_a_done 시뮬레이션
+
+            await asyncio.sleep(0.15)  # 예상 재생(0.1s) 경과
+
+            assert router._greeting_shield_active() is False
+            router.twilio_handler.send_audio.reset_mock()
+            await router._on_session_a_tts(b"\xFF" * 800)
+            router.twilio_handler.send_audio.assert_not_called()  # 드랍 정상 복귀
+
+    @pytest.mark.asyncio
+    async def test_done_before_greeting_audio_keeps_shield(self):
+        """인사말 오디오가 나오기 전 도착한 이전 응답의 done은 보호막을 해제하지 않는다.
+
+        수신자 응답 직전 발신자 텍스트/환각 응답의 response.done이 인사말보다
+        먼저 도착해 보호막을 조기 해제하는 레이스 방지.
+        """
+        router = _make_router()
+        router.interrupt = MagicMock()
+        router.interrupt.is_recipient_speaking = False
+        router._greeting_active = True  # 인사말 발사됨, 아직 오디오 청크 없음
+
+        await router._on_session_a_done()  # 이전 응답의 done
+
+        assert router._greeting_shield_active() is True
+
+    @pytest.mark.asyncio
+    async def test_shield_hard_cap(self):
+        """세션 드랍 등으로 done이 안 와도 보호막은 최대 시간 후 강제 해제된다."""
+        import time as _time
+
+        router = _make_router()
+        router._greeting_active = True
+        router._greeting_activated_at = _time.monotonic() - 60  # 활성화 60초 경과
+
+        assert router._greeting_shield_active() is False
+
+
+# ===========================================================================
 # TestVoiceToVoiceSessionBTranslation
 # ===========================================================================
 
