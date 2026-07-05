@@ -108,6 +108,7 @@ class TestLoopbackCall:
     async def test_user_audio_to_session_a(self):
         """User 오디오가 Session A의 RealtimeSession에 전달된다."""
         pipeline, dual, _, _ = _make_pipeline()
+        pipeline.call.first_message_sent = True  # 인사말 게이트 오픈
         audio_bytes = b"\x00\x01\x02" * 50
         audio_b64 = base64.b64encode(audio_bytes).decode()
 

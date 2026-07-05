@@ -149,6 +149,8 @@ class VoiceToVoicePipeline(BasePipeline):
 
         # User audio RMS logging (주기적 샘플링)
         self._user_audio_chunk_count = 0
+        # 인사말 게이트로 드랍된 pre-greeting 오디오 청크 수 (첫 드랍 시 1회 로깅)
+        self._pre_greeting_drops = 0
 
         # Pre-speech buffer: SPEAKING 전환 전 오디오 프레임 보존 (200ms = 20ms × 10)
         self._pre_speech_buf: deque[bytes] = deque(maxlen=10)
@@ -259,6 +261,19 @@ class VoiceToVoicePipeline(BasePipeline):
     # --- User App -> Session A ---
 
     async def handle_user_audio(self, audio_b64: str) -> None:
+        # 인사말 게이트: 수신자 첫 발화(→ 공식 인사말 발사) 전의 caller 오디오는
+        # 전부 버린다. 연결 직전 발신자 마이크 소음이 Session A에서 안내문으로
+        # 환각 생성되어 공식 인사말보다 먼저 재생되는 문제 차단.
+        # ring buffer 앞에서 드랍하므로 recovery 재전송으로도 되살아나지 않는다.
+        if not self.call.first_message_sent:
+            if self._pre_greeting_drops == 0:
+                logger.info(
+                    "[Gate] Dropping pre-greeting user audio (call=%s)",
+                    self.call.call_id,
+                )
+            self._pre_greeting_drops += 1
+            return
+
         audio_bytes = base64.b64decode(audio_b64)
         seq = self.ring_buffer_a.write(audio_bytes)
 
@@ -280,6 +295,9 @@ class VoiceToVoicePipeline(BasePipeline):
         self.ring_buffer_a.mark_sent(seq)
 
     async def handle_user_audio_commit(self) -> None:
+        # 인사말 게이트: 수신자 응답 전에는 커밋할 오디오도 없다 (빈 버퍼 커밋 방지)
+        if not self.call.first_message_sent:
+            return
         if self.recovery_a.is_recovering or self.recovery_a.is_degraded:
             return
         # 선제적 Echo Gate 활성화: commit → TTS 생성(1-2s) 사이 에코 누출 방지
