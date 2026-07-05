@@ -28,7 +28,7 @@ class FirstMessageHandler:
         call: ActiveCall,
         session_a: SessionAHandler,
         on_notify_app: Callable[[WsMessage], Coroutine],
-        use_exact_utterance: bool = False,
+        use_exact_utterance: bool = True,
     ):
         self.call = call
         self.session_a = session_a
@@ -67,10 +67,12 @@ class FirstMessageHandler:
             )
 
             if self._use_exact_utterance:
-                # TextToVoice Relay: AI 확장 방지 — 정확히 이 문장만 발화 (hskim 이식)
+                # AI 확장/재해석 방지 — 정확히 이 문장만 발화 (hskim 이식)
+                # 템플릿이 target_language 네이티브 문구이므로 이 경로가 표준.
                 wrapped = f'Say exactly this sentence and nothing else: "{greeting}"'
             else:
-                # VoiceToVoice: 번역 지시 형식
+                # 레거시 번역 지시 형식. FIRST_MESSAGE_TEMPLATES가 target_language로
+                # 현지화된 이후로는 재번역이 일어나므로 사용하지 말 것.
                 wrapped = f"[User says in {self.call.source_language}]: {greeting}"
 
             await self.session_a.send_user_text(wrapped)

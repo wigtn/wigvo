@@ -122,10 +122,13 @@ class VoiceToVoicePipeline(BasePipeline):
             )
 
         # First Message 핸들러
+        # 인사말 고정: 모델 렌더링([User says in ...] 번역)을 거치면 통화마다 문구가
+        # 달라지고, 직전 소음 환각과 겹쳐 "안내문 2번" 현상을 만든다 → exact utterance
         self.first_message = FirstMessageHandler(
             call=call,
             session_a=self.session_a,
             on_notify_app=self._notify_app,
+            use_exact_utterance=True,
         )
 
         # Interrupt 핸들러
