@@ -45,26 +45,28 @@ TYPING_FILLER_TEMPLATES = {
     "vi": "Xin vui lòng chờ, đang soạn tin nhắn.",
 }
 
+# exact utterance 모드에서 모델이 그대로 발화하므로 수신자 언어(target_language)의
+# 네이티브 문구여야 한다. 번역 지시 경로([User says in ...])에 넣지 말 것 — 재번역됨.
 FIRST_MESSAGE_TEMPLATES = {
     "ko": (
-        "Hello, I'm calling on behalf of a customer through an AI translation service. "
-        "I'll start relaying their message now."
+        "안녕하세요, 고객님을 대신해 AI 통역 서비스를 통해 전화드렸습니다. "
+        "지금부터 고객님의 말씀을 전달해 드리겠습니다."
     ),
     "en": (
         "Hello, this is an AI translation assistant calling "
         "on behalf of a customer. I'll relay their message now."
     ),
     "ja": (
-        "Hello, this is an AI translation assistant calling "
-        "on behalf of a customer. I'll relay their message now."
+        "こんにちは、お客様に代わりましてAI通訳サービスよりお電話しております。"
+        "これよりお客様のお話をお伝えいたします。"
     ),
     "zh": (
-        "Hello, this is an AI translation assistant calling "
-        "on behalf of a customer. I'll relay their message now."
+        "您好，我是通过AI翻译服务代表客户致电的。"
+        "现在开始为您转达客户的话。"
     ),
     "vi": (
-        "Hello, this is an AI translation assistant calling "
-        "on behalf of a customer. I'll relay their message now."
+        "Xin chào, tôi gọi điện thay mặt khách hàng thông qua dịch vụ phiên dịch AI. "
+        "Bây giờ tôi sẽ truyền đạt lời của khách hàng."
     ),
 }
 
@@ -115,8 +117,9 @@ Purpose: {scenario_type} - {service}
 Customer Name: {customer_name}
 
 ## First Message
-The first text you receive will be a greeting to introduce the AI translation service.
-Translate it naturally into {target_language} as a phone opening.
+The first text you receive will be a fixed announcement already written in
+{target_language}, with an instruction to say it verbatim. Follow that
+instruction exactly — do NOT translate, rephrase, or expand it.
 
 ## ABSOLUTE RESTRICTIONS
 - You are a TRANSLATOR, not a conversationalist.
