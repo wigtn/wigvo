@@ -192,6 +192,7 @@ class TextToVoicePipeline(BasePipeline):
             call_metrics=self.call.call_metrics,
             echo_margin_s=0.5,  # 0.3→0.5: echo gate breakthrough 감소
             max_echo_window_s=5.0,
+            enabled=settings.echo_gate_enabled,
             on_breakthrough=self._on_echo_breakthrough,
             on_event=lambda stage, event, data: self._send_pipeline_event(stage, event, **data),
         )
