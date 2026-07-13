@@ -137,6 +137,13 @@ class Settings(BaseSettings):
     # 단일 프로세스(--workers 1) 기준 안전 상한; 부하테스트로 확정 후 조정.
     max_concurrent_calls: int = 10
 
+    # 부하테스트 모드 (기본 off — 프로덕션 동작 무영향).
+    # ON 시: (1) OpenAI Realtime 실제 연결을 건너뛰고 가짜 세션으로 대체(비용 0),
+    #        (2) Twilio 아웃바운드 발신/종료 REST 호출을 건너뛴다.
+    # → 릴레이의 실제 이벤트루프/VAD/오디오 핫패스를 외부 비용 없이 N동시로 부하 측정.
+    # 부하 테스트 시 MAX_CONCURRENT_CALLS도 함께 올려야 상한 이상 측정 가능.
+    load_test_mode: bool = False
+
     # First message timeouts (C-3)
     recipient_answer_timeout_s: int = 45
 
