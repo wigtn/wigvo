@@ -184,7 +184,10 @@ class CallManager:
 
             # 0b. Twilio 통화 종료 (PSTN 전화 끊기)
             # asyncio.to_thread로 비동기화하여 이벤트 루프 블로킹 방지
-            if call and call.call_sid:
+            # 부하테스트 모드에선 실제 SID가 없으므로 Twilio REST 호출을 건너뛴다.
+            from src.config import settings as _settings
+
+            if call and call.call_sid and not _settings.load_test_mode:
                 try:
                     from src.twilio.outbound import get_twilio_client
 
