@@ -70,7 +70,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
+# 부하테스트: 단일 하니스 IP가 다수 통화를 몰아 생성하면 IP당 분당 리밋에
+# 먼저 걸려 이벤트루프 포화 측정이 오염된다. 부하모드에서만 사실상 해제(프로덕션은 60/분 유지).
+app.add_middleware(
+    RateLimitMiddleware,
+    calls_per_minute=1_000_000 if settings.load_test_mode else 60,
+)
 
 app.include_router(health_router)
 app.include_router(calls_router, prefix="/relay")
