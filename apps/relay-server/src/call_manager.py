@@ -52,9 +52,6 @@ class CallManager:
     def register_router(self, call_id: str, router: "AudioRouter") -> None:
         self._routers[call_id] = router
 
-    def register_app_ws(self, call_id: str, ws: "WebSocket") -> None:
-        self._app_ws[call_id] = ws
-
     def try_register_app_ws(self, call_id: str, ws: "WebSocket") -> bool:
         """Register one sending socket per call without silently replacing it."""
         existing = self._app_ws.get(call_id)

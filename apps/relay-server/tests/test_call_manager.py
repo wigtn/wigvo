@@ -65,7 +65,7 @@ class TestRegisterAndGet:
         assert cm.get_router("test-001") is mock_router
 
     def test_register_and_get_app_ws(self, cm: CallManager, mock_app_ws: AsyncMock):
-        cm.register_app_ws("test-001", mock_app_ws)
+        assert cm.try_register_app_ws("test-001", mock_app_ws)
         assert cm.get_app_ws("test-001") is mock_app_ws
 
     def test_active_call_count(self, cm: CallManager, sample_call: ActiveCall):
@@ -128,7 +128,7 @@ class TestCleanupCall:
         mock_app_ws: AsyncMock,
     ):
         cm.register_call("test-001", sample_call)
-        cm.register_app_ws("test-001", mock_app_ws)
+        assert cm.try_register_app_ws("test-001", mock_app_ws)
 
         with patch("src.db.pg_client.persist_call", new_callable=AsyncMock):
             await cm.cleanup_call("test-001", reason="test")
@@ -180,7 +180,7 @@ class TestSendToApp:
     async def test_send_to_app_with_ws(self, cm: CallManager, mock_app_ws: AsyncMock):
         from src.types import WsMessage, WsMessageType
 
-        cm.register_app_ws("test-001", mock_app_ws)
+        assert cm.try_register_app_ws("test-001", mock_app_ws)
         msg = WsMessage(type=WsMessageType.CALL_STATUS, data={"status": "test"})
         await cm.send_to_app("test-001", msg)
 
@@ -215,7 +215,7 @@ class TestObserver:
         """발신자 WS + 관전 WS 모두에게 동일 메시지가 broadcast된다."""
         from src.types import WsMessage, WsMessageType
 
-        cm.register_app_ws("test-001", mock_app_ws)
+        assert cm.try_register_app_ws("test-001", mock_app_ws)
         cm.register_observer("test-001", mock_observer_ws)
         msg = WsMessage(type=WsMessageType.CAPTION, data={"text": "hi"})
         await cm.send_to_app("test-001", msg)
@@ -276,7 +276,7 @@ class TestObserver:
         alive = AsyncMock()
         alive.send_json = AsyncMock()
 
-        cm.register_app_ws("test-001", mock_app_ws)
+        assert cm.try_register_app_ws("test-001", mock_app_ws)
         cm.register_observer("test-001", dead)
         cm.register_observer("test-001", alive)
 

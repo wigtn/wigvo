@@ -55,12 +55,17 @@ async def create_dispatch(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO inbound_call_dispatch (
-              call_id, tenant_id, provider_call_sid, state
+            WITH inserted AS (
+              INSERT INTO inbound_call_dispatch (
+                call_id, tenant_id, provider_call_sid, state
+              )
+              VALUES ($1, $2, $3, 'RINGING')
+              ON CONFLICT DO NOTHING
+              RETURNING *
             )
-            VALUES ($1, $2, $3, 'RINGING')
-            ON CONFLICT DO NOTHING
-            RETURNING *, '[]'::jsonb AS languages
+            SELECT i.*, c.languages
+            FROM inserted i
+            JOIN tenant_call_config c ON c.tenant_id = i.tenant_id
             """,
             call_id,
             tenant_id,
