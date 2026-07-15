@@ -19,16 +19,94 @@ RMS Gate 복귀 시 Silero 리셋:
   RMS-silence → RMS-active 전환 시 Silero 모델을 리셋하여 깨끗한 상태에서 시작.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
+from pathlib import Path
 from typing import Callable, Coroutine
 
 import numpy as np
 
+try:
+    import onnxruntime as ort
+except Exception:  # onnxruntime 미설치/로드 실패 시 VAD 비활성(graceful) — 서버는 기동
+    ort = None
+
 from src.realtime.audio_utils import ulaw_rms, ulaw_to_float32
 
 logger = logging.getLogger(__name__)
+
+# Silero ONNX 추론(GIL 해제 C 호출, 프로파일링 결과 busy CPU의 ~51%)을 이벤트루프에서
+# 분리하기 위한 고정 공유 스레드풀. 통화당 전용 스레드(§8-#6) 대신 코어 수 배수 고정 풀:
+# ONNX가 GIL을 풀어 병렬도 상한은 어차피 코어 수이므로 스레드를 통화 수만큼 만들 이유가 없다.
+def _vad_pool_workers() -> int:
+    """VAD_POOL_WORKERS env(비정수 방어) 또는 os.cpu_count()."""
+    raw = os.getenv("VAD_POOL_WORKERS")
+    if raw:
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            logger.warning("[LocalVAD] invalid VAD_POOL_WORKERS=%r — os.cpu_count() 사용", raw)
+    return os.cpu_count() or 4
+
+
+_VAD_POOL_WORKERS = _vad_pool_workers()
+_VAD_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_VAD_POOL_WORKERS, thread_name_prefix="vad-infer"
+)
+
+# Silero VAD v6 (§8-#10). onnxruntime C++ 경로 유지(GIL 해제 → 오프로드 호환).
+# ⚠ 실측: v6는 v5의 512샘플 호출로는 발화 검출 0% — 반드시 64샘플 컨텍스트(입력 576)가 필요하다
+# (PRD가 dismiss했던 부분이 실제 정답). 세션은 stateless라 프로세스 공유, 상태/컨텍스트는 통화별.
+_V6_MODEL_PATH = Path(__file__).resolve().parent / "models" / "silero_vad_v6.onnx"
+_ort_session: ort.InferenceSession | None = None
+
+
+def _get_ort_session() -> ort.InferenceSession:
+    """v6 onnx 세션(프로세스 공유). intra/inter op 스레드 1 — 병렬은 _VAD_EXECUTOR가 담당."""
+    if ort is None:
+        raise RuntimeError("onnxruntime not available — LocalVAD disabled")
+    global _ort_session
+    if _ort_session is None:
+        so = ort.SessionOptions()
+        so.intra_op_num_threads = 1
+        so.inter_op_num_threads = 1
+        _ort_session = ort.InferenceSession(str(_V6_MODEL_PATH), sess_options=so)
+    return _ort_session
+
+
+class _SileroV6Model:
+    """Silero VAD v6 추론기. v5(silero-vad-lite) 대체.
+
+    .process(512프레임)/.reset() 인터페이스는 v5와 동일하게 유지(호출부·테스트 무변경).
+    내부적으로 64샘플 컨텍스트를 앞에 붙여 576샘플로 v6 모델을 구동하고,
+    RNN 상태(state[2,1,128])와 컨텍스트를 인스턴스별로 관리한다.
+    """
+
+    _CONTEXT = 64  # v6 필수 컨텍스트 샘플 수
+
+    def __init__(self, session: ort.InferenceSession) -> None:
+        self._session = session
+        self._sr = np.array(16000, dtype=np.int64)
+        self.reset()
+
+    def reset(self) -> None:
+        self._state = np.zeros((2, 1, 128), dtype=np.float32)
+        self._context = np.zeros(self._CONTEXT, dtype=np.float32)
+
+    def process(self, frame) -> float:
+        """512샘플(@16k) float32 프레임 → speech 확률. 앞에 64샘플 컨텍스트 부착(576)."""
+        f = np.frombuffer(frame, dtype=np.float32)
+        inp = np.concatenate([self._context, f]).reshape(1, -1)
+        out = self._session.run(None, {"input": inp, "state": self._state, "sr": self._sr})
+        self._state = out[1]
+        self._context = f[-self._CONTEXT:].copy()
+        return float(np.asarray(out[0]).reshape(-1)[0])
 
 
 class _VadState(str, Enum):
@@ -91,20 +169,19 @@ class LocalVAD:
         self._peak_rms: float = 0.0
 
         # Silero VAD model (lazy init)
+        # 추론은 워커 스레드에서, reset()은 이벤트루프 스레드에서 호출되므로
+        # 같은 C 모델에 대한 동시 접근을 막는 락 (추론↔reset 상호배제).
+        self._model_lock = threading.Lock()
         self._model = None
         self._init_model()
 
     def _init_model(self) -> None:
-        """Silero VAD 모델을 로드한다 (16kHz)."""
+        """Silero VAD v6 모델을 로드한다 (onnxruntime, 16kHz, 64샘플 컨텍스트)."""
         try:
-            from silero_vad_lite import SileroVAD
-            self._model = SileroVAD(self._SILERO_SAMPLE_RATE)
-            logger.info("[LocalVAD] Silero VAD model loaded (16kHz)")
-        except ImportError:
-            logger.error("[LocalVAD] silero-vad-lite not installed — LocalVAD disabled")
-            self._model = None
+            self._model = _SileroV6Model(_get_ort_session())
+            logger.info("[LocalVAD] Silero VAD v6 loaded (onnxruntime, 16kHz, 64-sample context)")
         except Exception:
-            logger.exception("[LocalVAD] Failed to load Silero VAD model")
+            logger.exception("[LocalVAD] Failed to load Silero VAD v6 model")
             self._model = None
 
     @property
@@ -162,7 +239,8 @@ class LocalVAD:
             if self._rms_silence_frames >= self._MIN_RMS_SILENCE_FOR_RESET:
                 self._frame_buffer = np.empty(0, dtype=np.float32)
                 try:
-                    self._model.reset()
+                    with self._model_lock:
+                        self._model.reset()
                 except Exception:
                     pass
                 logger.debug(
@@ -185,10 +263,20 @@ class LocalVAD:
             self._frame_buffer = self._frame_buffer[self._SILERO_FRAME_SIZE:]
 
             # Stage 2: Silero VAD (writable memoryview 필요)
+            # ONNX 추론(GIL 해제)을 이벤트루프 밖 고정 스레드풀로 오프로드 →
+            # 추론 중 루프가 다른 통화 프레임을 처리 (통화 간 병렬).
             frame_writable = frame.copy()
-            prob = self._model.process(memoryview(frame_writable.data))
+            loop = asyncio.get_running_loop()
+            prob = await loop.run_in_executor(
+                _VAD_EXECUTOR, self._infer, memoryview(frame_writable.data)
+            )
             logger.debug("[LocalVAD] silero prob=%.3f rms=%.0f state=%s", prob, rms, self._state.value)
             await self._update_state(prob)
+
+    def _infer(self, frame_mv: memoryview) -> float:
+        """워커 스레드에서 Silero ONNX 추론을 실행한다 (모델 락으로 reset과 상호배제)."""
+        with self._model_lock:
+            return self._model.process(frame_mv)
 
     async def _update_state(self, prob: float) -> None:
         """Silero VAD 확률로 상태 머신을 업데이트한다 (hysteresis)."""
@@ -251,7 +339,8 @@ class LocalVAD:
         self._rms_silence_frames = 0
         if self._model is not None:
             try:
-                self._model.reset()
+                with self._model_lock:
+                    self._model.reset()
             except Exception:
                 pass
         logger.info("[LocalVAD] Forced to SPEAKING state (settling breakthrough)")
@@ -276,7 +365,8 @@ class LocalVAD:
         self._rms_silence_frames = 0
         if self._model is not None:
             try:
-                self._model.reset()
+                with self._model_lock:
+                    self._model.reset()
             except Exception:
                 pass
         logger.debug("[LocalVAD] Reset")

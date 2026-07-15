@@ -5,5 +5,6 @@ __pycache__/
 .env.*
 tests/
 scripts/
+!scripts/clear_execstack.py
 *.pyc
 .git/
