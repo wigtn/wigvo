@@ -17,6 +17,9 @@ build/
 .env.production
 .env*.local
 .env.bak*
+
+# Supabase CLI local link/cache
+supabase/.temp/
 *.bak
 
 # IDE
