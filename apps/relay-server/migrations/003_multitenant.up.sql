@@ -1,6 +1,8 @@
 -- WI-3: multi-tenant foundation (forward migration)
 -- Run only while active call count is zero.
 
+BEGIN;
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS tenants (
@@ -80,3 +82,14 @@ ALTER TABLE calls
 CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_tenant_id ON conversations (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_calls_tenant_id ON calls (tenant_id);
+
+-- WIGVO data is accessed through the server-side PostgreSQL connection, while
+-- Supabase clients are used only for WIGTN-SSO authentication. Keep the public
+-- Data API closed unless tenant-aware policies are added explicitly later.
+ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_call_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE calls ENABLE ROW LEVEL SECURITY;
+
+COMMIT;
