@@ -15,12 +15,17 @@ CREATE TABLE IF NOT EXISTS tenants (
 CREATE TABLE IF NOT EXISTS tenant_call_config (
   tenant_id        uuid        PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
   outbound_number  text        NOT NULL DEFAULT '',
+  inbound_number   text,
   provider         text        NOT NULL DEFAULT 'twilio',
   prompt_overrides jsonb       NOT NULL DEFAULT '{}'::jsonb,
   languages        jsonb       NOT NULL DEFAULT '[]'::jsonb,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tenant_call_config_inbound_number
+  ON tenant_call_config (inbound_number)
+  WHERE inbound_number IS NOT NULL AND inbound_number <> '';
 
 INSERT INTO tenants (id, name)
 VALUES ('00000000-0000-0000-0000-000000000001', 'WIGVO Default')
@@ -127,6 +132,46 @@ CREATE INDEX IF NOT EXISTS idx_calls_call_mode       ON calls (call_mode);
 CREATE INDEX IF NOT EXISTS idx_calls_created_at      ON calls (created_at DESC);
 
 -- ----------------------------------------------------------------------------
+-- inbound_call_dispatch — WI-6 tenant FIFO + atomic pickup source of truth
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS inbound_call_dispatch (
+  call_id           uuid        PRIMARY KEY,
+  tenant_id         uuid        NOT NULL REFERENCES tenants(id),
+  provider_call_sid text        UNIQUE,
+  state             text        NOT NULL DEFAULT 'RINGING',
+  claimed_by        uuid        REFERENCES users(id),
+  claim_expires_at  timestamptz,
+  connected_at      timestamptz,
+  ended_at          timestamptz,
+  end_reason        text,
+  version           integer     NOT NULL DEFAULT 0,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT inbound_call_dispatch_state_check CHECK (
+    state IN ('RINGING', 'WAITING_FOR_AGENT', 'CLAIMED', 'SESSION_STARTING',
+      'CONNECTED', 'ENDED', 'CANCELLED', 'TIMEOUT', 'REJECTED')
+  ),
+  CONSTRAINT inbound_call_dispatch_claim_check CHECK (
+    (state IN ('CLAIMED', 'SESSION_STARTING', 'CONNECTED') AND claimed_by IS NOT NULL)
+    OR (state NOT IN ('CLAIMED', 'SESSION_STARTING', 'CONNECTED'))
+  ),
+  CONSTRAINT inbound_call_dispatch_end_check CHECK (
+    (state IN ('ENDED', 'CANCELLED', 'TIMEOUT', 'REJECTED')
+      AND ended_at IS NOT NULL AND end_reason IS NOT NULL)
+    OR (state NOT IN ('ENDED', 'CANCELLED', 'TIMEOUT', 'REJECTED'))
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_inbound_dispatch_tenant_waiting_fifo
+  ON inbound_call_dispatch (tenant_id, created_at, call_id)
+  WHERE state = 'WAITING_FOR_AGENT';
+CREATE INDEX IF NOT EXISTS idx_inbound_dispatch_claim_expiry
+  ON inbound_call_dispatch (claim_expires_at)
+  WHERE state = 'CLAIMED';
+CREATE INDEX IF NOT EXISTS idx_inbound_dispatch_tenant_id
+  ON inbound_call_dispatch (tenant_id);
+
+-- ----------------------------------------------------------------------------
 -- conversation_entities
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS conversation_entities (
@@ -171,12 +216,14 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = '';
 
 DROP TRIGGER IF EXISTS trg_users_updated_at                ON users;
 DROP TRIGGER IF EXISTS trg_conversations_updated_at        ON conversations;
 DROP TRIGGER IF EXISTS trg_calls_updated_at                ON calls;
 DROP TRIGGER IF EXISTS trg_conversation_entities_updated_at ON conversation_entities;
+DROP TRIGGER IF EXISTS trg_inbound_call_dispatch_updated_at ON inbound_call_dispatch;
 
 CREATE TRIGGER trg_users_updated_at
   BEFORE UPDATE ON users
@@ -194,6 +241,10 @@ CREATE TRIGGER trg_conversation_entities_updated_at
   BEFORE UPDATE ON conversation_entities
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+CREATE TRIGGER trg_inbound_call_dispatch_updated_at
+  BEFORE UPDATE ON inbound_call_dispatch
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 -- ----------------------------------------------------------------------------
 -- Cache cleanup (was a Supabase cron RPC; can be invoked manually or via cron)
 -- ----------------------------------------------------------------------------
@@ -201,8 +252,9 @@ CREATE OR REPLACE FUNCTION cleanup_expired_cache() RETURNS integer AS $$
 DECLARE
   deleted integer;
 BEGIN
-  DELETE FROM place_search_cache WHERE expires_at < now();
+  DELETE FROM public.place_search_cache WHERE expires_at < now();
   GET DIAGNOSTICS deleted = ROW_COUNT;
   RETURN deleted;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = '';

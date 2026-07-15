@@ -27,6 +27,7 @@ export const tenantCallConfig = pgTable('tenant_call_config', {
     .primaryKey()
     .references(() => tenants.id, { onDelete: 'cascade' }),
   outboundNumber: text('outbound_number').notNull().default(''),
+  inboundNumber: text('inbound_number'),
   provider: text('provider').notNull().default('twilio'),
   promptOverrides: jsonb('prompt_overrides').$type<Record<string, unknown>>().notNull().default({}),
   languages: jsonb('languages').$type<string[]>().notNull().default([]),
@@ -141,6 +142,40 @@ export const calls = pgTable(
   }),
 );
 
+export type InboundDispatchState =
+  | 'RINGING'
+  | 'WAITING_FOR_AGENT'
+  | 'CLAIMED'
+  | 'SESSION_STARTING'
+  | 'CONNECTED'
+  | 'ENDED'
+  | 'CANCELLED'
+  | 'TIMEOUT'
+  | 'REJECTED';
+
+export const inboundCallDispatch = pgTable(
+  'inbound_call_dispatch',
+  {
+    callId: uuid('call_id').primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
+    providerCallSid: text('provider_call_sid').unique(),
+    state: text('state').$type<InboundDispatchState>().notNull().default('RINGING'),
+    claimedBy: uuid('claimed_by').references(() => users.id),
+    claimExpiresAt: timestamp('claim_expires_at', { withTimezone: true }),
+    connectedAt: timestamp('connected_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    endReason: text('end_reason'),
+    version: integer('version').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    tenantIdx: index('idx_inbound_dispatch_tenant_id').on(t.tenantId),
+  }),
+);
+
 export const conversationEntities = pgTable(
   'conversation_entities',
   {
@@ -187,3 +222,4 @@ export type ConversationEntity = typeof conversationEntities.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Tenant = typeof tenants.$inferSelect;
 export type TenantCallConfig = typeof tenantCallConfig.$inferSelect;
+export type InboundCallDispatch = typeof inboundCallDispatch.$inferSelect;

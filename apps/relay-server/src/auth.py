@@ -31,6 +31,12 @@ logger = logging.getLogger(__name__)
 INSTITUTION_AUTH_HTTP_PATHS = frozenset(
     {"/relay/calls/start", "/relay/calls/{call_id}/end"}
 )
+USER_AUTH_HTTP_PATHS = frozenset(
+    {
+        "/relay/inbound/calls",
+        "/relay/inbound/calls/{call_id}/pickup",
+    }
+)
 USER_AUTH_WEBSOCKET_PATHS = frozenset(
     {"/relay/calls/{call_id}/stream", "/relay/calls/{call_id}/monitor"}
 )
@@ -54,7 +60,7 @@ class AuthError(Exception):
 @dataclass(frozen=True)
 class AuthContext:
     verified: bool
-    credential: Literal["api_key", "user_jwt", "observe"]
+    credential: Literal["api_key", "user_jwt", "pickup", "observe"]
     tenant_id: UUID | None = None
     user_id: UUID | None = None
 
@@ -224,15 +230,37 @@ async def authenticate_websocket(ws: WebSocket) -> tuple[AuthContext, str | None
                 ),
                 None,
             )
-    if marker == PICKUP_WS_PROTOCOL:
+    if marker == PICKUP_WS_PROTOCOL and token:
+        claims = verify_pickup_token(token)
+        path_call_id = str(ws.path_params.get("call_id", ""))
+        if claims.call_id != path_call_id:
+            raise AuthError(403, "Pickup token is bound to another call")
+        if claims.role != "agent":
+            raise AuthError(403, "Pickup role is not permitted")
+
+        from src.inbound.service import dispatch_service
+
+        try:
+            call_uuid = UUID(claims.call_id)
+        except ValueError as exc:
+            raise AuthError(401, "Invalid pickup call identifier") from exc
+        if not await dispatch_service.authorize_pickup(
+            call_id=call_uuid,
+            tenant_id=claims.tenant_id,
+            user_id=claims.user_id,
+        ):
+            raise AuthError(403, "Pickup claim is no longer active")
         return (
-            _observe_or_raise(
-                401,
-                "Pickup token requires dispatch verification",
-                reason="pickup_before_dispatch",
+            AuthContext(
+                verified=True,
+                credential="pickup",
+                tenant_id=claims.tenant_id,
+                user_id=claims.user_id,
             ),
-            None,
+            PICKUP_WS_PROTOCOL,
         )
+    if marker == PICKUP_WS_PROTOCOL:
+        raise AuthError(401, "Pickup token is required")
     return (
         _observe_or_raise(401, "WebSocket authentication required", reason="ws_missing_credential"),
         None,

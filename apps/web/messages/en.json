@@ -11,6 +11,27 @@
     "networkError": "A network error occurred.",
     "agent": "Agent"
   },
+  "inbound": {
+    "title": "Waiting inbound calls",
+    "subtitle": "Pick up a call to start real-time interpretation.",
+    "back": "Back to home",
+    "refresh": "Refresh",
+    "emptyTitle": "No calls are waiting",
+    "emptyDescription": "New inbound calls will appear here automatically.",
+    "callLabel": "Inbound call {number}",
+    "waiting": "Waiting",
+    "pickup": "Pick up",
+    "connecting": "Connecting",
+    "defaultLanguages": "Korean → English",
+    "caller": "Inbound caller",
+    "backToQueue": "Back to queue",
+    "errors": {
+      "load": "Could not load waiting calls.",
+      "pickup": "Could not connect the call.",
+      "claimed": "Another agent already picked up this call.",
+      "forbidden": "You are not allowed to pick up this call."
+    }
+  },
   "metadata": {
     "title": "WIGVO - AI Voice Assistant",
     "description": "AI voice assistant service that makes phone calls on your behalf"
@@ -293,6 +314,7 @@
     "menu": "Menu",
     "newChat": "New Chat",
     "history": "Call History",
+    "inbound": "Inbound Calls",
     "recentChats": "Recent Chats",
     "viewAllReservations": "View All Reservations"
   },
