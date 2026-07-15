@@ -25,9 +25,11 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
+from pathlib import Path
 from typing import Callable, Coroutine
 
 import numpy as np
+import onnxruntime as ort
 
 from src.realtime.audio_utils import ulaw_rms, ulaw_to_float32
 
@@ -40,6 +42,52 @@ _VAD_POOL_WORKERS = int(os.getenv("VAD_POOL_WORKERS", str(os.cpu_count() or 4)))
 _VAD_EXECUTOR = ThreadPoolExecutor(
     max_workers=_VAD_POOL_WORKERS, thread_name_prefix="vad-infer"
 )
+
+# Silero VAD v6 (§8-#10). onnxruntime C++ 경로 유지(GIL 해제 → 오프로드 호환).
+# ⚠ 실측: v6는 v5의 512샘플 호출로는 발화 검출 0% — 반드시 64샘플 컨텍스트(입력 576)가 필요하다
+# (PRD가 dismiss했던 부분이 실제 정답). 세션은 stateless라 프로세스 공유, 상태/컨텍스트는 통화별.
+_V6_MODEL_PATH = Path(__file__).resolve().parent / "models" / "silero_vad_v6.onnx"
+_ort_session: ort.InferenceSession | None = None
+
+
+def _get_ort_session() -> ort.InferenceSession:
+    """v6 onnx 세션(프로세스 공유). intra/inter op 스레드 1 — 병렬은 _VAD_EXECUTOR가 담당."""
+    global _ort_session
+    if _ort_session is None:
+        so = ort.SessionOptions()
+        so.intra_op_num_threads = 1
+        so.inter_op_num_threads = 1
+        _ort_session = ort.InferenceSession(str(_V6_MODEL_PATH), sess_options=so)
+    return _ort_session
+
+
+class _SileroV6Model:
+    """Silero VAD v6 추론기. v5(silero-vad-lite) 대체.
+
+    .process(512프레임)/.reset() 인터페이스는 v5와 동일하게 유지(호출부·테스트 무변경).
+    내부적으로 64샘플 컨텍스트를 앞에 붙여 576샘플로 v6 모델을 구동하고,
+    RNN 상태(state[2,1,128])와 컨텍스트를 인스턴스별로 관리한다.
+    """
+
+    _CONTEXT = 64  # v6 필수 컨텍스트 샘플 수
+
+    def __init__(self, session: ort.InferenceSession) -> None:
+        self._session = session
+        self._sr = np.array(16000, dtype=np.int64)
+        self.reset()
+
+    def reset(self) -> None:
+        self._state = np.zeros((2, 1, 128), dtype=np.float32)
+        self._context = np.zeros(self._CONTEXT, dtype=np.float32)
+
+    def process(self, frame) -> float:
+        """512샘플(@16k) float32 프레임 → speech 확률. 앞에 64샘플 컨텍스트 부착(576)."""
+        f = np.frombuffer(frame, dtype=np.float32)
+        inp = np.concatenate([self._context, f]).reshape(1, -1)
+        out = self._session.run(None, {"input": inp, "state": self._state, "sr": self._sr})
+        self._state = out[1]
+        self._context = f[-self._CONTEXT:].copy()
+        return float(np.asarray(out[0]).reshape(-1)[0])
 
 
 class _VadState(str, Enum):
@@ -109,16 +157,12 @@ class LocalVAD:
         self._init_model()
 
     def _init_model(self) -> None:
-        """Silero VAD 모델을 로드한다 (16kHz)."""
+        """Silero VAD v6 모델을 로드한다 (onnxruntime, 16kHz, 64샘플 컨텍스트)."""
         try:
-            from silero_vad_lite import SileroVAD
-            self._model = SileroVAD(self._SILERO_SAMPLE_RATE)
-            logger.info("[LocalVAD] Silero VAD model loaded (16kHz)")
-        except ImportError:
-            logger.error("[LocalVAD] silero-vad-lite not installed — LocalVAD disabled")
-            self._model = None
+            self._model = _SileroV6Model(_get_ort_session())
+            logger.info("[LocalVAD] Silero VAD v6 loaded (onnxruntime, 16kHz, 64-sample context)")
         except Exception:
-            logger.exception("[LocalVAD] Failed to load Silero VAD model")
+            logger.exception("[LocalVAD] Failed to load Silero VAD v6 model")
             self._model = None
 
     @property
