@@ -12,7 +12,12 @@ import src.inbound.repository as repository
 import src.inbound.service as service_module
 from src.inbound.bootstrap import BootstrapResult
 from src.inbound.models import DispatchRecord, DispatchState
-from src.inbound.service import DispatchConflict, DispatchForbidden, InboundDispatchService
+from src.inbound.service import (
+    DispatchConflict,
+    DispatchForbidden,
+    DispatchNotFound,
+    InboundDispatchService,
+)
 
 TENANT_A = UUID("10000000-0000-0000-0000-000000000001")
 TENANT_B = UUID("20000000-0000-0000-0000-000000000002")
@@ -114,6 +119,33 @@ async def test_waiting_list_is_tenant_scoped_fifo(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_create_dispatch_returns_tenant_languages_on_first_insert(monkeypatch):
+    captured: dict[str, object] = {}
+
+    class _Conn:
+        async def fetchrow(self, query: str, *params):
+            captured["query"] = query
+            captured["params"] = params
+            return make_dispatch(DispatchState.RINGING).model_dump()
+
+    async def fake_pool():
+        return _Pool(_Conn())
+
+    monkeypatch.setattr(repository, "get_pool", fake_pool)
+    result = await repository.create_dispatch(
+        call_id=CALL_ID,
+        tenant_id=TENANT_A,
+        provider_call_sid="CA_test",
+    )
+
+    query = str(captured["query"])
+    assert result.languages == ["ko", "en"]
+    assert "JOIN tenant_call_config c ON c.tenant_id = i.tenant_id" in query
+    assert "'[]'::jsonb AS languages" not in query
+    assert captured["params"] == (CALL_ID, TENANT_A, "CA_test")
+
+
+@pytest.mark.asyncio
 async def test_two_agents_have_exactly_one_pickup_winner(monkeypatch):
     dispatch = make_dispatch(DispatchState.WAITING_FOR_AGENT)
     winner: UUID | None = None
@@ -161,6 +193,8 @@ async def test_two_agents_have_exactly_one_pickup_winner(monkeypatch):
     assert sum(isinstance(result, DispatchConflict) for result in results) == 1
     assert dispatch.state == DispatchState.CONNECTED
     assert dispatch.claimed_by == winner
+    assert CALL_ID not in service._pickup_locks
+    assert CALL_ID not in service._pickup_lock_users
 
 
 @pytest.mark.asyncio
@@ -195,6 +229,27 @@ async def test_cross_tenant_pickup_is_forbidden_not_conflict(monkeypatch):
             tenant_id=TENANT_A,
             user_id=USER_A,
         )
+
+    assert CALL_ID not in service._pickup_locks
+    assert CALL_ID not in service._pickup_lock_users
+
+
+@pytest.mark.asyncio
+async def test_unknown_pickup_does_not_retain_per_call_lock(monkeypatch):
+    monkeypatch.setattr(service_module, "media_handlers_registered", lambda: True)
+    monkeypatch.setattr(repository, "claim_dispatch", AsyncMock(return_value=None))
+    monkeypatch.setattr(repository, "get_dispatch", AsyncMock(return_value=None))
+
+    service = InboundDispatchService()
+    with pytest.raises(DispatchNotFound):
+        await service.pickup(
+            call_id=CALL_ID,
+            tenant_id=TENANT_A,
+            user_id=USER_A,
+        )
+
+    assert CALL_ID not in service._pickup_locks
+    assert CALL_ID not in service._pickup_lock_users
 
 
 def test_invalid_state_transition_is_rejected_before_query():
