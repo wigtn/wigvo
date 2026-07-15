@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WsMessage, WsMessageType } from "../lib/types";
 import { RELAY_WS_URL } from "../lib/constants";
+import { supabase } from "../lib/supabase";
 
 export type WsStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -25,6 +26,7 @@ interface UseRelayWebSocketReturn {
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY_MS = 3000;
+const JWT_WS_PROTOCOL = "wigvo.jwt";
 
 export function useRelayWebSocket({
   callId,
@@ -40,10 +42,14 @@ export function useRelayWebSocket({
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalCloseRef = useRef(false);
+  const connectGenerationRef = useRef(0);
+  const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
-  // Keep refs in sync
-  onMessageRef.current = onMessage;
-  onStatusChangeRef.current = onStatusChange;
+  // Keep refs in sync without mutating refs during render.
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onStatusChangeRef.current = onStatusChange;
+  }, [onMessage, onStatusChange]);
 
   const updateStatus = useCallback((newStatus: WsStatus) => {
     setStatus(newStatus);
@@ -51,6 +57,7 @@ export function useRelayWebSocket({
   }, []);
 
   const cleanup = useCallback(() => {
+    connectGenerationRef.current += 1;
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -83,15 +90,23 @@ export function useRelayWebSocket({
     []
   );
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!callId) return;
 
     cleanup();
+    const generation = connectGenerationRef.current;
     intentionalCloseRef.current = false;
     updateStatus("connecting");
 
     const url = `${RELAY_WS_URL}/relay/calls/${callId}/stream`;
-    const ws = new WebSocket(url);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (generation !== connectGenerationRef.current) return;
+    const protocols = session?.access_token
+      ? [JWT_WS_PROTOCOL, session.access_token]
+      : undefined;
+    const ws = new WebSocket(url, protocols);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -124,13 +139,17 @@ export function useRelayWebSocket({
         reconnectCountRef.current += 1;
         updateStatus("connecting");
         reconnectTimerRef.current = setTimeout(() => {
-          connect();
+          void connectRef.current();
         }, RECONNECT_DELAY_MS);
       } else {
         updateStatus("error");
       }
     };
   }, [callId, cleanup, updateStatus]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     intentionalCloseRef.current = true;
@@ -140,13 +159,17 @@ export function useRelayWebSocket({
 
   // Auto-connect when callId changes (if enabled)
   useEffect(() => {
+    let autoConnectTimer: ReturnType<typeof setTimeout> | null = null;
     if (autoConnect && callId) {
-      connect();
+      autoConnectTimer = setTimeout(() => {
+        void connectRef.current();
+      }, 0);
     }
     return () => {
+      if (autoConnectTimer) clearTimeout(autoConnectTimer);
       cleanup();
     };
-  }, [callId, autoConnect, connect, cleanup]);
+  }, [callId, autoConnect, cleanup]);
 
   const sendAudioChunk = useCallback(
     (audioBase64: string): boolean => {

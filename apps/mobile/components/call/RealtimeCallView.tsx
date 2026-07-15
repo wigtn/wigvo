@@ -16,6 +16,7 @@ import { FontScaleControl } from "./FontScaleControl";
 import { useRealtimeCall } from "../../hooks/useRealtimeCall";
 import type { CaptionData, InputMode } from "../../lib/types";
 import { RELAY_SERVER_URL } from "../../lib/constants";
+import { supabase } from "../../lib/supabase";
 
 type WsStatus = "disconnected" | "connecting" | "connected" | "error";
 type RecoveryStatus = "recovering" | "degraded" | "recovered" | null;
@@ -118,9 +119,17 @@ export function RealtimeCallView({
     call.endCall();
     call.disconnect();
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       await fetch(`${RELAY_SERVER_URL}/relay/calls/${callId}/end`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
         body: JSON.stringify({ call_id: callId, reason: "user_hangup" }),
       });
     } catch {

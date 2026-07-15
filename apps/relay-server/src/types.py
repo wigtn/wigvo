@@ -84,7 +84,10 @@ class CallStartRequest(BaseModel):
     vad_mode: VadMode = VadMode.CLIENT
     system_prompt_override: str | None = None
     communication_mode: CommunicationMode = CommunicationMode.VOICE_TO_VOICE
-    tenant_id: UUID
+    # S2S callers send tenant_id explicitly; verified user JWT callers may let
+    # the relay resolve it from the WIGVO users table. The route always rejects
+    # an unresolved tenant before reserving capacity or creating sessions.
+    tenant_id: UUID | None = None
 
     @field_validator("phone_number")
     @classmethod

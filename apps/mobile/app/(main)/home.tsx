@@ -14,7 +14,7 @@ import { RELAY_SERVER_URL } from "../../lib/constants";
 import { CallStartResponse } from "../../lib/types";
 
 export default function HomeScreen() {
-  const { user, signOut } = useAuth();
+  const { user, session, signOut } = useAuth();
   const router = useRouter();
 
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -35,7 +35,12 @@ export default function HomeScreen() {
 
       const response = await fetch(`${RELAY_SERVER_URL}/relay/calls/start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
         body: JSON.stringify({
           call_id: callId,
           phone_number: phoneNumber.trim(),
