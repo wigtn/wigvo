@@ -49,7 +49,7 @@ class InboundDispatchService:
     def __init__(self) -> None:
         self._create_lock = asyncio.Lock()
         self._pickup_locks: dict[UUID, asyncio.Lock] = {}
-        self._starting: set[UUID] = set()
+        self._pickup_lock_users: dict[UUID, int] = {}
         self._known_calls: set[UUID] = set()
         self._reconnect_tasks: dict[UUID, asyncio.Task[None]] = {}
         self._sweeper_task: asyncio.Task[None] | None = None
@@ -100,12 +100,22 @@ class InboundDispatchService:
         user_id: UUID,
     ) -> tuple[DispatchRecord, BootstrapResult]:
         lock = self._pickup_locks.setdefault(call_id, asyncio.Lock())
-        async with lock:
-            return await self._pickup_once(
-                call_id=call_id,
-                tenant_id=tenant_id,
-                user_id=user_id,
-            )
+        self._pickup_lock_users[call_id] = self._pickup_lock_users.get(call_id, 0) + 1
+        try:
+            async with lock:
+                return await self._pickup_once(
+                    call_id=call_id,
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                )
+        finally:
+            remaining = self._pickup_lock_users[call_id] - 1
+            if remaining == 0:
+                self._pickup_lock_users.pop(call_id, None)
+                if self._pickup_locks.get(call_id) is lock:
+                    self._pickup_locks.pop(call_id, None)
+            else:
+                self._pickup_lock_users[call_id] = remaining
 
     async def _pickup_once(
         self,
@@ -146,7 +156,6 @@ class InboundDispatchService:
         if starting is None:
             raise DispatchConflict("Inbound call claim changed before session start")
 
-        self._starting.add(call_id)
         try:
             async with asyncio.timeout(settings.session_starting_timeout_s):
                 result = await bootstrap_inbound_session(str(call_id), tenant_id)
@@ -157,9 +166,6 @@ class InboundDispatchService:
             logger.exception("Inbound bootstrap failed (call=%s)", call_id)
             await self._fail_start(call_id, "session_start_failed")
             raise DispatchBootstrapFailed("Inbound session initialization failed") from exc
-        finally:
-            self._starting.discard(call_id)
-
         if (
             result.role != "agent"
             or not result.relay_ws_url
@@ -178,7 +184,7 @@ class InboundDispatchService:
         )
         if connected is None:
             await cleanup_inbound_session(str(call_id), "dispatch_state_changed")
-            await repository.finish_dispatch(call_id, "dispatch_state_changed")
+            await self.finish(call_id, "dispatch_state_changed")
             raise DispatchConflict("Inbound call ended during session initialization")
         return connected, result
 
@@ -199,7 +205,7 @@ class InboundDispatchService:
         try:
             await cleanup_inbound_session(str(call_id), reason)
         finally:
-            await repository.finish_dispatch(call_id, reason)
+            await self.finish(call_id, reason)
 
     async def authorize_pickup(
         self, *, call_id: UUID, tenant_id: UUID, user_id: UUID
@@ -251,9 +257,13 @@ class InboundDispatchService:
     async def finish(self, call_id: UUID, reason: str) -> DispatchRecord | None:
         self.cancel_reconnect_cleanup(call_id)
         row = await repository.finish_dispatch(call_id, reason)
-        self._known_calls.discard(call_id)
-        self._pickup_locks.pop(call_id, None)
+        self._forget_call(call_id)
         return row
+
+    def _forget_call(self, call_id: UUID) -> None:
+        self._known_calls.discard(call_id)
+        if self._pickup_lock_users.get(call_id, 0) == 0:
+            self._pickup_locks.pop(call_id, None)
 
     async def start(self) -> None:
         if not settings.database_url or not media_handlers_registered():
@@ -289,7 +299,10 @@ class InboundDispatchService:
                     settings.inbound_wait_timeout_s
                 )
                 for call_id in timed_out:
-                    await cleanup_inbound_session(str(call_id), "agent_timeout")
+                    try:
+                        await cleanup_inbound_session(str(call_id), "agent_timeout")
+                    finally:
+                        self._forget_call(call_id)
                 if released or timed_out:
                     logger.info(
                         "Inbound dispatch sweep: claims_released=%d calls_timed_out=%d",
