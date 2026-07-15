@@ -6,6 +6,30 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+CREATE TABLE IF NOT EXISTS tenants (
+  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        text        NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS tenant_call_config (
+  tenant_id        uuid        PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  outbound_number  text        NOT NULL DEFAULT '',
+  provider         text        NOT NULL DEFAULT 'twilio',
+  prompt_overrides jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  languages        jsonb       NOT NULL DEFAULT '[]'::jsonb,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  updated_at       timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO tenants (id, name)
+VALUES ('00000000-0000-0000-0000-000000000001', 'WIGVO Default')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO tenant_call_config (tenant_id)
+VALUES ('00000000-0000-0000-0000-000000000001')
+ON CONFLICT (tenant_id) DO NOTHING;
+
 -- ----------------------------------------------------------------------------
 -- users — service-level user table (mirrors wigex pattern).
 -- id matches wigsso auth.users.id. Rows are auto-provisioned on first request
@@ -14,6 +38,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id          uuid        PRIMARY KEY,
+  tenant_id   uuid        NOT NULL REFERENCES tenants(id),
   email       text,
   name        text,
   created_at  timestamptz NOT NULL DEFAULT now(),
@@ -22,12 +47,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id);
 
 -- ----------------------------------------------------------------------------
 -- conversations
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS conversations (
   id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       uuid        NOT NULL REFERENCES tenants(id),
   user_id         uuid        NOT NULL,
   status          text        NOT NULL DEFAULT 'COLLECTING',
   collected_data  jsonb       NOT NULL DEFAULT '{}'::jsonb,
@@ -36,6 +63,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_conversations_user_id    ON conversations (user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_tenant_id  ON conversations (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations (created_at DESC);
 
 -- ----------------------------------------------------------------------------
@@ -58,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_created_at      ON messages (created_at)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS calls (
   id                    uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             uuid        NOT NULL REFERENCES tenants(id),
   conversation_id       uuid        REFERENCES conversations(id) ON DELETE SET NULL,
   user_id               uuid        NOT NULL,
   request_type          text        NOT NULL DEFAULT 'RESERVATION',
@@ -92,6 +121,7 @@ CREATE TABLE IF NOT EXISTS calls (
 );
 
 CREATE INDEX IF NOT EXISTS idx_calls_user_id         ON calls (user_id);
+CREATE INDEX IF NOT EXISTS idx_calls_tenant_id       ON calls (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_calls_conversation_id ON calls (conversation_id);
 CREATE INDEX IF NOT EXISTS idx_calls_call_mode       ON calls (call_mode);
 CREATE INDEX IF NOT EXISTS idx_calls_created_at      ON calls (created_at DESC);

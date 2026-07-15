@@ -145,6 +145,7 @@ export interface RelayWsMessage {
 
 export interface CallStartParams {
   call_id: string;
+  tenant_id: string;
   phone_number: string;
   mode: CallMode;
   source_language: string;

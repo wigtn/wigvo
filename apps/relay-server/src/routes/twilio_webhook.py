@@ -9,7 +9,7 @@ from fastapi.responses import Response
 
 from src.call_manager import call_manager
 from src.config import settings
-from src.logging_config import call_id_var, call_mode_var
+from src.logging_config import call_id_var, call_mode_var, tenant_id_var
 from src.realtime.audio_router import AudioRouter
 from src.twilio.media_stream import TwilioMediaStreamHandler
 from src.types import WsMessage, WsMessageType
@@ -93,6 +93,7 @@ async def twilio_media_stream(ws: WebSocket, call_id: str):
     # 구조화 로깅 컨텍스트 설정 — 이후 모든 하위 태스크에 자동 전파
     call_id_var.set(call_id)
     call_mode_var.set(call.communication_mode.value)
+    tenant_id_var.set(str(call.tenant_id))
 
     # DualSession은 start_call()에서 이미 생성됨 — 재사용
     dual_session = call_manager.get_session(call_id)

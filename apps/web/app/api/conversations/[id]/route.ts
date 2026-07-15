@@ -16,7 +16,11 @@ export async function GET(
     const user = await requireUser();
 
     const conversation = await getConversation(id);
-    if (!conversation || conversation.user_id !== user.id) {
+    if (
+      !conversation ||
+      conversation.user_id !== user.id ||
+      conversation.tenant_id !== user.tenantId
+    ) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
@@ -28,6 +32,7 @@ export async function GET(
         .where(
           and(
             eq(schema.calls.conversationId, id),
+            eq(schema.calls.tenantId, user.tenantId),
             or(eq(schema.calls.status, 'COMPLETED'), eq(schema.calls.status, 'FAILED')),
           ),
         )
