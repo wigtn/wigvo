@@ -10,6 +10,12 @@ import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from src.auth import (
+    AuthError,
+    authenticate_websocket,
+    authorize_tenant,
+    reject_websocket,
+)
 from src.call_manager import call_manager
 from src.logging_config import call_id_var, call_mode_var, tenant_id_var
 from src.types import WsMessage, WsMessageType
@@ -25,12 +31,15 @@ async def app_websocket(ws: WebSocket, call_id: str):
     User의 오디오/텍스트를 받아 Session A로 전달하고,
     Session B의 번역 결과를 App으로 전달한다.
     """
-    await ws.accept()
-    logger.info("App WebSocket connected (call=%s)", call_id)
+    try:
+        auth, subprotocol = await authenticate_websocket(ws)
+    except AuthError as exc:
+        await reject_websocket(ws, exc)
+        return
 
     call = call_manager.get_call(call_id)
     if not call:
-        # call 없으면 contextvar 설정 불가 — 에러 후 종료
+        await ws.accept(subprotocol=subprotocol)
         await ws.send_json(
             WsMessage(
                 type=WsMessageType.ERROR,
@@ -39,6 +48,15 @@ async def app_websocket(ws: WebSocket, call_id: str):
         )
         await ws.close()
         return
+
+    try:
+        authorize_tenant(auth, call.tenant_id)
+    except AuthError as exc:
+        await reject_websocket(ws, exc)
+        return
+
+    await ws.accept(subprotocol=subprotocol)
+    logger.info("App WebSocket connected (call=%s)", call_id)
 
     # 구조화 로깅 컨텍스트 설정
     call_id_var.set(call_id)
@@ -111,11 +129,15 @@ async def monitor_websocket(ws: WebSocket, call_id: str):
     인바운드 오디오/텍스트는 처리하지 않으며(발신자 통화 오염 방지),
     이 소켓이 끊겨도 cleanup_call을 트리거하지 않는다(통화 계속 진행).
     """
-    await ws.accept()
-    logger.info("Monitor WebSocket connected (call=%s)", call_id)
+    try:
+        auth, subprotocol = await authenticate_websocket(ws)
+    except AuthError as exc:
+        await reject_websocket(ws, exc)
+        return
 
     call = call_manager.get_call(call_id)
     if not call:
+        await ws.accept(subprotocol=subprotocol)
         await ws.send_json(
             WsMessage(
                 type=WsMessageType.ERROR,
@@ -124,6 +146,15 @@ async def monitor_websocket(ws: WebSocket, call_id: str):
         )
         await ws.close()
         return
+
+    try:
+        authorize_tenant(auth, call.tenant_id)
+    except AuthError as exc:
+        await reject_websocket(ws, exc)
+        return
+
+    await ws.accept(subprotocol=subprotocol)
+    logger.info("Monitor WebSocket connected (call=%s)", call_id)
 
     call_id_var.set(call_id)
     call_mode_var.set(call.communication_mode.value)

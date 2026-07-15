@@ -27,3 +27,11 @@ def test_allowed_origins_default():
     s = Settings()
     assert "http://localhost:3000" in s.allowed_origins
     assert "https://wigvo.run" in s.allowed_origins
+
+
+def test_tenant_api_key_hashes_parse_from_json_env(monkeypatch):
+    tenant_id = "10000000-0000-0000-0000-000000000001"
+    digest = "a" * 64
+    monkeypatch.setenv("TENANT_API_KEY_HASHES", f'{{"{tenant_id}":["{digest}"]}}')
+    s = Settings(_env_file=None)
+    assert s.tenant_api_key_hashes == {tenant_id: [digest]}

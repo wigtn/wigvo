@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import UUID
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
@@ -31,6 +32,48 @@ class Settings(BaseSettings):
     database_url: str = ""
     db_pool_min_size: int = 1
     db_pool_max_size: int = 5
+
+    # WI-4a authentication. API keys are stored as SHA-256 digests keyed by
+    # tenant UUID so raw institution credentials never live in source/config.
+    # Example: {"<tenant-uuid>": ["<sha256-hex>"]}
+    tenant_api_key_hashes: dict[str, list[str]] = Field(default_factory=dict)
+    tenant_auth_enforce: bool = False
+
+    # WIGTN-SSO Supabase JWT verification (the WIGVO data DB is separate).
+    supabase_url: str = ""
+    supabase_jwt_audience: str = "authenticated"
+
+    # WI-6 consumes this signer contract after atomic dispatch claim.
+    pickup_token_secret: str = ""
+    pickup_token_ttl_s: int = 180
+
+    @field_validator("pickup_token_ttl_s")
+    @classmethod
+    def validate_pickup_token_ttl(cls, value: int) -> int:
+        if not 60 <= value <= 300:
+            raise ValueError("pickup_token_ttl_s must be between 60 and 300 seconds")
+        return value
+
+    @field_validator("pickup_token_secret")
+    @classmethod
+    def validate_pickup_token_secret(cls, value: str) -> str:
+        if value and len(value.encode("utf-8")) < 32:
+            raise ValueError("pickup_token_secret must be at least 32 bytes")
+        return value
+
+    @field_validator("tenant_api_key_hashes")
+    @classmethod
+    def validate_tenant_api_key_hashes(
+        cls, value: dict[str, list[str]]
+    ) -> dict[str, list[str]]:
+        for raw_tenant_id, hashes in value.items():
+            UUID(raw_tenant_id)
+            if not hashes:
+                raise ValueError("each tenant must have at least one API key hash")
+            for digest in hashes:
+                if len(digest) != 64 or any(ch not in "0123456789abcdefABCDEF" for ch in digest):
+                    raise ValueError("tenant API key hashes must be SHA-256 hex digests")
+        return value
 
     # Relay Server
     relay_server_url: str = "http://localhost:8000"
