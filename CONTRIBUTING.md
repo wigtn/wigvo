@@ -136,7 +136,7 @@ scaffold PR이 아래 seam을 **동작 보존 상태로 먼저 착지**시킨다
   - `commit(call_id)` — reserved → active
   - `release(call_id)` — 예약·활성 해제 (**idempotent**, 모든 실패·취소 경로에서 호출)
   - **불변식: `active + reserved ≤ MAX_CONCURRENT_CALLS`.** scaffold가 기존 `calls.py` soft-cap을 이 경로로 교체.
-- **`resolve_outbound_number(tenant_id: str) -> str`** (owner WI-3 · 소비: `outbound.py`, WI-6)
+- **`async resolve_outbound_number(tenant_id: UUID | str) -> str`** (owner WI-3 · 소비: `outbound.py`, WI-6)
   - scaffold: 현행 단일번호 반환(동작 동일). WI-3: `tenant_call_config` 조회로 교체. **호출부 불변.**
 - **`tenant_id` 관통** (owner WI-3)
   - `logging_config`에 `tenant_id_var` 추가 · `CallStartRequest`/`ActiveCall`에 `tenant_id` 필드 · `persist_call`/`update_call`까지 전달. 미해석 요청은 **fail-closed**.

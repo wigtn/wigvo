@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
 
     const { conversation, greeting } = await createConversation(
       user.id,
+      user.tenantId,
       scenarioType,
       subType,
       communicationMode,
@@ -75,7 +76,12 @@ export async function GET() {
         createdAt: schema.conversations.createdAt,
       })
       .from(schema.conversations)
-      .where(eq(schema.conversations.userId, user.id))
+      .where(
+        and(
+          eq(schema.conversations.userId, user.id),
+          eq(schema.conversations.tenantId, user.tenantId),
+        ),
+      )
       .orderBy(desc(schema.conversations.createdAt))
       .limit(20);
 
@@ -117,6 +123,7 @@ export async function GET() {
         .where(
           and(
             inArray(schema.calls.conversationId, callingIds),
+            eq(schema.calls.tenantId, user.tenantId),
             or(eq(schema.calls.status, 'COMPLETED'), eq(schema.calls.status, 'FAILED')),
           ),
         );

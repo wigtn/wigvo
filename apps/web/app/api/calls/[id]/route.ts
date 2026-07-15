@@ -19,7 +19,13 @@ export async function GET(
     const [row] = await db
       .select()
       .from(schema.calls)
-      .where(and(eq(schema.calls.id, id), eq(schema.calls.userId, user.id)))
+      .where(
+        and(
+          eq(schema.calls.id, id),
+          eq(schema.calls.userId, user.id),
+          eq(schema.calls.tenantId, user.tenantId),
+        ),
+      )
       .limit(1);
 
     if (!row) {

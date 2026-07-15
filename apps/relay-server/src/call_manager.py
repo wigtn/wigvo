@@ -164,7 +164,12 @@ class CallManager:
                     from src.db.pg_client import update_call
 
                     pre_result = "ERROR" if reason in ("error", "server_shutdown") else "SUCCESS"
-                    await update_call(call_id, status="COMPLETED", result=pre_result)
+                    await update_call(
+                        call_id,
+                        call.tenant_id,
+                        status="COMPLETED",
+                        result=pre_result,
+                    )
                 except Exception:
                     logger.warning("Failed to pre-persist status for call %s", call_id)
 

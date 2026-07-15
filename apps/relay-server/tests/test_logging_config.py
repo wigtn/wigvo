@@ -15,6 +15,7 @@ from src.logging_config import (
     call_id_var,
     call_mode_var,
     setup_logging,
+    tenant_id_var,
 )
 
 
@@ -23,9 +24,11 @@ def _reset_contextvars():
     """Reset contextvars before each test."""
     t1 = call_id_var.set("")
     t2 = call_mode_var.set("")
+    t3 = tenant_id_var.set("")
     yield
     call_id_var.reset(t1)
     call_mode_var.reset(t2)
+    tenant_id_var.reset(t3)
 
 
 class TestCallContextFilter:
@@ -42,15 +45,18 @@ class TestCallContextFilter:
         assert result is True
         assert record.call_id == ""  # type: ignore[attr-defined]
         assert record.call_mode == ""  # type: ignore[attr-defined]
+        assert record.tenant_id == ""  # type: ignore[attr-defined]
 
     def test_injects_set_values(self):
         call_id_var.set("call_abc")
         call_mode_var.set("voice_to_voice")
+        tenant_id_var.set("tenant_a")
         f = CallContextFilter()
         record = self._make_record()
         f.filter(record)
         assert record.call_id == "call_abc"  # type: ignore[attr-defined]
         assert record.call_mode == "voice_to_voice"  # type: ignore[attr-defined]
+        assert record.tenant_id == "tenant_a"  # type: ignore[attr-defined]
 
     def test_context_isolation(self):
         """Different contexts should have independent values."""
@@ -71,9 +77,17 @@ class TestCallContextFilter:
 
 
 class TestCloudRunJsonFormatter:
-    def _format(self, *, call_id: str = "", call_mode: str = "", msg: str = "test") -> dict:
+    def _format(
+        self,
+        *,
+        call_id: str = "",
+        call_mode: str = "",
+        tenant_id: str = "",
+        msg: str = "test",
+    ) -> dict:
         call_id_var.set(call_id)
         call_mode_var.set(call_mode)
+        tenant_id_var.set(tenant_id)
         formatter = CloudRunJsonFormatter()
         filt = CallContextFilter()
         record = logging.LogRecord(
@@ -97,9 +111,14 @@ class TestCloudRunJsonFormatter:
         assert "mode" not in payload
 
     def test_includes_call_id_when_set(self):
-        payload = self._format(call_id="call_xyz", call_mode="text_to_voice")
+        payload = self._format(
+            call_id="call_xyz",
+            call_mode="text_to_voice",
+            tenant_id="tenant_a",
+        )
         assert payload["call_id"] == "call_xyz"
         assert payload["mode"] == "text_to_voice"
+        assert payload["tenant_id"] == "tenant_a"
 
     def test_exception_serialization(self):
         call_id_var.set("call_err")
@@ -125,9 +144,12 @@ class TestCloudRunJsonFormatter:
 
 
 class TestColorConsoleFormatter:
-    def _format(self, *, call_id: str = "", call_mode: str = "") -> str:
+    def _format(
+        self, *, call_id: str = "", call_mode: str = "", tenant_id: str = ""
+    ) -> str:
         call_id_var.set(call_id)
         call_mode_var.set(call_mode)
+        tenant_id_var.set(tenant_id)
         formatter = ColorConsoleFormatter(datefmt="%H:%M:%S")
         filt = CallContextFilter()
         record = logging.LogRecord(
@@ -144,8 +166,10 @@ class TestColorConsoleFormatter:
         assert "hello world" in output
 
     def test_with_context_shows_bracket(self):
-        output = self._format(call_id="call_123", call_mode="voice_to_voice")
-        assert "[call_123|voice_to_voice]" in output
+        output = self._format(
+            call_id="call_123", call_mode="voice_to_voice", tenant_id="tenant_a"
+        )
+        assert "[tenant_a|call_123|voice_to_voice]" in output
 
 
 class TestSetupLogging:

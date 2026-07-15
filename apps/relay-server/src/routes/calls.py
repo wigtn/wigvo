@@ -65,7 +65,7 @@ async def start_call(req: CallStartRequest):
     # 구조화 로깅 컨텍스트 설정 — 이후 모든 로그에 자동 주입
     call_id_var.set(req.call_id)
     call_mode_var.set(req.communication_mode.value)
-    tenant_id_var.set(req.tenant_id or "")  # seam (WI-3): 지금은 빈값, WI-3서 실제 tenant
+    tenant_id_var.set(str(req.tenant_id))
 
     logger.info(
         "Starting call: id=%s, mode=%s, %s→%s",
@@ -121,7 +121,7 @@ async def start_call(req: CallStartRequest):
     # flow tracing seam 레퍼런스 (FR-5.1) — 제어 흐름만, PII attr 금지.
     # (root trace는 register_call 시점에 생성되므로 지금은 독립 스팬으로 잡힌다.)
     with tracer.flow_span(
-        "calls.dual_session.connect", call_id=req.call_id, tenant_id=req.tenant_id or ""
+        "calls.dual_session.connect", call_id=req.call_id, tenant_id=str(req.tenant_id)
     ):
         try:
             await dual_session.connect(prompt_a, prompt_b, tools_a=tools_a)
@@ -186,6 +186,7 @@ async def end_call(call_id: str, req: CallEndRequest | None = None):
     # 구조화 로깅 컨텍스트 설정
     call_id_var.set(call_id)
     call_mode_var.set(call.communication_mode.value)
+    tenant_id_var.set(str(call.tenant_id))
 
     reason = req.reason if req else "user_hangup"
     logger.info("Ending call: id=%s, reason=%s", call_id, reason)

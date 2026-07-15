@@ -2,7 +2,7 @@
 // GET  /api/calls - list the current user's calls
 
 import { NextRequest, NextResponse } from 'next/server';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db, schema } from '@/lib/db/client';
 import { callRowFromDb } from '@/lib/db/mappers';
 import { requireUser } from '@/lib/auth/require-user';
@@ -25,7 +25,11 @@ export async function POST(request: NextRequest) {
     }
 
     const conversation = await getConversationById(conversationId);
-    if (!conversation || conversation.user_id !== user.id) {
+    if (
+      !conversation ||
+      conversation.user_id !== user.id ||
+      conversation.tenant_id !== user.tenantId
+    ) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
@@ -66,6 +70,7 @@ export async function POST(request: NextRequest) {
       .insert(schema.calls)
       .values({
         userId: user.id,
+        tenantId: user.tenantId,
         conversationId,
         requestType: collectedData.scenario_type || 'RESERVATION',
         targetName: collectedData.target_name ?? null,
@@ -103,7 +108,12 @@ export async function GET() {
     const rows = await db
       .select()
       .from(schema.calls)
-      .where(eq(schema.calls.userId, user.id))
+      .where(
+        and(
+          eq(schema.calls.userId, user.id),
+          eq(schema.calls.tenantId, user.tenantId),
+        ),
+      )
       .orderBy(desc(schema.calls.createdAt))
       .limit(20);
 

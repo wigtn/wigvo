@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from uuid import UUID
 
 from twilio.rest import Client
 
@@ -20,19 +21,17 @@ def get_twilio_client() -> Client:
     return _twilio_client
 
 
-def resolve_outbound_number(tenant_id: str | None = None) -> str:
-    """발신번호 seam (WI-3). 지금은 현행 단일번호를 반환 → 동작 동일.
+async def resolve_outbound_number(tenant_id: UUID | str) -> str:
+    """tenant_call_config에서 발신번호를 fail-closed로 조회한다."""
+    from src.db.pg_client import get_tenant_outbound_number
 
-    WI-3에서 tenant_call_config 조회로 교체하고, 이후 「아웃바운드 번호 풀」 PRD가
-    이 함수 뒤에 할당기를 꽂는다. 호출부(make_call)는 불변.
-    """
-    return settings.twilio_phone_number
+    return await get_tenant_outbound_number(tenant_id)
 
 
 def make_call(
     phone_number: str,
     call_id: str,
-    tenant_id: str | None = None,
+    outbound_number: str,
 ) -> str:
     """Twilio REST API로 아웃바운드 콜을 발신하고 call_sid를 반환한다.
 
@@ -53,7 +52,7 @@ def make_call(
 
     call = client.calls.create(
         to=phone_number,
-        from_=resolve_outbound_number(tenant_id),
+        from_=outbound_number,
         url=webhook_url,
         status_callback=status_callback_url,
         status_callback_event=["initiated", "ringing", "answered", "completed"],
@@ -67,9 +66,13 @@ def make_call(
 async def make_call_async(
     phone_number: str,
     call_id: str,
-    tenant_id: str | None = None,
+    tenant_id: UUID | str,
 ) -> str:
     """make_call의 async 래퍼 — 이벤트 루프를 블로킹하지 않는다."""
+    outbound_number = await resolve_outbound_number(tenant_id)
     return await asyncio.to_thread(
-        make_call, phone_number=phone_number, call_id=call_id, tenant_id=tenant_id
+        make_call,
+        phone_number=phone_number,
+        call_id=call_id,
+        outbound_number=outbound_number,
     )

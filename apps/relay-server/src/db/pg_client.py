@@ -4,8 +4,8 @@ The relay server only writes to the `calls` and `conversations` tables; the
 former PostgREST-style `client.table("calls").update({...}).eq("id", id).execute()`
 calls become two helpers:
 
-- update_call(call_id, **fields)
-- update_conversation(conversation_id, **fields)
+- update_call(call_id, tenant_id, **fields)
+- update_conversation(conversation_id, tenant_id, **fields)
 
 The high-level persist_call() / update_call_field() helpers keep their names
 and shapes so callers don't need wholesale refactors.
@@ -19,6 +19,7 @@ import json
 import logging
 import time
 from typing import Any
+from uuid import UUID
 
 import asyncpg
 
@@ -55,12 +56,17 @@ _CALL_COLUMNS: dict[str, str] = {
     "total_tokens": "int",
     "completed_at": "timestamptz",
     "relay_ws_url": "text",
+    "tenant_id": "uuid",
 }
 
 _CONV_COLUMNS: dict[str, str] = {
     "status": "text",
     "collected_data": "jsonb",
 }
+
+
+def _as_uuid(value: UUID | str) -> UUID:
+    return value if isinstance(value, UUID) else UUID(value)
 
 
 def _is_jsonb(col: str) -> bool:
@@ -109,33 +115,46 @@ async def close_pool() -> None:
         _pool = None
 
 
-def _build_update(table: str, columns: dict[str, str], fields: dict[str, Any]) -> tuple[str, list[Any]]:
-    """Build an `UPDATE ... WHERE id = $N` statement from a column whitelist."""
+def _build_tenant_update(
+    table: str,
+    columns: dict[str, str],
+    record_id: str,
+    tenant_id: UUID | str,
+    fields: dict[str, Any],
+) -> tuple[str, list[Any]]:
+    """Build an update that cannot cross a tenant boundary."""
     set_parts: list[str] = []
     values: list[Any] = []
     for col, val in fields.items():
         if col not in columns:
             logger.warning("Ignoring unknown column %s.%s", table, col)
             continue
-        set_parts.append(f"{col} = ${len(values) + 1}")
+        cast = "::uuid" if columns[col] == "uuid" else ""
+        set_parts.append(f"{col} = ${len(values) + 1}{cast}")
         values.append(val)
     if not set_parts:
         return "", values
     set_parts.append(f"updated_at = ${len(values) + 1}")
     values.append(datetime.datetime.now(datetime.timezone.utc))
-    placeholder_id = f"${len(values) + 1}"
-    sql = f"UPDATE {table} SET {', '.join(set_parts)} WHERE id = {placeholder_id}"
+    placeholder_id = f"${len(values) + 1}::uuid"
+    placeholder_tenant = f"${len(values) + 2}::uuid"
+    sql = (
+        f"UPDATE {table} SET {', '.join(set_parts)} "
+        f"WHERE id = {placeholder_id} AND tenant_id = {placeholder_tenant}"
+    )
+    values.extend([_as_uuid(record_id), _as_uuid(tenant_id)])
     return sql, values
 
 
-async def update_call(call_id: str, **fields: Any) -> int:
-    """Update arbitrary whitelisted columns on a calls row."""
+async def update_call(call_id: str, tenant_id: UUID | str, **fields: Any) -> int:
+    """Update a call only when both id and tenant_id match (fail-closed)."""
     if not fields:
         return 0
-    sql, params = _build_update("calls", _CALL_COLUMNS, fields)
+    sql, params = _build_tenant_update(
+        "calls", _CALL_COLUMNS, call_id, tenant_id, fields
+    )
     if not sql:
         return 0
-    params.append(call_id)
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(sql, *params)
@@ -146,13 +165,20 @@ async def update_call(call_id: str, **fields: Any) -> int:
         return 0
 
 
-async def update_conversation(conversation_id: str, **fields: Any) -> int:
+async def update_conversation(
+    conversation_id: str, tenant_id: UUID | str, **fields: Any
+) -> int:
     if not fields:
         return 0
-    sql, params = _build_update("conversations", _CONV_COLUMNS, fields)
+    sql, params = _build_tenant_update(
+        "conversations",
+        _CONV_COLUMNS,
+        conversation_id,
+        tenant_id,
+        fields,
+    )
     if not sql:
         return 0
-    params.append(conversation_id)
     pool = await get_pool()
     async with pool.acquire() as conn:
         result = await conn.execute(sql, *params)
@@ -162,12 +188,52 @@ async def update_conversation(conversation_id: str, **fields: Any) -> int:
         return 0
 
 
-async def fetch_call_conversation_id(call_id: str) -> str | None:
+async def fetch_call_conversation_id(
+    call_id: str, tenant_id: UUID | str
+) -> str | None:
     pool = await get_pool()
     async with pool.acquire() as conn:
         return await conn.fetchval(
-            "SELECT conversation_id FROM calls WHERE id = $1", call_id
+            "SELECT conversation_id FROM calls WHERE id = $1::uuid AND tenant_id = $2::uuid",
+            _as_uuid(call_id),
+            _as_uuid(tenant_id),
         )
+
+
+async def get_tenant_outbound_number(tenant_id: UUID | str) -> str:
+    """Resolve tenant telephony config; missing/blank config is rejected."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        number = await conn.fetchval(
+            """
+            SELECT outbound_number
+            FROM tenant_call_config
+            WHERE tenant_id = $1::uuid AND provider = 'twilio'
+            """,
+            _as_uuid(tenant_id),
+        )
+        # Preserve existing single-tenant behavior during rollout without
+        # hard-coding a phone number into migration history. The legacy value
+        # is copied into the default tenant config once, then DB config wins.
+        default_tenant = "00000000-0000-0000-0000-000000000001"
+        if (
+            not number
+            and str(tenant_id) == default_tenant
+            and settings.twilio_phone_number
+        ):
+            number = await conn.fetchval(
+                """
+                UPDATE tenant_call_config
+                SET outbound_number = $2, updated_at = now()
+                WHERE tenant_id = $1::uuid AND outbound_number = ''
+                RETURNING outbound_number
+                """,
+                UUID(default_tenant),
+                settings.twilio_phone_number,
+            )
+    if not number:
+        raise LookupError(f"No outbound number configured for tenant {tenant_id}")
+    return str(number)
 
 
 async def persist_call(call: ActiveCall) -> None:
@@ -184,6 +250,7 @@ async def persist_call(call: ActiveCall) -> None:
 
     data: dict[str, Any] = {
         "call_sid": call.call_sid,
+        "tenant_id": call.tenant_id,
         "call_mode": call.mode.value,
         "source_language": call.source_language,
         "target_language": call.target_language,
@@ -209,16 +276,16 @@ async def persist_call(call: ActiveCall) -> None:
     }
 
     try:
-        await update_call(call.call_id, **data)
+        await update_call(call.call_id, call.tenant_id, **data)
         logger.info("Call %s persisted to DB (status=%s)", call.call_id, db_status)
     except Exception:
         logger.exception("Failed to persist call %s", call.call_id)
         return
 
     try:
-        conv_id = await fetch_call_conversation_id(call.call_id)
+        conv_id = await fetch_call_conversation_id(call.call_id, call.tenant_id)
         if conv_id:
-            await update_conversation(conv_id, status="COMPLETED")
+            await update_conversation(conv_id, call.tenant_id, status="COMPLETED")
             logger.info("Conversation %s status updated to COMPLETED", conv_id)
     except Exception:
         logger.warning(
@@ -228,9 +295,11 @@ async def persist_call(call: ActiveCall) -> None:
         )
 
 
-async def update_call_field(call_id: str, field: str, value: Any) -> None:
+async def update_call_field(
+    call_id: str, tenant_id: UUID | str, field: str, value: Any
+) -> None:
     """Update a single whitelisted column on a calls row."""
     try:
-        await update_call(call_id, **{field: value})
+        await update_call(call_id, tenant_id, **{field: value})
     except Exception:
         logger.exception("Failed to update %s for call %s", field, call_id)
