@@ -19,6 +19,9 @@ for _byte in range(256):
 _max_abs = max(abs(v) for v in _ULAW_TO_LINEAR)
 _ULAW_TO_FLOAT32 = np.array(_ULAW_TO_LINEAR, dtype=np.float32) / _max_abs
 
+# ulaw_rms용 원본 선형 스케일 테이블 (float64: 제곱 합산 시 오버플로·정밀도 안전)
+_ULAW_TO_LINEAR_NP = np.array(_ULAW_TO_LINEAR, dtype=np.float64)
+
 
 def pcm16_rms(audio: bytes) -> float:
     """PCM16 (16-bit signed LE) 오디오의 RMS 에너지를 계산한다.
@@ -43,8 +46,8 @@ def ulaw_rms(audio: bytes) -> float:
     """
     if not audio:
         return 0.0
-    total = sum(_ULAW_TO_LINEAR[b] ** 2 for b in audio)
-    return (total / len(audio)) ** 0.5
+    linear = _ULAW_TO_LINEAR_NP[np.frombuffer(audio, dtype=np.uint8)]
+    return float(np.sqrt(np.mean(linear * linear)))
 
 
 def ulaw_to_float32(audio: bytes) -> np.ndarray:
