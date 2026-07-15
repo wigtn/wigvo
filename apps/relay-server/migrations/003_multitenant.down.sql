@@ -1,6 +1,12 @@
 -- WI-3 rollback. This intentionally removes only WI-3 objects/columns.
 -- Run only while active call count is zero.
 
+BEGIN;
+
+ALTER TABLE calls DISABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+
 DROP INDEX IF EXISTS idx_calls_tenant_id;
 DROP INDEX IF EXISTS idx_conversations_tenant_id;
 DROP INDEX IF EXISTS idx_users_tenant_id;
@@ -15,3 +21,5 @@ ALTER TABLE users DROP COLUMN IF EXISTS tenant_id;
 
 DROP TABLE IF EXISTS tenant_call_config;
 DROP TABLE IF EXISTS tenants;
+
+COMMIT;
