@@ -94,7 +94,7 @@ class BasePipeline(ABC):
                 data["communication_mode"] = call.communication_mode.value
             if call.started_at > 0:
                 data["duration_s"] = round(time.time() - call.started_at, 1)
-            await update_call(call.call_id, **data)
+            await update_call(call.call_id, call.tenant_id, **data)
             logger.debug("Incremental metrics saved for call %s", call.call_id)
         except Exception:
             logger.warning("Failed to save incremental metrics for call %s", call.call_id, exc_info=True)

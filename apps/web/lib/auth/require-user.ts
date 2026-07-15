@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export type AuthedUser = {
   id: string;
+  tenantId: string;
   email: string | null;
   name: string | null;
 };
@@ -49,6 +50,7 @@ export async function requireUser(): Promise<AuthedUser> {
   const [existing] = await db
     .select({
       id: schema.users.id,
+      tenantId: schema.users.tenantId,
       email: schema.users.email,
       name: schema.users.name,
       deletedAt: schema.users.deletedAt,
@@ -61,14 +63,32 @@ export async function requireUser(): Promise<AuthedUser> {
     if (existing.deletedAt) {
       throw new ForbiddenError('account revoked');
     }
-    return { id: existing.id, email: existing.email, name: existing.name };
+    if (!existing.tenantId) {
+      throw new ForbiddenError('tenant unresolved');
+    }
+    return {
+      id: existing.id,
+      tenantId: existing.tenantId,
+      email: existing.email,
+      name: existing.name,
+    };
   }
 
   // Auto-provision on first contact.
   await db
     .insert(schema.users)
-    .values({ id: authUser.id, email, name })
+    .values({
+      id: authUser.id,
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      email,
+      name,
+    })
     .onConflictDoNothing({ target: schema.users.id });
 
-  return { id: authUser.id, email, name };
+  return {
+    id: authUser.id,
+    tenantId: '00000000-0000-0000-0000-000000000001',
+    email,
+    name,
+  };
 }

@@ -43,15 +43,22 @@ function stats(arr: number[]) {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireUser();
+    const user = await requireUser();
 
     const searchParams = request.nextUrl.searchParams;
     const mode = searchParams.get('mode');
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500);
 
     const whereClause = mode
-      ? and(eq(schema.calls.status, 'COMPLETED'), eq(schema.calls.communicationMode, mode))
-      : eq(schema.calls.status, 'COMPLETED');
+      ? and(
+          eq(schema.calls.tenantId, user.tenantId),
+          eq(schema.calls.status, 'COMPLETED'),
+          eq(schema.calls.communicationMode, mode),
+        )
+      : and(
+          eq(schema.calls.tenantId, user.tenantId),
+          eq(schema.calls.status, 'COMPLETED'),
+        );
 
     const rows = await db
       .select({

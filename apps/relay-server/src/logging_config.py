@@ -15,7 +15,6 @@ from pathlib import Path
 # 비동기 컨텍스트 변수 — asyncio.create_task 시 자동 복사
 call_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("call_id", default="")
 call_mode_var: contextvars.ContextVar[str] = contextvars.ContextVar("call_mode", default="")
-# PoC refactor seam (WI-3): tenant_id 로깅 컨텍스트. WI-3에서 set, 지금은 기본 빈값.
 tenant_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("tenant_id", default="")
 
 
@@ -60,6 +59,9 @@ class CloudRunJsonFormatter(logging.Formatter):
         call_mode = getattr(record, "call_mode", "")
         if call_mode:
             payload["mode"] = call_mode
+        tenant_id = getattr(record, "tenant_id", "")
+        if tenant_id:
+            payload["tenant_id"] = tenant_id
         if record.exc_info and record.exc_info[1] is not None:
             payload["exception"] = "".join(traceback.format_exception(*record.exc_info))
         return json.dumps(payload, ensure_ascii=False)
@@ -84,7 +86,8 @@ class ColorConsoleFormatter(logging.Formatter):
         # CallContextFilter가 주입한 call_id/call_mode (있을 때만 표시)
         call_id = getattr(record, "call_id", "")
         call_mode = getattr(record, "call_mode", "")
-        ctx = f" [{call_id}|{call_mode}]" if call_id else ""
+        tenant_id = getattr(record, "tenant_id", "")
+        ctx = f" [{tenant_id}|{call_id}|{call_mode}]" if call_id else ""
         base = f"{timestamp} {color}[{record.levelname}]{self._RESET} {record.name}:{ctx} {msg}"
         if record.exc_info and record.exc_info[1] is not None:
             base += "\n" + "".join(traceback.format_exception(*record.exc_info))

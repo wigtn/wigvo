@@ -16,10 +16,31 @@ import {
 } from 'drizzle-orm/pg-core';
 import type { CollectedData, ConversationStatus } from '@/shared/types';
 
+export const tenants = pgTable('tenants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tenantCallConfig = pgTable('tenant_call_config', {
+  tenantId: uuid('tenant_id')
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: 'cascade' }),
+  outboundNumber: text('outbound_number').notNull().default(''),
+  provider: text('provider').notNull().default('twilio'),
+  promptOverrides: jsonb('prompt_overrides').$type<Record<string, unknown>>().notNull().default({}),
+  languages: jsonb('languages').$type<string[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const users = pgTable(
   'users',
   {
     id: uuid('id').primaryKey(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     email: text('email'),
     name: text('name'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -27,6 +48,7 @@ export const users = pgTable(
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => ({
+    tenantIdx: index('idx_users_tenant_id').on(t.tenantId),
     emailIdx: index('idx_users_email').on(t.email),
   }),
 );
@@ -35,6 +57,9 @@ export const conversations = pgTable(
   'conversations',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     userId: uuid('user_id').notNull(),
     status: text('status').$type<ConversationStatus>().notNull().default('COLLECTING'),
     collectedData: jsonb('collected_data').$type<CollectedData>().notNull().default({} as CollectedData),
@@ -42,6 +67,7 @@ export const conversations = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
+    tenantIdx: index('idx_conversations_tenant_id').on(t.tenantId),
     userIdx: index('idx_conversations_user_id').on(t.userId),
     createdIdx: index('idx_conversations_created_at').on(t.createdAt),
   }),
@@ -69,6 +95,9 @@ export const calls = pgTable(
   'calls',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id),
     conversationId: uuid('conversation_id').references(() => conversations.id, {
       onDelete: 'set null',
     }),
@@ -104,6 +133,7 @@ export const calls = pgTable(
     completedAt: timestamp('completed_at', { withTimezone: true }),
   },
   (t) => ({
+    tenantIdx: index('idx_calls_tenant_id').on(t.tenantId),
     userIdx: index('idx_calls_user_id').on(t.userId),
     convIdx: index('idx_calls_conversation_id').on(t.conversationId),
     modeIdx: index('idx_calls_call_mode').on(t.callMode),
@@ -155,3 +185,5 @@ export type Message = typeof messages.$inferSelect;
 export type Call = typeof calls.$inferSelect;
 export type ConversationEntity = typeof conversationEntities.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type Tenant = typeof tenants.$inferSelect;
+export type TenantCallConfig = typeof tenantCallConfig.$inferSelect;

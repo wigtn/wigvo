@@ -19,6 +19,6 @@ async def get_client():
     """Legacy name. Returns the asyncpg pool.
 
     Callers that used `client.table("calls").update({...}).eq("id", id).execute()`
-    must migrate to `update_call(id, **fields)` directly.
+    must migrate to `update_call(id, tenant_id, **fields)` directly.
     """
     return await get_pool()

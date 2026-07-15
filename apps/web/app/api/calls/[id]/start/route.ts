@@ -35,7 +35,13 @@ export async function POST(
         schema.conversations,
         eq(schema.conversations.id, schema.calls.conversationId),
       )
-      .where(and(eq(schema.calls.id, callId), eq(schema.calls.userId, user.id)))
+      .where(
+        and(
+          eq(schema.calls.id, callId),
+          eq(schema.calls.userId, user.id),
+          eq(schema.calls.tenantId, user.tenantId),
+        ),
+      )
       .limit(1);
 
     if (!callRow) {
@@ -91,13 +97,23 @@ export async function POST(
     await db
       .update(schema.calls)
       .set({ status: 'CALLING', updatedAt: new Date() })
-      .where(eq(schema.calls.id, callId));
+      .where(
+        and(
+          eq(schema.calls.id, callId),
+          eq(schema.calls.tenantId, user.tenantId),
+        ),
+      );
 
     if (call.conversationId) {
       await db
         .update(schema.conversations)
         .set({ status: 'CALLING', updatedAt: new Date() })
-        .where(eq(schema.conversations.id, call.conversationId));
+        .where(
+          and(
+            eq(schema.conversations.id, call.conversationId),
+            eq(schema.conversations.tenantId, user.tenantId),
+          ),
+        );
     }
 
     const callMode: CallMode = (call.callMode as CallMode | null) || 'relay';
@@ -114,6 +130,7 @@ export async function POST(
     try {
       relayResult = await startRelayCall({
         call_id: callId,
+        tenant_id: user.tenantId,
         phone_number: phoneNumber,
         mode: callMode,
         source_language:
@@ -130,6 +147,7 @@ export async function POST(
       await markCallFailed(
         callId,
         call.conversationId,
+        user.tenantId,
         err instanceof Error ? err.message : 'Relay Server call initiation failed',
       );
       return NextResponse.json({ error: 'Failed to start call' }, { status: 500 });
@@ -144,7 +162,12 @@ export async function POST(
         callMode,
         updatedAt: new Date(),
       })
-      .where(eq(schema.calls.id, callId));
+      .where(
+        and(
+          eq(schema.calls.id, callId),
+          eq(schema.calls.tenantId, user.tenantId),
+        ),
+      );
 
     return NextResponse.json({
       success: true,
@@ -163,6 +186,7 @@ export async function POST(
 async function markCallFailed(
   callId: string,
   conversationId: string | null,
+  tenantId: string,
   message: string,
 ): Promise<void> {
   try {
@@ -175,13 +199,23 @@ async function markCallFailed(
         completedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(schema.calls.id, callId));
+      .where(
+        and(
+          eq(schema.calls.id, callId),
+          eq(schema.calls.tenantId, tenantId),
+        ),
+      );
     if (conversationId) {
       try {
         await db
           .update(schema.conversations)
           .set({ status: 'COMPLETED', updatedAt: new Date() })
-          .where(eq(schema.conversations.id, conversationId));
+          .where(
+            and(
+              eq(schema.conversations.id, conversationId),
+              eq(schema.conversations.tenantId, tenantId),
+            ),
+          );
       } catch (convErr) {
         console.error('[Helper] Conversation update failed (non-critical):', convErr);
       }

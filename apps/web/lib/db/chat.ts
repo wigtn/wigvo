@@ -19,6 +19,7 @@ import { CONVERSATION_HISTORY_LIMIT } from '@/lib/constants';
 
 interface ConversationRow {
   id: string;
+  tenant_id: string;
   user_id: string;
   status: ConversationStatus;
   collected_data: CollectedData;
@@ -42,6 +43,7 @@ function toIso(d: Date): string {
 function toConvRow(row: typeof schema.conversations.$inferSelect): ConversationRow {
   return {
     id: row.id,
+    tenant_id: row.tenantId,
     user_id: row.userId,
     status: row.status,
     collected_data: row.collectedData as CollectedData,
@@ -63,6 +65,7 @@ function toMsgRow(row: typeof schema.messages.$inferSelect): MessageRow {
 
 export async function createConversation(
   userId: string,
+  tenantId: string,
   scenarioType?: ScenarioType,
   subType?: ScenarioSubType,
   communicationMode?: CommunicationMode,
@@ -80,6 +83,7 @@ export async function createConversation(
     .insert(schema.conversations)
     .values({
       userId,
+      tenantId,
       status: 'COLLECTING',
       collectedData: initialCollectedData,
     })

@@ -131,8 +131,9 @@ async def test_persist_snapshot_correct_format(pipeline):
     """DB write payload가 cleanup_call 포맷과 일치한다."""
     captured: dict[str, object] = {}
 
-    async def fake_update_call(call_id, **fields):
+    async def fake_update_call(call_id, tenant_id, **fields):
         captured["call_id"] = call_id
+        captured["tenant_id"] = tenant_id
         captured["fields"] = fields
         return 1
 
