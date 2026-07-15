@@ -155,11 +155,20 @@ scaffold PR이 아래 seam을 **동작 보존 상태로 먼저 착지**시킨다
 ```python
 async def bootstrap_inbound_session(
     call_id: str,
-    tenant_id: str,
+    tenant_id: UUID,
 ) -> BootstrapResult:
     """성공 시 CONNECTED 전환에 필요한 결과, 실패 시 정형화된 실패 사유를 반환."""
 ```
 
+- B가 `src.inbound.register_inbound_media_handlers(bootstrap=..., cleanup=...)` 계약과
+  dispatch lifecycle을 소유한다. A는 앱 lifespan 시작 전에 handler를 등록하고,
+  `bootstrap`에서 `BootstrapResult(relay_ws_url, source_language, target_language, ...)`를
+  반환한다. handler 미등록 상태에서는 pickup을 claim하기 전에 503으로 거절해 대기
+  통화를 훼손하지 않는다.
+- B의 HTTP 계약은 `GET /relay/inbound/calls`(tenant FIFO)와
+  `POST /relay/inbound/calls/{call_id}/pickup`(JWT→원자적 claim→bootstrap→단기 토큰),
+  WS 계약은 `wigvo.pickup` marker + token이다. pickup 토큰은 DB의 현재
+  `CONNECTED/claimed_by`와 매 접속마다 재검증한다.
 - B는 A의 내부 미디어 객체를 직접 조작하지 않고, A는 tenant/claim DB를 직접 갱신하지 않는다.
 - `CapacityManager.release(call_id)`는 예약 실패·취소 경로의 idempotent 반환 계약이다. active 통화 종료는 공용 cleanup에서 `call_manager` 제거와 함께 처리한다.
 - 부트스트랩 실패·취소·timeout은 양쪽 정리를 오케스트레이션하는 단일 cleanup 진입점으로 수렴해야 한다. B는 최종 dispatch 상태와 `end_reason`, A는 세션·예약·Stream 자원을 각각 책임진다.

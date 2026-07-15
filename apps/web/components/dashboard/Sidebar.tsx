@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Zap,
   LogOut,
+  PhoneIncoming,
 } from "lucide-react";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 import SidebarMenu from "./SidebarMenu";
@@ -110,6 +111,13 @@ export default function Sidebar({
             isCollapsed={isSidebarCollapsed}
             isActive={activeMenu === "conversations"}
             onClick={() => handleMenuClick("conversations")}
+          />
+          <SidebarMenu
+            icon={<PhoneIncoming className="size-[18px]" />}
+            label={t("inbound")}
+            isCollapsed={isSidebarCollapsed}
+            isActive={false}
+            onClick={() => router.push('/inbound')}
           />
         </div>
       </nav>

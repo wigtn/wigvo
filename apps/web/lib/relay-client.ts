@@ -6,6 +6,7 @@
 
 import 'server-only';
 import type { CallStartParams, CallStartResult } from '@/shared/call-types';
+import type { InboundCall, InboundPickupResult } from '@/shared/inbound-types';
 
 const RELAY_SERVER_URL = process.env.RELAY_SERVER_URL || 'http://localhost:8000';
 const RELAY_API_KEY = process.env.RELAY_API_KEY;
@@ -15,6 +16,49 @@ function relayHeaders(): HeadersInit {
     'Content-Type': 'application/json',
     ...(RELAY_API_KEY ? { 'X-Wigvo-API-Key': RELAY_API_KEY } : {}),
   };
+}
+
+function relayUserHeaders(accessToken: string): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
+async function relayError(response: Response): Promise<Error> {
+  let detail = `Relay Server error (${response.status})`;
+  try {
+    const payload = (await response.json()) as { detail?: string };
+    if (payload.detail) detail = payload.detail;
+  } catch {
+    // Keep the status-only message when the response is not JSON.
+  }
+  return Object.assign(new Error(detail), { status: response.status });
+}
+
+export async function listInboundCalls(accessToken: string): Promise<InboundCall[]> {
+  const response = await fetch(`${RELAY_SERVER_URL}/relay/inbound/calls`, {
+    headers: relayUserHeaders(accessToken),
+    cache: 'no-store',
+  });
+  if (!response.ok) throw await relayError(response);
+  const payload = (await response.json()) as { calls: InboundCall[] };
+  return payload.calls;
+}
+
+export async function pickupInboundCall(
+  callId: string,
+  accessToken: string,
+): Promise<InboundPickupResult> {
+  const response = await fetch(
+    `${RELAY_SERVER_URL}/relay/inbound/calls/${encodeURIComponent(callId)}/pickup`,
+    {
+      method: 'POST',
+      headers: relayUserHeaders(accessToken),
+    },
+  );
+  if (!response.ok) throw await relayError(response);
+  return (await response.json()) as InboundPickupResult;
 }
 
 /**
