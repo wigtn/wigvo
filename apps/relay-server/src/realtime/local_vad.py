@@ -21,6 +21,9 @@ RMS Gate 복귀 시 Silero 리셋:
 
 import asyncio
 import logging
+import os
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from enum import Enum
 from typing import Callable, Coroutine
 
@@ -29,6 +32,14 @@ import numpy as np
 from src.realtime.audio_utils import ulaw_rms, ulaw_to_float32
 
 logger = logging.getLogger(__name__)
+
+# Silero ONNX 추론(GIL 해제 C 호출, 프로파일링 결과 busy CPU의 ~51%)을 이벤트루프에서
+# 분리하기 위한 고정 공유 스레드풀. 통화당 전용 스레드(§8-#6) 대신 코어 수 배수 고정 풀:
+# ONNX가 GIL을 풀어 병렬도 상한은 어차피 코어 수이므로 스레드를 통화 수만큼 만들 이유가 없다.
+_VAD_POOL_WORKERS = int(os.getenv("VAD_POOL_WORKERS", str(os.cpu_count() or 4)))
+_VAD_EXECUTOR = ThreadPoolExecutor(
+    max_workers=_VAD_POOL_WORKERS, thread_name_prefix="vad-infer"
+)
 
 
 class _VadState(str, Enum):
@@ -91,6 +102,9 @@ class LocalVAD:
         self._peak_rms: float = 0.0
 
         # Silero VAD model (lazy init)
+        # 추론은 워커 스레드에서, reset()은 이벤트루프 스레드에서 호출되므로
+        # 같은 C 모델에 대한 동시 접근을 막는 락 (추론↔reset 상호배제).
+        self._model_lock = threading.Lock()
         self._model = None
         self._init_model()
 
@@ -162,7 +176,8 @@ class LocalVAD:
             if self._rms_silence_frames >= self._MIN_RMS_SILENCE_FOR_RESET:
                 self._frame_buffer = np.empty(0, dtype=np.float32)
                 try:
-                    self._model.reset()
+                    with self._model_lock:
+                        self._model.reset()
                 except Exception:
                     pass
                 logger.debug(
@@ -185,10 +200,20 @@ class LocalVAD:
             self._frame_buffer = self._frame_buffer[self._SILERO_FRAME_SIZE:]
 
             # Stage 2: Silero VAD (writable memoryview 필요)
+            # ONNX 추론(GIL 해제)을 이벤트루프 밖 고정 스레드풀로 오프로드 →
+            # 추론 중 루프가 다른 통화 프레임을 처리 (통화 간 병렬).
             frame_writable = frame.copy()
-            prob = self._model.process(memoryview(frame_writable.data))
+            loop = asyncio.get_running_loop()
+            prob = await loop.run_in_executor(
+                _VAD_EXECUTOR, self._infer, memoryview(frame_writable.data)
+            )
             logger.debug("[LocalVAD] silero prob=%.3f rms=%.0f state=%s", prob, rms, self._state.value)
             await self._update_state(prob)
+
+    def _infer(self, frame_mv: memoryview) -> float:
+        """워커 스레드에서 Silero ONNX 추론을 실행한다 (모델 락으로 reset과 상호배제)."""
+        with self._model_lock:
+            return self._model.process(frame_mv)
 
     async def _update_state(self, prob: float) -> None:
         """Silero VAD 확률로 상태 머신을 업데이트한다 (hysteresis)."""
@@ -251,7 +276,8 @@ class LocalVAD:
         self._rms_silence_frames = 0
         if self._model is not None:
             try:
-                self._model.reset()
+                with self._model_lock:
+                    self._model.reset()
             except Exception:
                 pass
         logger.info("[LocalVAD] Forced to SPEAKING state (settling breakthrough)")
@@ -276,7 +302,8 @@ class LocalVAD:
         self._rms_silence_frames = 0
         if self._model is not None:
             try:
-                self._model.reset()
+                with self._model_lock:
+                    self._model.reset()
             except Exception:
                 pass
         logger.debug("[LocalVAD] Reset")
