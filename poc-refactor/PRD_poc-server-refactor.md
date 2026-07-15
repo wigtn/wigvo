@@ -182,9 +182,10 @@ Scenario: 과부하 우아한 거절
 
 - **FR-4a.1** `/calls/start`(`calls.py:38`) + 통화 조회 + **모니터 WebSocket**(`stream.py:105`) + **웹부스 응대 WS `/calls/{call_id}/stream`(`stream.py:21` — WI-6 기관 응대 경로, 현재 무방비, W-5)**에 인증(방식은 §8-#1). 실패 시 401/403. **인증 축 구분(코덱스):** 서버 간·온보딩 = **기관 API Key**, 직원 웹 부스 = **사용자 로그인 JWT + 단기 pickup 토큰**(브라우저에 기관 API Key 부착 금지 — §8-#1·FR-6.3b).
 - **FR-4a.2 (C-2) 2단계 롤아웃:** 무인증 클라이언트(웹·모니터)가 살아 있어 한 번에 잠그면 전 통화 중단. → `enforce=false`(검증하되 통과+로그) → **웹/모니터에 키 반영 확인** → `enforce=true`. 완료기준: **롤아웃 중 진행 통화 0 드롭**.
+  - **운영 게이트:** 1차 배포 후 `/health`의 `tenant_auth_enforced=false`·`tenant_api_key_tenants>0` 확인 → 웹 발신/stream/monitor JWT 연결 확인 → **`active_sessions=0`일 때만** `TENANT_AUTH_ENFORCE=true`로 재배포 → `/health`에서 true 재확인. stateful 단일 relay 재시작은 진행 통화를 끊으므로 이 zero-active 게이트를 생략하지 않는다.
 - **FR-4a.3 (C-2) 경로 화이트리스트:** "기관 인증 대상 경로"와 "인증 제외(=Twilio 서명검증 경유, WI-4b) 경로"를 **명시적 목록**으로 분리 — 회선 경로(webhook/media-stream)가 실수로 기관 인증 게이트에 걸려 통화가 끊기지 않게.
 - **FR-4a.4 (M-6) IDOR 차단:** 조회·모니터는 인증 + `tenant_id` 스코핑(WI-3 의존). 인증된 A가 B의 call_id를 직접 지정해도 거부(§2.2 음성 경로).
-- **FR-4a.5** `max_concurrent_calls`를 tenant별 상한으로 확장 검토(전역 상한과 병행).
+- **FR-4a.5** `max_concurrent_calls`를 tenant별 상한으로 확장 검토(전역 상한과 병행). **검토 결과:** WI-4a에서는 전역 `CapacityManager` 하드캡을 유지하고, tenant별 상한은 WI-5의 공용 예약 계약을 훼손하지 않는 후속 운영 정책으로 둔다.
 - **완료기준:** §2.2 "접근 경로 잠금" + "교차 테넌트 접근 차단".
 
 ### WI-4b. Twilio 콜백 서명검증 (G4) — _1~2일_ · **owner A(텔레포니)** · ⚠ 착수 전 §8 callback URL 확정
@@ -319,12 +320,12 @@ Scenario: 과부하 우아한 거절
 
 ## 8. Open Decisions (진행 전 확정)
 
-1. **인증 방식 — 서비스 인증 ↔ 사용자 인증 분리 (⚠ WI-4a 착수 전 게이트, C-2 · 코덱스 리뷰로 재프레이밍)** — 기존 "기관 API key vs JWT" 이분법은 **틀린 축**이다. **브라우저(웹 부스)에 장기 기관 API Key를 실으면** XSS·확장·로그·devtools로 유출되고, **직원 1명 유출 = 기관 전체 권한 유출** → C-1 멀티테넌트 격리와 정면충돌. **결정할 것 = 두 인증을 분리하는 설계:**
-   - **기관 API Key = 서버 간(S2S)·온보딩 자동화 전용** (브라우저 노출 금지).
-   - **직원 웹 부스 = 사용자 로그인 JWT**(우리 스택의 Supabase Auth 등)로 신원 확립.
+1. **인증 방식 — 서비스 인증 ↔ 사용자 인증 분리 (✅ 확정, 2026-07-16 · C-2 · 코덱스 리뷰로 재프레이밍)** — 기존 "기관 API key vs JWT" 이분법은 **틀린 축**이다. **브라우저(웹 부스)에 장기 기관 API Key를 실으면** XSS·확장·로그·devtools로 유출되고, **직원 1명 유출 = 기관 전체 권한 유출** → C-1 멀티테넌트 격리와 정면충돌. **확정 = 두 인증을 분리하는 설계:**
+   - **기관 API Key = 서버 간(S2S)·온보딩 자동화 전용** (브라우저 노출 금지). HTTP 헤더 `X-Wigvo-API-Key`; relay에는 raw key가 아닌 tenant별 SHA-256 digest만 설정한다.
+   - **직원 웹 부스 = WIGTN-SSO Supabase JWT**로 신원 확립. relay가 공개 JWKS(ES256)로 서명을 검증한 뒤 WIGVO `users`의 활성 tenant membership을 해석한다.
    - **WS 접속 직전 단기 pickup 토큰 발급:** `call_id + tenant_id + user_id + role + exp`(1–5분·1회용 또는 짧은 TTL), 서버가 **call 소유권(tenant 일치)**을 검증. 재사용·만료 시 거부.
    - **폐기·재생 정책 (코덱스 S-1 · 미정의였음):** **"1회용" 강제 = WS 인증 스텝에서 dispatch row 재확인** — 토큰만 보지 말고 `claimed_by == token.user_id AND state IN (CLAIMED, SESSION_STARTING, CONNECTED)`를 DB로 검증(stateless JWT로도 폐기 성립). **claim 회수 시(FR-6.3b: 직원 이탈 → WAITING 복귀) 이미 발급된 토큰은 이 재확인으로 자동 무효화**(state가 WAITING이거나 `claimed_by`가 바뀌면 접속 거부) → 교차 직원 세션 하이재킹 창 차단. (단일 프로세스면 사용-소진 인메모리 set도 대안.)
-   - **토큰 전송 방식 택1:** URL query 금지 → `Sec-WebSocket-Protocol` 헤더 · 연결 후 첫 인증 메시지 · HttpOnly 세션 쿠키 중 명시적으로 하나. (FR-4a.1·FR-6.3a 반영.)
+   - **토큰 전송 방식 ✅ `Sec-WebSocket-Protocol` 확정:** URL query 금지. 사용자 WS는 `wigvo.jwt` marker + JWT, WI-6 pickup WS는 `wigvo.pickup` marker + 단기 token의 두 subprotocol 값으로 전달한다. 서버는 marker만 선택 응답해 token을 응답 헤더에 재노출하지 않는다. (FR-4a.1·FR-6.3a 반영.)
 2. **테넌트 격리 방식 (⚠ WI-3 착수 전 게이트, C-1)** — Postgres RLS vs 단일 tenant-scoped 계층. fail-closed 전제. **(#5) RLS 채택 시 주의: `calls`는 웹앱이 Drizzle로 읽는 공유 테이블 — 웹은 'RLS 생략+앱 스코핑' 설계라, RLS를 켜면 tenant GUC 미설정 웹 쿼리가 깨질 수 있음(웹 영향 검토 필요). 결합 부담이면 (b) DAO가 웹 무영향으로 더 안전.**
 3. **Twilio callback base URL (⚠ WI-4b 착수 전 게이트, C-3)** — 서명검증 URL 불일치 방지 위해 env로 고정할 정확한 public URL.
 4. **데모 cap 값** — 18(지연 안전) vs 20(처리량). _(VM 스펙은 `e2-standard-2` 실측 확정, 실통화 예산은 스텁 모드로 불필요.)_

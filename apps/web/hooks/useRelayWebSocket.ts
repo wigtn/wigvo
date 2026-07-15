@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WsMessageType, type RelayWsMessage } from '@/shared/call-types';
 import { MOCK_WS_URL_PREFIX } from '@/lib/demo';
 import { MockWebSocket } from '@/lib/demo/mock-ws';
+import { createClient } from '@/lib/supabase/client';
 
 type WsStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -26,6 +27,7 @@ interface UseRelayWebSocketReturn {
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY_MS = 3000;
+const JWT_WS_PROTOCOL = 'wigvo.jwt';
 
 export function useRelayWebSocket({
   url,
@@ -36,13 +38,19 @@ export function useRelayWebSocket({
 
   const wsRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
-  onMessageRef.current = onMessage;
 
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalCloseRef = useRef(false);
+  const connectGenerationRef = useRef(0);
+  const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
 
   const cleanup = useCallback(() => {
+    connectGenerationRef.current += 1;
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -59,17 +67,29 @@ export function useRelayWebSocket({
     }
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!url) return;
 
     cleanup();
+    const generation = connectGenerationRef.current;
     intentionalCloseRef.current = false;
     setStatus('connecting');
 
     // Demo mode: use MockWebSocket for mock:// URLs
-    const ws = url.startsWith(MOCK_WS_URL_PREFIX)
-      ? new MockWebSocket(url) as unknown as WebSocket
-      : new WebSocket(url);
+    let ws: WebSocket;
+    if (url.startsWith(MOCK_WS_URL_PREFIX)) {
+      ws = new MockWebSocket(url) as unknown as WebSocket;
+    } else {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (generation !== connectGenerationRef.current) return;
+      const protocols = session?.access_token
+        ? [JWT_WS_PROTOCOL, session.access_token]
+        : undefined;
+      ws = new WebSocket(url, protocols);
+    }
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -102,13 +122,17 @@ export function useRelayWebSocket({
         reconnectCountRef.current += 1;
         setStatus('connecting');
         reconnectTimerRef.current = setTimeout(() => {
-          connect();
+          void connectRef.current();
         }, RECONNECT_DELAY_MS);
       } else {
         setStatus('error');
       }
     };
   }, [url, cleanup]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
     intentionalCloseRef.current = true;
@@ -156,14 +180,18 @@ export function useRelayWebSocket({
 
   // Auto-connect when url is set and autoConnect is true
   useEffect(() => {
+    let autoConnectTimer: ReturnType<typeof setTimeout> | null = null;
     if (autoConnect && url) {
-      connect();
+      autoConnectTimer = setTimeout(() => {
+        void connectRef.current();
+      }, 0);
     }
 
     return () => {
+      if (autoConnectTimer) clearTimeout(autoConnectTimer);
       cleanup();
     };
-  }, [autoConnect, url, connect, cleanup]);
+  }, [autoConnect, url, cleanup]);
 
   return {
     status,

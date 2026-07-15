@@ -56,7 +56,6 @@ _CALL_COLUMNS: dict[str, str] = {
     "total_tokens": "int",
     "completed_at": "timestamptz",
     "relay_ws_url": "text",
-    "tenant_id": "uuid",
 }
 
 _CONV_COLUMNS: dict[str, str] = {
@@ -200,6 +199,21 @@ async def fetch_call_conversation_id(
         )
 
 
+async def get_user_tenant_id(user_id: UUID | str) -> UUID | None:
+    """Resolve active WIGVO membership for a verified WIGTN-SSO user."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        value = await conn.fetchval(
+            """
+            SELECT tenant_id
+            FROM users
+            WHERE id = $1::uuid AND deleted_at IS NULL
+            """,
+            _as_uuid(user_id),
+        )
+    return _as_uuid(value) if value is not None else None
+
+
 async def get_tenant_outbound_number(tenant_id: UUID | str) -> str:
     """Resolve tenant telephony config; missing/blank config is rejected."""
     pool = await get_pool()
@@ -250,7 +264,6 @@ async def persist_call(call: ActiveCall) -> None:
 
     data: dict[str, Any] = {
         "call_sid": call.call_sid,
-        "tenant_id": call.tenant_id,
         "call_mode": call.mode.value,
         "source_language": call.source_language,
         "target_language": call.target_language,

@@ -4,9 +4,18 @@
 // Relay Server API와 통신하는 클라이언트
 // =============================================================================
 
+import 'server-only';
 import type { CallStartParams, CallStartResult } from '@/shared/call-types';
 
 const RELAY_SERVER_URL = process.env.RELAY_SERVER_URL || 'http://localhost:8000';
+const RELAY_API_KEY = process.env.RELAY_API_KEY;
+
+function relayHeaders(): HeadersInit {
+  return {
+    'Content-Type': 'application/json',
+    ...(RELAY_API_KEY ? { 'X-Wigvo-API-Key': RELAY_API_KEY } : {}),
+  };
+}
 
 /**
  * Relay Server에 통화 시작 요청을 보냅니다.
@@ -15,7 +24,7 @@ const RELAY_SERVER_URL = process.env.RELAY_SERVER_URL || 'http://localhost:8000'
 export async function startRelayCall(params: CallStartParams): Promise<CallStartResult> {
   const response = await fetch(`${RELAY_SERVER_URL}/relay/calls/start`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: relayHeaders(),
     body: JSON.stringify(params),
   });
 
@@ -35,7 +44,7 @@ export async function startRelayCall(params: CallStartParams): Promise<CallStart
 export async function endRelayCall(callId: string, reason?: string): Promise<void> {
   const response = await fetch(`${RELAY_SERVER_URL}/relay/calls/${callId}/end`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: relayHeaders(),
     body: JSON.stringify({ call_id: callId, reason: reason || 'user_hangup' }),
   });
 

@@ -163,7 +163,7 @@ async def bootstrap_inbound_session(
 - B는 A의 내부 미디어 객체를 직접 조작하지 않고, A는 tenant/claim DB를 직접 갱신하지 않는다.
 - `CapacityManager.release(call_id)`는 예약 실패·취소 경로의 idempotent 반환 계약이다. active 통화 종료는 공용 cleanup에서 `call_manager` 제거와 함께 처리한다.
 - 부트스트랩 실패·취소·timeout은 양쪽 정리를 오케스트레이션하는 단일 cleanup 진입점으로 수렴해야 한다. B는 최종 dispatch 상태와 `end_reason`, A는 세션·예약·Stream 자원을 각각 책임진다.
-- pickup 토큰 최소 클레임은 `call_id + tenant_id + user_id + role + exp`. A의 미디어 진입점은 토큰을 자체 해석하지 않고, B 인증 계층이 검증한 컨텍스트만 소비한다.
+- pickup 토큰 최소 클레임은 `call_id + tenant_id + user_id + role + exp`. WS 전송은 URL query가 아니라 `Sec-WebSocket-Protocol`의 `wigvo.pickup` marker + token 두 값으로 고정한다. A의 미디어 진입점은 토큰을 자체 해석하지 않고, B 인증 계층이 검증한 컨텍스트만 소비한다.
 - B의 FR-6.3a 응대 진입 UI는 B 기능 범위지만, 현재 Frontend 소유자(§4)의 진행 작업과 겹치므로 `apps/web/**` 편집 전 조율하고 오디오 엔진은 재사용만 한다.
 - 두 WI-6 브랜치는 공유 타입·`call_manager.py` 변경 전에 조율하고, 한쪽 계약 PR을 먼저 main에 머지한 뒤 각 브랜치를 rebase한다.
 

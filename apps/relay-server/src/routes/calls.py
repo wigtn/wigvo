@@ -14,8 +14,9 @@ PRD 8.2:
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
+from src.auth import AuthError, authenticate_http_request, authorize_tenant
 from src.call_manager import call_manager
 from src.capacity_manager import capacity_manager
 from src.config import settings
@@ -38,8 +39,14 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/calls/start", response_model=CallStartResponse)
-async def start_call(req: CallStartRequest):
+async def start_call(req: CallStartRequest, request: Request):
     """전화 발신을 시작하고 OpenAI Dual Session을 생성한다."""
+    try:
+        auth = await authenticate_http_request(request)
+        tenant_id = authorize_tenant(auth, req.tenant_id)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
     if call_manager.get_call(req.call_id):
         raise HTTPException(status_code=409, detail="Call already in progress")
 
@@ -65,7 +72,7 @@ async def start_call(req: CallStartRequest):
     # 구조화 로깅 컨텍스트 설정 — 이후 모든 로그에 자동 주입
     call_id_var.set(req.call_id)
     call_mode_var.set(req.communication_mode.value)
-    tenant_id_var.set(str(req.tenant_id))
+    tenant_id_var.set(str(tenant_id))
 
     logger.info(
         "Starting call: id=%s, mode=%s, %s→%s",
@@ -84,7 +91,7 @@ async def start_call(req: CallStartRequest):
         status=CallStatus.CALLING,
         collected_data=req.collected_data or {},
         communication_mode=req.communication_mode,
-        tenant_id=req.tenant_id,
+        tenant_id=tenant_id,
     )
 
     # 2. System Prompt 생성
@@ -121,7 +128,7 @@ async def start_call(req: CallStartRequest):
     # flow tracing seam 레퍼런스 (FR-5.1) — 제어 흐름만, PII attr 금지.
     # (root trace는 register_call 시점에 생성되므로 지금은 독립 스팬으로 잡힌다.)
     with tracer.flow_span(
-        "calls.dual_session.connect", call_id=req.call_id, tenant_id=str(req.tenant_id)
+        "calls.dual_session.connect", call_id=req.call_id, tenant_id=str(tenant_id)
     ):
         try:
             await dual_session.connect(prompt_a, prompt_b, tools_a=tools_a)
@@ -141,7 +148,7 @@ async def start_call(req: CallStartRequest):
         call_sid = await make_call_async(
             phone_number=req.phone_number,
             call_id=req.call_id,
-            tenant_id=req.tenant_id,
+            tenant_id=tenant_id,
         )
         call.call_sid = call_sid
     except Exception as e:
@@ -177,11 +184,21 @@ async def start_call(req: CallStartRequest):
 
 
 @router.post("/calls/{call_id}/end")
-async def end_call(call_id: str, req: CallEndRequest | None = None):
+async def end_call(call_id: str, request: Request, req: CallEndRequest | None = None):
     """통화를 종료한다."""
+    try:
+        auth = await authenticate_http_request(request)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+
     call = call_manager.get_call(call_id)
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
+
+    try:
+        authorize_tenant(auth, call.tenant_id)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
 
     # 구조화 로깅 컨텍스트 설정
     call_id_var.set(call_id)
