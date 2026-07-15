@@ -1,10 +1,9 @@
 FROM python:3.12-slim
 
-# silero-vad-lite (ONNX Runtime) 런타임 의존성
+# onnxruntime 런타임 의존성 (libgomp1).
+# v6 채택으로 silero-vad-lite(C 빌드) 제거 → cmake/build-essential 불필요(onnxruntime은 prebuilt wheel).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
-    cmake \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 # uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -17,19 +16,10 @@ COPY pyproject.toml uv.lock ./
 # 의존성 설치 (venv 없이 시스템에 직접)
 RUN uv sync --frozen --no-dev --no-editable
 
-# silero-vad-lite .so의 executable stack 플래그 제거 (gVisor 호환)
-# ELF PT_GNU_STACK 헤더에서 PF_X(실행) 비트만 제거 — 추가 패키지 불필요
-RUN python3 -c "\
-import struct, pathlib; \
-so = pathlib.Path('/app/.venv/lib/python3.12/site-packages/silero_vad_lite/data/silero_vad_lite.so'); \
-data = bytearray(so.read_bytes()); \
-assert data[:4] == b'\x7fELF'; \
-phoff = struct.unpack_from('<Q', data, 32)[0]; \
-phsz = struct.unpack_from('<H', data, 54)[0]; \
-phnum = struct.unpack_from('<H', data, 56)[0]; \
-[struct.pack_into('<I', data, phoff+i*phsz+4, struct.unpack_from('<I', data, phoff+i*phsz+4)[0] & ~1) for i in range(phnum) if struct.unpack_from('<I', data, phoff+i*phsz)[0] == 0x6474e551]; \
-so.write_bytes(data); \
-print('Cleared execstack flag from silero_vad_lite.so')"
+# 네이티브 .so의 executable-stack 플래그 제거 (gVisor/Cloud Run 호환).
+# onnxruntime 등 모든 확장 모듈에 일괄 적용 — 특정 패키지에 의존하지 않음(의존성 교체에도 안전).
+COPY scripts/clear_execstack.py scripts/clear_execstack.py
+RUN python3 scripts/clear_execstack.py /app/.venv
 
 # 소스 복사
 COPY src/ src/

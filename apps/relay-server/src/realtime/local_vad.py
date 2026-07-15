@@ -19,6 +19,8 @@ RMS Gate 복귀 시 Silero 리셋:
   RMS-silence → RMS-active 전환 시 Silero 모델을 리셋하여 깨끗한 상태에서 시작.
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import os
@@ -29,7 +31,11 @@ from pathlib import Path
 from typing import Callable, Coroutine
 
 import numpy as np
-import onnxruntime as ort
+
+try:
+    import onnxruntime as ort
+except Exception:  # onnxruntime 미설치/로드 실패 시 VAD 비활성(graceful) — 서버는 기동
+    ort = None
 
 from src.realtime.audio_utils import ulaw_rms, ulaw_to_float32
 
@@ -38,7 +44,18 @@ logger = logging.getLogger(__name__)
 # Silero ONNX 추론(GIL 해제 C 호출, 프로파일링 결과 busy CPU의 ~51%)을 이벤트루프에서
 # 분리하기 위한 고정 공유 스레드풀. 통화당 전용 스레드(§8-#6) 대신 코어 수 배수 고정 풀:
 # ONNX가 GIL을 풀어 병렬도 상한은 어차피 코어 수이므로 스레드를 통화 수만큼 만들 이유가 없다.
-_VAD_POOL_WORKERS = int(os.getenv("VAD_POOL_WORKERS", str(os.cpu_count() or 4)))
+def _vad_pool_workers() -> int:
+    """VAD_POOL_WORKERS env(비정수 방어) 또는 os.cpu_count()."""
+    raw = os.getenv("VAD_POOL_WORKERS")
+    if raw:
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            logger.warning("[LocalVAD] invalid VAD_POOL_WORKERS=%r — os.cpu_count() 사용", raw)
+    return os.cpu_count() or 4
+
+
+_VAD_POOL_WORKERS = _vad_pool_workers()
 _VAD_EXECUTOR = ThreadPoolExecutor(
     max_workers=_VAD_POOL_WORKERS, thread_name_prefix="vad-infer"
 )
@@ -52,6 +69,8 @@ _ort_session: ort.InferenceSession | None = None
 
 def _get_ort_session() -> ort.InferenceSession:
     """v6 onnx 세션(프로세스 공유). intra/inter op 스레드 1 — 병렬은 _VAD_EXECUTOR가 담당."""
+    if ort is None:
+        raise RuntimeError("onnxruntime not available — LocalVAD disabled")
     global _ort_session
     if _ort_session is None:
         so = ort.SessionOptions()
