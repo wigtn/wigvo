@@ -187,7 +187,7 @@ Scenario: 과부하 우아한 거절
 - **FR-4a.5** `max_concurrent_calls`를 tenant별 상한으로 확장 검토(전역 상한과 병행).
 - **완료기준:** §2.2 "접근 경로 잠금" + "교차 테넌트 접근 차단".
 
-### WI-4b. Twilio 콜백 서명검증 (G4) — _1~2일_ · ⚠ 착수 전 §8 callback URL 확정
+### WI-4b. Twilio 콜백 서명검증 (G4) — _1~2일_ · **owner A(텔레포니)** · ⚠ 착수 전 §8 callback URL 확정
 
 - **FR-4b.1** `webhook`·`status-callback`·**신규 `/twilio/incoming`(WI-6 인바운드 진입점, C-3 확장)**(HTTP): Twilio 공식 `RequestValidator`로 `X-Twilio-Signature` 검증(현재 서명검증 코드 전무 — 인바운드 진입점이 무방비면 아무나 가짜 착신으로 세션·비용 소진 가능). **서명 계산에 쓰는 public callback URL을 env로 고정**(프록시/HTTPS 뒤 URL 불일치 시 정상 요청이 전부 403 — 흔한 함정).
 - **FR-4b.2 (C-3) media-stream WebSocket:** 표준 HTTP 서명검증과 **동작이 다름**(핸드셰이크 시점·URL 구성). **(코덱스) `X-Twilio-Signature` 핸드셰이크 검증을 필수**로 두고(Twilio Media Stream 공식 검증 대상), **서버 발급 signed stream token(call_id 바인딩)은 추가 방어층으로 선택 적용** — "둘 중 하나"가 아니라 "서명검증 필수 + 토큰 옵션".
@@ -205,6 +205,15 @@ Scenario: 과부하 우아한 거절
 - **완료기준:** 알림 1건 이상 실발화 테스트 + 런북 존재 + `.env.example`에 cap 키 존재 + **CapacityManager 동시성 테스트 통과(위 5케이스, 초과 0 · 종료 후 reserved 0)**.
 
 ### WI-6. 인바운드 통화 (외국인 착신) + 콜 디스패치 — _3~5일 (PoC 최소 확정 · §8-#11)_ · **선행: WI-3(tenant·DID 매핑) + WI-4a(직원 JWT·pickup 토큰) + WI-4b(`/twilio/incoming`·미디어스트림 서명검증) + WI-5(FR-5.5 CapacityManager)**
+
+> **WI-6 내부 분할(확정):** WI-6은 선행작업 전체가 끝난 뒤 한 사람이 통짜로 시작하지 않는다. **A(미디어·용량·텔레포니)**는 FR-6.1/6.1a와 세션 부트스트랩을, **B(테넌트·인증·디스패치)**는 FR-6.2/6.3/6.3a/6.3b를 각자 선행작업 위에서 병렬 구현한다. 전체 e2e 완료만 두 트랙의 합류를 요구한다.
+>
+> - **A 소유:** `/twilio/incoming`, WI-4b 서명검증, `PendingMediaHandler`, CapacityManager 연동, DualSession 지연 생성, 동일 Stream handoff, 미디어 자원 cleanup.
+> - **B 소유:** DID→tenant 라우팅, `inbound_call_dispatch`, 상태머신·원자적 claim·TTL, pickup 토큰 발급/재검증, tenant FIFO, 응대 진입 UI, dispatch 상태 cleanup.
+>   - 응대 진입 UI는 B 기능 범위지만 현재 Frontend 소유자의 UI 작업과 겹치므로 `apps/web/**` 변경 전 조율하고 기존 오디오 엔진은 재사용만 한다.
+> - **교차 seam:** B가 tenant·권한·claim 검증 후 `SESSION_STARTING`으로 전이하고 `await bootstrap_inbound_session(call_id: str, tenant_id: str) -> BootstrapResult`를 호출한다. A는 용량 예약→세션 생성→handoff만 수행하고 tenant/claim DB를 직접 갱신하지 않는다. B는 A의 미디어 내부 객체를 직접 조작하지 않는다.
+> - **실패 소유권:** 부트스트랩 실패·취소·timeout은 단일 cleanup 진입점으로 수렴한다. B는 최종 dispatch 상태/`end_reason`, A는 세션·CapacityManager 예약·PendingMediaHandler/Stream 자원 정리를 책임진다.
+> - **인증 경계:** pickup 토큰 최소 클레임은 `call_id + tenant_id + user_id + role + exp`; A 진입점은 B 인증 계층이 검증한 컨텍스트만 소비한다.
 
 > **재추정 이유:** 코드 확인 결과 WI-6은 "UI만 추가"가 아니라 **작은 call-dispatch 기능**이다. ① `register_app_ws`는 `self._app_ws[call_id] = ws`로 **통화당 단일 WS를 말없이 덮어씀**(`call_manager.py:55` — 원자적 선점·중복부착 방지 없음 → 두 직원이 같은 통화를 누르면 뒤가 앞을 밀어냄). ② App WS 끊김이 `cleanup_call(reason="app_disconnected")`로 **통화 전체를 종료**(`stream.py:102` — 새로고침·네트워크 블립에 통화 소실). 인바운드는 "누가 받을지"를 서버가 중재해야 하므로 **API·상태·원자적 claim**이 필요. 프론트는 여전히 얇지만 백엔드가 커진다.
 
@@ -261,13 +270,14 @@ Scenario: 과부하 우아한 거절
 
 ```
 1주차:  WI-1 부하테스트(✅완료)  →  WI-2 VAD 오프로드(상한↑) → WI-2 재측정
-2주차:  WI-3 멀티테넌트 그릇+격리 강제  →  WI-4a 기관 인증  →  WI-4b Twilio 서명검증  →  WI-5 운영 안전장치
-3주차:  WI-6 인바운드 착신 + 콜 디스패치(생성시점 역전 + pickup 상태머신·원자적 claim·용량 예약 + 대기 미디어 handoff + 응대 진입면 프론트) — WI-3 + WI-4a + WI-4b + WI-5 후 · 3~5일 (PoC 최소 확정)
+2주차 A:  WI-5 운영·CapacityManager  →  WI-4b Twilio 서명검증  →  WI-6 A(인바운드 진입·대기 미디어 스켈레톤)
+2주차 B:  WI-3 멀티테넌트·격리  →  WI-4a 인증  →  WI-6 B(디스패치 스키마·claim 스켈레톤)
+3주차:    WI-6 A/B 병렬 완성 → bootstrap seam 통합 → 하이브리드 e2e·실전화 검증 (PoC 최소 3~5일)
 ```
 
-- **⚠️ 일정 전제 (코덱스 F-1 · 낙관 경고):** 이 3주 표는 **2인 병렬 기준**이다. 순차 공수 합계는 WI-2(2~3d)+WI-3(2~3d)+WI-4a(1~2d)+WI-4b(1~2d)+WI-5(1.5~2d)+WI-6(3~5d) = **10.5~17일** → **1인 순차로는 3주 불가.** 분담(2인): 파트 A = WI-2·WI-5, 파트 B = WI-3→4a→4b(순차 사슬). **B의 사슬(WI-3→4a→4b)만 4~7일**이라 2주차(5영업일)에 빠듯 → **WI-6은 3주차 초반이 아니라 후반, 또는 4주차로 슬립 가능.** 슬립 시 §8-#11 PoC 최소 컷이 "선택"이 아니라 "강제 절삭"으로 밀리지 않게, **필수(유지) 항목은 절대 압축 금지**(원자적 claim·CapacityManager·단일 cleanup). 일정 압박은 "이월" 버킷에서만 흡수.
+- **⚠️ 일정 전제 (F-1 갱신):** 이 3주 표는 **2인 병렬 기준**이다. 분담은 **A = WI-2→WI-5→WI-4b→WI-6 A**, **B = WI-3→WI-4a→WI-6 B**로 확정한다. WI-4b를 텔레포니 소유 A로 옮겨 B의 크리티컬 사슬을 줄이고, WI-6도 같은 도메인 seam으로 분할해 합류 후 생기던 통짜 꼬리를 제거한다. 단, 실제 통합·실전화 e2e에는 양쪽 선행작업이 모두 필요하다. 슬립 시 §8-#11 필수 항목(원자적 claim·CapacityManager·단일 cleanup)은 압축하지 않고 "이월" 버킷에서만 범위를 줄인다.
 - **WI-1 먼저인 이유:** 이후 모든 판단의 수치 근거. VAD 개선 효과도 이 베이스라인으로만 증명(✅ 완료).
-- **의존성 (M-5):** WI-4a의 조회·모니터 **tenant 스코핑은 WI-3에 강결합** → WI-3 선행 필수. **"독립 배포 가능"은 WI-1·WI-2에 한정**(WI-3/4는 순차 의존). **WI-6 선행 = WI-3 + WI-4a + WI-4b + WI-5(FR-5.5 CapacityManager) 전부**(tenant·DID 매핑 / 직원 JWT·pickup 토큰 / 서명검증 / 용량 예약). WI-4 완료를 안 기다리고 병렬 착수하려면 **최소한 인터페이스 계약(pickup 토큰 클레임·서명검증 훅·CapacityManager reserve/release)부터 먼저 확정**. **CapacityManager(FR-5.5)는 WI-6 예약의 전제이자 기존 아웃바운드 soft-cap 경쟁도 해소 → WI-5에서 먼저.**
+- **의존성 (M-5 갱신):** WI-4a의 조회·모니터 tenant 스코핑은 WI-3에 강결합하므로 B는 순차 진행한다. WI-4b는 WI-3과 무관한 텔레포니 관심사이며 A가 소유한다. WI-6의 각 반쪽은 자기 선행작업과 계약 stub이 준비되는 대로 착수할 수 있지만, **전체 완료 = WI-3 + WI-4a + WI-4b + WI-5 + A/B 통합**이다. 교차 계약은 `bootstrap_inbound_session`, pickup 토큰 클레임, CapacityManager reserve/commit/release, 단일 cleanup으로 고정한다.
 - **착수 게이트:** WI-3 전 **격리 방식(§8-#2)**, WI-4a 전 **인증 방식(§8-#1)**, WI-4b 전 **callback URL(§8-#3)** 확정.
 - **공수 (M-4):** WI-4는 인증(4a)+Twilio 서명(4b)로 분할, 합계 **2~4일**(WebSocket 인증·서명검증이 무겁다).
 - **WI-6 (인바운드 + 콜 디스패치):** 세션 생성 시점 역전 + 역할 스왑, 미디어 파이프라인 재사용. 타깃 라우팅이 WI-3 의존 → WI-3 후. **웹 부스(1레그)면 수용량 현행과 동일**(데스크폰 브리지 옵션만 재측정). **⚠ 재추정 2~4일 → 4~7일(코덱스):** "UI만 추가"가 아니라 **pickup 상태머신·원자적 claim·재연결 유예**가 있는 작은 call-dispatch 기능(FR-6.3b). 프론트는 얇지만 백엔드가 커짐. 응대 진입면 프론트(FR-6.3a)는 §1.3 Non-Goal 예외.

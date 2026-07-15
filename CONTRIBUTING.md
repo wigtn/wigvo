@@ -105,10 +105,11 @@ uv run python -m pytest -q   # 단위 테스트 (현재 442개)
 - **WI-1** 부하테스트 — ✅ 완료. baseline: `pytest --co -q` 실측 **= 475** (2026-07-15, scaffold 후 · WI-1 완료 시점은 469, CapacityManager +3 · flow_span +3). 이보다 줄면 테스트 삭제 회귀 의심.
 - **WI-2** VAD 오프로드 — 독립. 지금 착수 가능 (tenant·cap 무관).
 - **WI-5** CapacityManager + 운영 안전장치 — 독립. WI-2와 병행 가능. (기존 아웃바운드 soft-cap 경쟁도 해소.)
-- **WI-3** 멀티테넌트 → **WI-4a** 인증 → **WI-4b** Twilio 서명검증 — **순차 사슬** (앞이 뒤의 선행).
-- **WI-6** 인바운드 디스패치 — **선행 필수: WI-3 + WI-4a + WI-4b + WI-5 전부.**
+- **B 트랙:** **WI-3** 멀티테넌트 → **WI-4a** 인증 — 순차 사슬. 완료되는 대로 WI-6 B(디스패치) 스켈레톤 착수 가능.
+- **A 트랙:** **WI-2** VAD → **WI-5** CapacityManager 하드닝 → **WI-4b** Twilio 서명검증. WI-4b는 WI-3과 무관하며 `/twilio/incoming`과 같은 텔레포니 경계를 소유한다.
+- **WI-6**은 합류 후 통짜 착수가 아니라 동일 seam으로 병렬 분할한다. A = 인바운드 진입·대기 미디어·지연 세션·용량, B = tenant 라우팅·디스패치·claim·pickup/UI. 전체 e2e 완료는 WI-3 + WI-4a + WI-4b + WI-5가 모두 필요하다.
 - **착수 게이트:** WI-3 전 격리방식(§8-#2) · WI-4a 전 인증방식(§8-#1) · WI-4b 전 callback URL(§8-#3) 확정.
-- **권장 분담(2인):** A = WI-2·WI-5 / B = WI-3→4a→4b. WI-6은 두 트랙 수렴 후.
+- **확정 분담(2인):** A = 미디어·용량·텔레포니(WI-2→WI-5→WI-4b→WI-6 A), B = 테넌트·인증·디스패치(WI-3→WI-4a→WI-6 B). 담당자가 바뀌면 이 표부터 갱신한다.
 
 ### 브랜치명 (WI별 · 항상 `origin/main`에서 분기)
 
@@ -120,7 +121,8 @@ uv run python -m pytest -q   # 단위 테스트 (현재 442개)
 | WI-3 멀티테넌트 | `feat/wi3-multitenant` |
 | WI-4a 인증 | `feat/wi4a-auth` |
 | WI-4b Twilio 서명 | `feat/wi4b-twilio-signature` |
-| WI-6 인바운드 | `feat/wi6-inbound-dispatch` |
+| WI-6 A 미디어·텔레포니 | `feat/wi6-inbound-media` |
+| WI-6 B 디스패치·pickup | `feat/wi6-inbound-dispatch` |
 
 - **한 브랜치 = 한 WI.** scaffold 머지 **전엔** 아무도 WI 브랜치를 따지 않는다(배관 충돌 방지).
 - 시작: `git checkout main && git pull` → `git checkout -b <브랜치명> origin/main`.
@@ -139,7 +141,31 @@ scaffold PR이 아래 seam을 **동작 보존 상태로 먼저 착지**시킨다
 - **`tenant_id` 관통** (owner WI-3)
   - `logging_config`에 `tenant_id_var` 추가 · `CallStartRequest`/`ActiveCall`에 `tenant_id` 필드 · `persist_call`/`update_call`까지 전달. 미해석 요청은 **fail-closed**.
 - **flow tracing** (seam · FR-5.1 · owner 전 WI): 각 WI 흐름을 `tracer.flow_span("wiN.flow.step", call_id=..., state=...)`로 감싼다. **제어 흐름만**(id·state·duration·수치) — transcript·전화번호·이름·프롬프트 attr **금지**(§7 Langfuse 프라이버시 게이트). 키 없으면 no-op, 헬퍼가 위험 키를 드롭.
-- (WI-6 **내부 전용**) 인바운드 디스패치 상태머신·`inbound_call_dispatch` 테이블은 **WI-6 브랜치에서** — scaffold 아님.
+- (WI-6 **B 내부 전용**) 인바운드 디스패치 상태머신·`inbound_call_dispatch` 테이블은 **`feat/wi6-inbound-dispatch`에서** — scaffold나 A 브랜치 아님.
+
+### WI-6 내부 seam 및 소유권 (확정)
+
+| 소유자 | 범위 | 주요 산출물 |
+| --- | --- | --- |
+| A — 미디어·용량·텔레포니 | FR-6.1/6.1a 및 세션 부트스트랩 | `/twilio/incoming`, Twilio 서명검증, `PendingMediaHandler`, CapacityManager 연동, DualSession 지연 생성, 동일 Stream handoff, 미디어 자원 cleanup |
+| B — 테넌트·인증·디스패치 | FR-6.2/6.3/6.3a/6.3b | DID→tenant 라우팅, `inbound_call_dispatch`, 상태 전이, 원자적 claim, pickup 토큰 발급·재검증, tenant FIFO, 응대 진입 UI, 디스패치 상태 cleanup |
+
+교차 호출은 아래 계약 하나로 고정한다. **B가 tenant·권한·claim을 검증하고 `SESSION_STARTING`으로 전이한 뒤 호출**하며, **A는 검증된 `call_id`/`tenant_id`만 받아 용량 예약→DualSession 생성→미디어 handoff를 수행**한다.
+
+```python
+async def bootstrap_inbound_session(
+    call_id: str,
+    tenant_id: str,
+) -> BootstrapResult:
+    """성공 시 CONNECTED 전환에 필요한 결과, 실패 시 정형화된 실패 사유를 반환."""
+```
+
+- B는 A의 내부 미디어 객체를 직접 조작하지 않고, A는 tenant/claim DB를 직접 갱신하지 않는다.
+- `CapacityManager.release(call_id)`는 예약 실패·취소 경로의 idempotent 반환 계약이다. active 통화 종료는 공용 cleanup에서 `call_manager` 제거와 함께 처리한다.
+- 부트스트랩 실패·취소·timeout은 양쪽 정리를 오케스트레이션하는 단일 cleanup 진입점으로 수렴해야 한다. B는 최종 dispatch 상태와 `end_reason`, A는 세션·예약·Stream 자원을 각각 책임진다.
+- pickup 토큰 최소 클레임은 `call_id + tenant_id + user_id + role + exp`. A의 미디어 진입점은 토큰을 자체 해석하지 않고, B 인증 계층이 검증한 컨텍스트만 소비한다.
+- B의 FR-6.3a 응대 진입 UI는 B 기능 범위지만, 현재 Frontend 소유자(§4)의 진행 작업과 겹치므로 `apps/web/**` 편집 전 조율하고 오디오 엔진은 재사용만 한다.
+- 두 WI-6 브랜치는 공유 타입·`call_manager.py` 변경 전에 조율하고, 한쪽 계약 PR을 먼저 main에 머지한 뒤 각 브랜치를 rebase한다.
 
 ### 머지 케이던스
 
