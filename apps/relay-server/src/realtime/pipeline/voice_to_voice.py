@@ -435,7 +435,7 @@ class VoiceToVoicePipeline(BasePipeline):
         """
         now = time.monotonic()
         if (
-            self._greeting_activated_at > 0
+            self._greeting_activated_at != 0
             and now - self._greeting_activated_at > _GREETING_SHIELD_MAX_S
         ):
             return False
