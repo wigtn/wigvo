@@ -47,6 +47,14 @@ class Settings(BaseSettings):
     pickup_token_secret: str = ""
     pickup_token_ttl_s: int = 180
 
+    # WI-6 inbound dispatch operational bounds.
+    max_waiting_calls: int = 20
+    claim_ttl_s: int = 30
+    session_starting_timeout_s: float = 30.0
+    inbound_wait_timeout_s: int = 120
+    inbound_reconnect_grace_s: float = 15.0
+    dispatch_sweep_interval_s: float = 5.0
+
     @field_validator("pickup_token_ttl_s")
     @classmethod
     def validate_pickup_token_ttl(cls, value: int) -> int:
@@ -59,6 +67,24 @@ class Settings(BaseSettings):
     def validate_pickup_token_secret(cls, value: str) -> str:
         if value and len(value.encode("utf-8")) < 32:
             raise ValueError("pickup_token_secret must be at least 32 bytes")
+        return value
+
+    @field_validator("max_waiting_calls", "claim_ttl_s", "inbound_wait_timeout_s")
+    @classmethod
+    def validate_positive_dispatch_limits(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("inbound dispatch limits must be positive")
+        return value
+
+    @field_validator(
+        "session_starting_timeout_s",
+        "inbound_reconnect_grace_s",
+        "dispatch_sweep_interval_s",
+    )
+    @classmethod
+    def validate_positive_dispatch_timeouts(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("inbound dispatch timeouts must be positive")
         return value
 
     @field_validator("tenant_api_key_hashes")

@@ -11,6 +11,7 @@ import {
 
   Zap,
   LogOut,
+  PhoneIncoming,
 } from "lucide-react";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -125,6 +126,13 @@ export default function MobileDrawer({
               isCollapsed={false}
               isActive={activeMenu === "conversations"}
               onClick={() => handleMenuClick("conversations")}
+            />
+            <SidebarMenu
+              icon={<PhoneIncoming className="size-[18px]" />}
+              label={t("inbound")}
+              isCollapsed={false}
+              isActive={false}
+              onClick={() => { setSidebarOpen(false); router.push('/inbound'); }}
             />
           </div>
         </nav>

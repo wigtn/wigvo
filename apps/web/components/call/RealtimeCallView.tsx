@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CallMode, CommunicationMode } from '@/shared/call-types';
 import { useRelayCall } from '@/hooks/useRelayCall';
@@ -15,6 +15,7 @@ interface RealtimeCallViewProps {
   communicationMode?: CommunicationMode;
   targetName?: string | null;
   onCallEnd?: () => void;
+  wsProtocols?: string[];
 }
 
 const modeBadgeIcon: Record<CommunicationMode, typeof Mic> = {
@@ -36,9 +37,11 @@ export default function RealtimeCallView({
   communicationMode = 'voice_to_voice',
   targetName,
   onCallEnd,
+  wsProtocols,
 }: RealtimeCallViewProps) {
   const t = useTranslations('call');
-  const relay = useRelayCall(communicationMode);
+  const relay = useRelayCall(communicationMode, wsProtocols);
+  const startCall = relay.startCall;
   const [textInput, setTextInput] = useState('');
 
   const BadgeIcon = modeBadgeIcon[communicationMode];
@@ -51,12 +54,9 @@ export default function RealtimeCallView({
     { label: t('quickReplyRepeat'), value: t('quickReplyRepeatValue') },
   ];
 
-  // Start the call on mount
-  const startedRef = useState(() => {
-    relay.startCall(callId, relayWsUrl, callMode);
-    return true;
-  })[0];
-  void startedRef;
+  useEffect(() => {
+    startCall(callId, relayWsUrl, callMode);
+  }, [callId, relayWsUrl, callMode, startCall]);
 
   const handleEndCall = useCallback(() => {
     relay.endCall();

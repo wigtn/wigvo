@@ -7,6 +7,7 @@ App ↔ Relay Server: /relay/calls/{call_id}/stream
 
 import json
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -18,6 +19,7 @@ from src.auth import (
 )
 from src.call_manager import call_manager
 from src.logging_config import call_id_var, call_mode_var, tenant_id_var
+from src.inbound.service import dispatch_service
 from src.types import WsMessage, WsMessageType
 
 router = APIRouter(tags=["stream"])
@@ -55,6 +57,16 @@ async def app_websocket(ws: WebSocket, call_id: str):
         await reject_websocket(ws, exc)
         return
 
+    try:
+        inbound_call_id = UUID(call_id)
+        is_inbound = await dispatch_service.is_inbound(inbound_call_id)
+    except ValueError:
+        inbound_call_id = None
+        is_inbound = False
+    if is_inbound and auth.credential != "pickup":
+        await reject_websocket(ws, AuthError(403, "Pickup token required for inbound call"))
+        return
+
     await ws.accept(subprotocol=subprotocol)
     logger.info("App WebSocket connected (call=%s)", call_id)
 
@@ -64,7 +76,17 @@ async def app_websocket(ws: WebSocket, call_id: str):
     tenant_id_var.set(str(call.tenant_id))
 
     # App WS를 call_manager에 등록 (AudioRouter가 이 WS로 메시지 전송)
-    call_manager.register_app_ws(call_id, ws)
+    if not call_manager.try_register_app_ws(call_id, ws):
+        await ws.send_json(
+            WsMessage(
+                type=WsMessageType.ERROR,
+                data={"message": "Call already has an active agent connection"},
+            ).model_dump()
+        )
+        await ws.close(code=4409, reason="Agent connection already active")
+        return
+    if inbound_call_id is not None and is_inbound:
+        dispatch_service.cancel_reconnect_cleanup(inbound_call_id)
 
     # AudioRouter가 아직 없으면 Twilio 연결 대기 중
     if not call_manager.get_router(call_id):
@@ -78,6 +100,7 @@ async def app_websocket(ws: WebSocket, call_id: str):
         except Exception:
             pass
 
+    explicit_end = False
     try:
         while True:
             raw = await ws.receive_text()
@@ -111,6 +134,7 @@ async def app_websocket(ws: WebSocket, call_id: str):
                     await audio_router.handle_typing_started()
                 case "end_call":
                     logger.info("User ended call via WebSocket (call=%s)", call_id)
+                    explicit_end = True
                     break
 
     except WebSocketDisconnect:
@@ -118,7 +142,12 @@ async def app_websocket(ws: WebSocket, call_id: str):
     except Exception as e:
         logger.error("App WebSocket error (call=%s): %s", call_id, e)
     finally:
-        await call_manager.cleanup_call(call_id, reason="app_disconnected")
+        call_manager.unregister_app_ws(call_id, ws)
+        if is_inbound and inbound_call_id is not None and not explicit_end:
+            dispatch_service.schedule_reconnect_cleanup(inbound_call_id)
+        else:
+            reason = "user_hangup" if explicit_end else "app_disconnected"
+            await call_manager.cleanup_call(call_id, reason=reason)
 
 
 @router.websocket("/calls/{call_id}/monitor")

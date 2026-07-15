@@ -11,6 +11,27 @@
     "networkError": "네트워크 오류가 발생했습니다.",
     "agent": "Agent"
   },
+  "inbound": {
+    "title": "수신 대기 통화",
+    "subtitle": "기관으로 걸려온 전화를 선택해 실시간 통역을 시작하세요.",
+    "back": "홈으로 돌아가기",
+    "refresh": "새로고침",
+    "emptyTitle": "현재 대기 중인 전화가 없습니다",
+    "emptyDescription": "새 전화가 오면 이 화면에 자동으로 표시됩니다.",
+    "callLabel": "수신 통화 {number}",
+    "waiting": "대기 중",
+    "pickup": "전화 받기",
+    "connecting": "연결 중",
+    "defaultLanguages": "한국어 → 영어",
+    "caller": "외국인 발신자",
+    "backToQueue": "대기 목록으로 돌아가기",
+    "errors": {
+      "load": "대기 통화를 불러오지 못했습니다.",
+      "pickup": "전화를 연결하지 못했습니다.",
+      "claimed": "다른 직원이 이미 이 전화를 받았습니다.",
+      "forbidden": "이 통화를 받을 권한이 없습니다."
+    }
+  },
   "metadata": {
     "title": "WIGVO - AI 음성 비서",
     "description": "AI가 대신 전화를 걸어드리는 음성 비서 서비스"
@@ -293,6 +314,7 @@
     "menu": "메뉴",
     "newChat": "새 대화",
     "history": "통화 기록",
+    "inbound": "수신 통화",
     "recentChats": "최근 대화",
     "viewAllReservations": "전체 예약 기록 보기"
   },

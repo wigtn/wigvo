@@ -45,7 +45,10 @@ interface UseRelayCallReturn {
   error: string | null;
 }
 
-export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_voice'): UseRelayCallReturn {
+export function useRelayCall(
+  communicationMode: CommunicationMode = 'voice_to_voice',
+  wsProtocols?: string[],
+): UseRelayCallReturn {
   const [callStatus, setCallStatus] = useState<CallStatus>('idle');
   const [translationState, setTranslationState] = useState<TranslationState>('idle');
   const [captions, setCaptions] = useState<CaptionEntry[]>([]);
@@ -272,16 +275,22 @@ export function useRelayCall(communicationMode: CommunicationMode = 'voice_to_vo
     url: wsUrl,
     onMessage: handleMessage,
     autoConnect: true,
+    protocols: wsProtocols,
   });
-  wsRef.current = ws;
+  useEffect(() => {
+    wsRef.current = ws;
+  }, [ws]);
 
   // Update callStatus when ws connects
   useEffect(() => {
-    if (ws.status === 'connected' && callStatus === 'connecting') {
-      setCallStatus('waiting');
-    } else if (ws.status === 'error') {
-      setError('WebSocket connection failed');
-    }
+    const timer = window.setTimeout(() => {
+      if (ws.status === 'connected' && callStatus === 'connecting') {
+        setCallStatus('waiting');
+      } else if (ws.status === 'error') {
+        setError('WebSocket connection failed');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [ws.status, callStatus]);
 
   // Client VAD — active only when audioInput is enabled and not muted

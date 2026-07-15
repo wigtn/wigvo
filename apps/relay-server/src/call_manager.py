@@ -55,6 +55,18 @@ class CallManager:
     def register_app_ws(self, call_id: str, ws: "WebSocket") -> None:
         self._app_ws[call_id] = ws
 
+    def try_register_app_ws(self, call_id: str, ws: "WebSocket") -> bool:
+        """Register one sending socket per call without silently replacing it."""
+        existing = self._app_ws.get(call_id)
+        if existing is not None and existing is not ws:
+            return False
+        self._app_ws[call_id] = ws
+        return True
+
+    def unregister_app_ws(self, call_id: str, ws: "WebSocket") -> None:
+        if self._app_ws.get(call_id) is ws:
+            self._app_ws.pop(call_id, None)
+
     def register_observer(self, call_id: str, ws: "WebSocket") -> None:
         """관전(read-only) WS 등록. 통화당 N명 가능."""
         self._observers.setdefault(call_id, set()).add(ws)
@@ -285,6 +297,24 @@ class CallManager:
                     await persist_call(call)
                 except Exception as e:
                     logger.warning("Failed to persist call %s: %s", call_id, e)
+
+            # WI-6 B dispatch status is authoritative in Postgres. This is a
+            # no-op for outbound calls and keeps every inbound cleanup trigger
+            # (Twilio status, WS disconnect timeout, shutdown) on one path.
+            try:
+                from uuid import UUID
+
+                from src.inbound.service import dispatch_service
+
+                inbound_call_id = UUID(call_id)
+                if dispatch_service.is_known_inbound(inbound_call_id):
+                    await dispatch_service.finish(inbound_call_id, reason)
+            except ValueError:
+                pass
+            except Exception as e:
+                logger.warning(
+                    "Failed to finalize inbound dispatch %s: %s", call_id, e
+                )
 
             logger.info("Cleanup complete for call %s", call_id)
 

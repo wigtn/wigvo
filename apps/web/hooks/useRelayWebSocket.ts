@@ -12,6 +12,7 @@ interface UseRelayWebSocketOptions {
   url: string | null;
   onMessage: (msg: RelayWsMessage) => void;
   autoConnect: boolean;
+  protocols?: string[];
 }
 
 interface UseRelayWebSocketReturn {
@@ -33,6 +34,7 @@ export function useRelayWebSocket({
   url,
   onMessage,
   autoConnect,
+  protocols,
 }: UseRelayWebSocketOptions): UseRelayWebSocketReturn {
   const [status, setStatus] = useState<WsStatus>('disconnected');
 
@@ -44,10 +46,15 @@ export function useRelayWebSocket({
   const intentionalCloseRef = useRef(false);
   const connectGenerationRef = useRef(0);
   const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const protocolsRef = useRef(protocols);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
+
+  useEffect(() => {
+    protocolsRef.current = protocols;
+  }, [protocols]);
 
   const cleanup = useCallback(() => {
     connectGenerationRef.current += 1;
@@ -85,10 +92,10 @@ export function useRelayWebSocket({
         data: { session },
       } = await supabase.auth.getSession();
       if (generation !== connectGenerationRef.current) return;
-      const protocols = session?.access_token
+      const offeredProtocols = protocolsRef.current ?? (session?.access_token
         ? [JWT_WS_PROTOCOL, session.access_token]
-        : undefined;
-      ws = new WebSocket(url, protocols);
+        : undefined);
+      ws = new WebSocket(url, offeredProtocols);
     }
     wsRef.current = ws;
 
