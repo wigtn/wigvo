@@ -82,6 +82,8 @@ class CallStartRequest(BaseModel):
     vad_mode: VadMode = VadMode.CLIENT
     system_prompt_override: str | None = None
     communication_mode: CommunicationMode = CommunicationMode.VOICE_TO_VOICE
+    # PoC refactor seam (WI-3): 요청→통화→DB→로그 tenant_id 관통. 지금은 optional.
+    tenant_id: str | None = None
 
     @field_validator("phone_number")
     @classmethod
@@ -282,6 +284,7 @@ class CallMetrics(BaseModel):
 class ActiveCall(BaseModel):
     call_id: str
     call_sid: str = ""
+    tenant_id: str | None = None  # PoC refactor seam (WI-3): tenant 관통
     mode: CallMode = CallMode.RELAY
     source_language: str = "en"
     target_language: str = "ko"
