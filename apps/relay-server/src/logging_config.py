@@ -15,6 +15,8 @@ from pathlib import Path
 # 비동기 컨텍스트 변수 — asyncio.create_task 시 자동 복사
 call_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("call_id", default="")
 call_mode_var: contextvars.ContextVar[str] = contextvars.ContextVar("call_mode", default="")
+# PoC refactor seam (WI-3): tenant_id 로깅 컨텍스트. WI-3에서 set, 지금은 기본 빈값.
+tenant_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("tenant_id", default="")
 
 
 class CallContextFilter(logging.Filter):
@@ -23,6 +25,7 @@ class CallContextFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.call_id = call_id_var.get()  # type: ignore[attr-defined]
         record.call_mode = call_mode_var.get()  # type: ignore[attr-defined]
+        record.tenant_id = tenant_id_var.get()  # type: ignore[attr-defined]
         return True
 
 

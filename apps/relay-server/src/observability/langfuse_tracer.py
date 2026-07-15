@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from src.config import settings
@@ -196,6 +197,53 @@ class LangfuseTracer:
             obs.end()
         except Exception:
             logger.warning("Langfuse record_event failed", exc_info=True)
+
+    # --- Flow tracing seam (PoC refactor · FR-5.1) ---
+    # 비즈니스 로직 흐름(제어 흐름)을 스팬으로 잡는다. 각 WI가 자기 흐름을 이걸로 감싼다.
+    # ⚠ PII 금지: transcript·전화번호·이름·프롬프트 등 '내용'은 attr로 넘기지 말 것.
+    #   (§7 Langfuse 프라이버시 게이트 준수 — _safe_attrs가 위험 키를 드롭한다.)
+    _PII_DENYLIST = (
+        "transcript", "text", "content", "message", "utterance",
+        "translation", "prompt", "phone", "audio", "speech",
+    )
+
+    def _safe_attrs(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        safe: dict[str, Any] = {}
+        for key, val in attrs.items():
+            if any(bad in key.lower() for bad in self._PII_DENYLIST):
+                logger.warning("flow_span: PII 가능성 attr 드롭 — %r", key)
+                continue
+            safe[key] = val
+        return safe
+
+    @contextmanager
+    def flow_span(self, name: str, *, call_id: str = "", **attrs: Any):
+        """비즈니스 흐름 스팬 (제어 흐름 전용).
+
+        키 없으면 no-op, 통화 root가 있으면 그 아래 자식으로, 없으면 독립 스팬으로.
+        추적 실패는 통화를 깨지 않는다(본문 예외는 그대로 전파, 추적 예외는 격리).
+        attr은 id·state·duration·수치만 — _safe_attrs가 PII 키를 드롭한다.
+        """
+        obs = None
+        if self._enabled:
+            try:
+                safe = self._safe_attrs(attrs)
+                root = self._roots.get(call_id) if call_id else None
+                if root is not None:
+                    obs = root.start_observation(name=name, as_type="span", metadata=safe)
+                elif self._client is not None:
+                    obs = self._client.start_observation(name=name, metadata=safe)
+            except Exception:
+                logger.warning("Langfuse flow_span 시작 실패 (무시)", exc_info=True)
+                obs = None
+        try:
+            yield obs
+        finally:
+            if obs is not None:
+                try:
+                    obs.end()
+                except Exception:
+                    logger.debug("Langfuse flow_span end 실패 (무시)", exc_info=True)
 
     def end_call(self, call: "ActiveCall") -> None:
         """통화 종료 시 trace 를 마감하고 flush 한다."""
