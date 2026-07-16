@@ -131,6 +131,12 @@ class TextToVoicePipeline(BasePipeline):
                 context_manager=self.context_manager,
             )
 
+        # DualSessionManager의 preflight 결과를 따라 handler/pipeline도 같은 VAD 모드를 쓴다.
+        use_local_vad = bool(
+            settings.local_vad_enabled
+            and getattr(dual_session, "local_vad_enabled", True)
+        )
+
         # Session B 핸들러: 수신자 음성 → 텍스트 번역 → App
         # modalities=['text'] — DualSessionManager가 communication_mode 기반으로 설정
         # context_prune_keep=0: T2V에서는 컨텍스트 아이템 전부 삭제 → 추측 할루시네이션 방지
@@ -144,14 +150,14 @@ class TextToVoicePipeline(BasePipeline):
             on_recipient_speech_stopped=self._on_recipient_stopped,
             on_transcript_complete=self._on_recipient_turn_complete,
             on_caption_done=self._on_session_b_caption_done,
-            use_local_vad=settings.local_vad_enabled,
+            use_local_vad=use_local_vad,
             context_prune_keep=0,
             chat_translator=chat_translator,
         )
 
         # Local VAD (Silero + RMS Energy Gate)
         self.local_vad: LocalVAD | None = None
-        if settings.local_vad_enabled:
+        if use_local_vad:
             self.local_vad = LocalVAD(
                 rms_threshold=settings.local_vad_rms_threshold,
                 speech_threshold=settings.local_vad_speech_threshold,

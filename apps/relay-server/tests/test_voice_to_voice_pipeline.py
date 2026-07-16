@@ -87,7 +87,9 @@ def _make_router(**call_overrides) -> AudioRouter:
     return router
 
 
-def _make_router_with_local_vad(**call_overrides) -> AudioRouter:
+def _make_router_with_local_vad(
+    *, runtime_available: bool = True, **call_overrides
+) -> AudioRouter:
     """Local VAD가 활성화된 VoiceToVoice AudioRouter 인스턴스 생성."""
     call = _make_call(**call_overrides)
 
@@ -102,6 +104,7 @@ def _make_router_with_local_vad(**call_overrides) -> AudioRouter:
     dual.session_b.set_on_connection_lost = MagicMock()
     dual.session_b._send = AsyncMock()
     dual.session_b.clear_input_buffer = AsyncMock()
+    dual.local_vad_enabled = runtime_available
 
     twilio_handler = MagicMock()
     twilio_handler.send_audio = AsyncMock()
@@ -177,6 +180,13 @@ class TestVoiceToVoicePipelineCreation:
         """settings.local_vad_enabled=False 시 local_vad는 None."""
         router = _make_router()
         assert router.local_vad is None
+
+    def test_local_vad_preflight_failure_uses_server_vad_pipeline(self):
+        """설정이 켜져도 runtime preflight 실패면 local handler를 만들지 않는다."""
+        router = _make_router_with_local_vad(runtime_available=False)
+
+        assert router.local_vad is None
+        assert router.session_b._use_local_vad is False
 
     def test_recovery_managers_created(self):
         """recovery_a 와 recovery_b가 존재한다."""

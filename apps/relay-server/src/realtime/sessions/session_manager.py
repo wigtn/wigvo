@@ -16,6 +16,7 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from src.config import settings
+from src.realtime.local_vad import is_local_vad_available
 from src.types import CallMode, CommunicationMode, SessionConfig, VadMode
 
 logger = logging.getLogger(__name__)
@@ -349,9 +350,15 @@ class DualSessionManager:
         self.vad_mode = vad_mode
         self.communication_mode = communication_mode
 
-        # Local VAD 활성 시 Session B의 VAD 모드를 LOCAL로 설정
+        # 모델/ORT를 세션 연결 전에 동기 검증한다. 실패한 상태에서 LOCAL로 연결하면
+        # turn_detection=null인 채 오디오가 영구 무음 처리되므로 Server VAD로 fallback.
+        self.local_vad_enabled = bool(
+            settings.local_vad_enabled and is_local_vad_available()
+        )
+
+        # Local VAD 런타임이 실제 사용 가능할 때만 Session B를 LOCAL로 설정
         session_b_vad_mode: VadMode
-        if settings.local_vad_enabled:
+        if self.local_vad_enabled:
             session_b_vad_mode = VadMode.LOCAL
         else:
             session_b_vad_mode = VadMode.SERVER

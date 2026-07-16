@@ -74,6 +74,16 @@ class TestLocalVADInit:
             vad._model = None
             assert vad.is_speaking is False
 
+    def test_runtime_preflight_reports_model_failure(self):
+        """모델을 열 수 없으면 Session B가 Server VAD로 fallback할 수 있어야 한다."""
+        with patch(
+            "src.realtime.local_vad._get_ort_session",
+            side_effect=RuntimeError("model missing"),
+        ):
+            from src.realtime.local_vad import is_local_vad_available
+
+            assert is_local_vad_available() is False
+
 
 class TestLocalVADStateMachine:
     """LocalVAD 상태 머신 테스트 (Silero 모델 mock)."""
