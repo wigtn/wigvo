@@ -38,18 +38,36 @@ from src.types import (
 logger = logging.getLogger(__name__)
 
 _HOLD_ASSET = Path(__file__).resolve().parents[2] / "static/audio/inbound-hold.ulaw.b64"
+_NOTICE_ASSET = (
+    Path(__file__).resolve().parents[2] / "static/audio/inbound-notice-en.ulaw.b64"
+)
 _FRAME_BYTES = 160  # 20 ms of 8 kHz g711 µ-law
 _HOLD_PAUSE_S = 1.75
 
 
-@lru_cache(maxsize=1)
-def _hold_audio() -> bytes:
-    """Load the committed 200 ms µ-law waiting chime."""
-    encoded = "".join(_HOLD_ASSET.read_text(encoding="ascii").split())
+def _load_ulaw(path: Path, label: str) -> bytes:
+    """Load a committed µ-law asset as whole 20 ms frames."""
+    encoded = "".join(path.read_text(encoding="ascii").split())
     audio = base64.b64decode(encoded, validate=True)
     if not audio or len(audio) % _FRAME_BYTES:
-        raise RuntimeError("Inbound hold asset must contain complete 20 ms frames")
+        raise RuntimeError(f"Inbound {label} asset must contain complete 20 ms frames")
     return audio
+
+
+@lru_cache(maxsize=1)
+def _hold_audio() -> bytes:
+    """Load the committed µ-law waiting chime."""
+    return _load_ulaw(_HOLD_ASSET, "hold")
+
+
+@lru_cache(maxsize=1)
+def _notice_audio() -> bytes:
+    """Load the committed English AI-interpretation disclosure (착신 직후 고지)."""
+    return _load_ulaw(_NOTICE_ASSET, "notice")
+
+
+def _frames(audio: bytes) -> list[bytes]:
+    return [audio[i : i + _FRAME_BYTES] for i in range(0, len(audio), _FRAME_BYTES)]
 
 
 @dataclass
@@ -94,13 +112,21 @@ class PendingMediaHandler:
         return self._router is not None
 
     async def _hold_loop(self) -> None:
-        frames = [
-            _hold_audio()[offset : offset + _FRAME_BYTES]
-            for offset in range(0, len(_hold_audio()), _FRAME_BYTES)
-        ]
         try:
+            # AI-interpretation disclosure (착신 직후 고지) — played once, then hold.
+            for frame in _frames(_notice_audio()):
+                await self.twilio.send_audio(frame)
+                if self.twilio.is_closed:
+                    return
+                await asyncio.sleep(0.02)
+            logger.info(
+                "Inbound AI-interpretation notice delivered (call=%s)",
+                self.pending.call_id,
+            )
+            # Waiting chime until an agent picks up.
+            hold = _frames(_hold_audio())
             while True:
-                for frame in frames:
+                for frame in hold:
                     await self.twilio.send_audio(frame)
                     if self.twilio.is_closed:
                         return
