@@ -37,9 +37,14 @@ async def lifespan(app: FastAPI):
         settings.relay_server_host,
         settings.relay_server_port,
     )
+    from src.inbound.media import (
+        install_inbound_media_handlers,
+        shutdown_inbound_media,
+    )
     from src.inbound.service import dispatch_service
 
     operations.start()
+    install_inbound_media_handlers()
     await dispatch_service.start()
     if settings.load_test_mode:
         from src.observability.loop_lag import sampler
@@ -54,6 +59,7 @@ async def lifespan(app: FastAPI):
 
             await sampler.stop()
         await dispatch_service.stop()
+        await shutdown_inbound_media()
         # Graceful shutdown: 모든 활성 통화 정리
         await call_manager.shutdown_all()
         await operations.stop()

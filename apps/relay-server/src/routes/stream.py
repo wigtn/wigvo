@@ -19,6 +19,7 @@ from src.auth import (
 )
 from src.call_manager import call_manager
 from src.config import settings
+from src.inbound.bootstrap import cleanup_inbound_session
 from src.logging_config import call_id_var, call_mode_var, tenant_id_var
 from src.inbound.service import dispatch_service
 from src.types import WsMessage, WsMessageType
@@ -118,6 +119,12 @@ async def app_websocket(ws: WebSocket, call_id: str):
 
             msg_type = msg.get("type", "")
 
+            # 종료 명령은 미디어 라우터 상태와 무관하게 항상 처리한다.
+            if msg_type == "end_call":
+                logger.info("User ended call via WebSocket (call=%s)", call_id)
+                explicit_end = True
+                break
+
             audio_router = call_manager.get_router(call_id)
             if not audio_router:
                 continue
@@ -137,10 +144,6 @@ async def app_websocket(ws: WebSocket, call_id: str):
                         await audio_router.handle_user_text(text)
                 case "typing_state":
                     await audio_router.handle_typing_started()
-                case "end_call":
-                    logger.info("User ended call via WebSocket (call=%s)", call_id)
-                    explicit_end = True
-                    break
 
     except WebSocketDisconnect:
         logger.info("App WebSocket disconnected (call=%s)", call_id)
@@ -150,6 +153,8 @@ async def app_websocket(ws: WebSocket, call_id: str):
         call_manager.unregister_app_ws(call_id, ws)
         if is_inbound and inbound_call_id is not None and not explicit_end:
             dispatch_service.schedule_reconnect_cleanup(inbound_call_id)
+        elif is_inbound and inbound_call_id is not None:
+            await cleanup_inbound_session(call_id, "user_hangup")
         else:
             reason = "user_hangup" if explicit_end else "app_disconnected"
             await call_manager.cleanup_call(call_id, reason=reason)
