@@ -149,6 +149,21 @@ class TestCleanupCall:
         persisted_call = mock_persist.call_args[0][0]
         assert persisted_call.status == CallStatus.ENDED
 
+    async def test_load_test_cleanup_skips_external_db_writes(
+        self, cm: CallManager, sample_call: ActiveCall
+    ):
+        cm.register_call("test-001", sample_call)
+
+        with (
+            patch("src.config.settings.load_test_mode", True),
+            patch("src.db.pg_client.update_call", new_callable=AsyncMock) as mock_update,
+            patch("src.db.pg_client.persist_call", new_callable=AsyncMock) as mock_persist,
+        ):
+            await cm.cleanup_call("test-001", reason="load_test")
+
+        mock_update.assert_not_awaited()
+        mock_persist.assert_not_awaited()
+
     async def test_cleanup_idempotent(
         self,
         cm: CallManager,
