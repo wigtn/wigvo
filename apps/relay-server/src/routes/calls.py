@@ -144,18 +144,23 @@ async def start_call(req: CallStartRequest, request: Request):
     call.session_b_id = dual_session.session_b.session_id
 
     # 4. Twilio 발신 (async)
-    try:
-        call_sid = await make_call_async(
-            phone_number=req.phone_number,
-            call_id=req.call_id,
-            tenant_id=tenant_id,
-        )
-        call.call_sid = call_sid
-    except Exception as e:
-        logger.error("Failed to make Twilio call: %s", e)
-        await call_manager.cleanup_call(req.call_id, reason="twilio_failed")
-        capacity_manager.release(req.call_id)
-        raise HTTPException(status_code=502, detail="Failed to initiate phone call")
+    if settings.load_test_mode:
+        # 부하테스트: 실제 Twilio 발신 없이 가짜 SID 부여. 미디어 스트림은
+        # 부하 하니스가 /twilio/media-stream WS로 직접 연결해 오디오를 주입한다.
+        call.call_sid = f"loadtest-{req.call_id}"
+    else:
+        try:
+            call_sid = await make_call_async(
+                phone_number=req.phone_number,
+                call_id=req.call_id,
+                tenant_id=tenant_id,
+            )
+            call.call_sid = call_sid
+        except Exception as e:
+            logger.error("Failed to make Twilio call: %s", e)
+            await call_manager.cleanup_call(req.call_id, reason="twilio_failed")
+            capacity_manager.release(req.call_id)
+            raise HTTPException(status_code=502, detail="Failed to initiate phone call")
 
     # 5. Active call 등록 (active++). 예약을 active로 확정(commit).
     call_manager.register_call(req.call_id, call)
@@ -168,13 +173,13 @@ async def start_call(req: CallStartRequest, request: Request):
     logger.info(
         "Call started: id=%s, sid=%s, ws=%s",
         req.call_id,
-        call_sid,
+        call.call_sid,
         relay_ws_url,
     )
 
     return CallStartResponse(
         call_id=req.call_id,
-        call_sid=call_sid,
+        call_sid=call.call_sid,
         relay_ws_url=relay_ws_url,
         session_ids={
             "session_a": call.session_a_id,

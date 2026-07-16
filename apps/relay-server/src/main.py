@@ -14,6 +14,7 @@ from src.middleware.rate_limit import RateLimitMiddleware
 from src.routes.calls import router as calls_router
 from src.routes.health import router as health_router
 from src.routes.inbound_dispatch import router as inbound_dispatch_router
+from src.routes.loadtest import router as loadtest_router
 from src.routes.stream import router as stream_router
 from src.routes.twilio_webhook import router as twilio_router
 
@@ -38,9 +39,18 @@ async def lifespan(app: FastAPI):
     from src.inbound.service import dispatch_service
 
     await dispatch_service.start()
+    if settings.load_test_mode:
+        from src.observability.loop_lag import sampler
+
+        sampler.start()
+        logger.warning("LOAD TEST MODE enabled — OpenAI/Twilio calls are stubbed")
     try:
         yield
     finally:
+        if settings.load_test_mode:
+            from src.observability.loop_lag import sampler
+
+            await sampler.stop()
         await dispatch_service.stop()
         # Graceful shutdown: 모든 활성 통화 정리
         await call_manager.shutdown_all()
@@ -60,13 +70,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
+# 부하테스트: 단일 하니스 IP가 다수 통화를 몰아 생성하면 IP당 분당 리밋에
+# 먼저 걸려 이벤트루프 포화 측정이 오염된다. 부하모드에서만 사실상 해제(프로덕션은 60/분 유지).
+app.add_middleware(
+    RateLimitMiddleware,
+    calls_per_minute=1_000_000 if settings.load_test_mode else 60,
+)
 
 app.include_router(health_router)
 app.include_router(calls_router, prefix="/relay")
 app.include_router(inbound_dispatch_router, prefix="/relay")
 app.include_router(stream_router, prefix="/relay")
 app.include_router(twilio_router, prefix="/twilio")
+app.include_router(loadtest_router, prefix="/loadtest")
 
 
 @app.get("/test")

@@ -81,6 +81,15 @@ class RealtimeSession:
             tools: Function Calling 도구 목록 (Agent Mode에서만 사용)
         """
         self._closed = False
+
+        # 부하테스트 모드: 실제 OpenAI 연결 없이 가짜 세션으로 대체 (비용 0).
+        # self.ws를 None으로 두면 _send()가 no-op이 되어 모든 전송이 안전하게 무시되고,
+        # listen()은 idle 상태로 대기하여 recovery 재연결 스핀을 막는다.
+        if settings.load_test_mode:
+            self.session_id = f"loadtest-{self.label}"
+            logger.info("[%s] load-test mode: skipping real OpenAI connect", self.label)
+            return
+
         url = f"{OPENAI_REALTIME_URL}?model={settings.openai_realtime_model}"
         headers = {
             "Authorization": f"Bearer {settings.openai_api_key}",
@@ -272,6 +281,17 @@ class RealtimeSession:
 
     async def listen(self) -> None:
         """WebSocket 메시지를 수신하고 등록된 핸들러를 호출한다."""
+        # 부하테스트 모드: 실제 소켓이 없으므로 이벤트 수신 없이 종료까지 idle 대기.
+        # (즉시 return하면 on_connection_lost가 발화해 recovery가 재연결을 반복 시도한다.)
+        if settings.load_test_mode:
+            try:
+                await asyncio.Future()  # cleanup의 listen_task.cancel()로 취소될 때까지 대기
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._closed = True
+            return
+
         if not self.ws:
             return
 
