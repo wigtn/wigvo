@@ -65,19 +65,40 @@ _VAD_EXECUTOR = ThreadPoolExecutor(
 # (PRD가 dismiss했던 부분이 실제 정답). 세션은 stateless라 프로세스 공유, 상태/컨텍스트는 통화별.
 _V6_MODEL_PATH = Path(__file__).resolve().parent / "models" / "silero_vad_v6.onnx"
 _ort_session: ort.InferenceSession | None = None
+_ort_session_load_failed = False
 
 
 def _get_ort_session() -> ort.InferenceSession:
     """v6 onnx 세션(프로세스 공유). intra/inter op 스레드 1 — 병렬은 _VAD_EXECUTOR가 담당."""
+    global _ort_session, _ort_session_load_failed
     if ort is None:
         raise RuntimeError("onnxruntime not available — LocalVAD disabled")
-    global _ort_session
+    if _ort_session_load_failed:
+        raise RuntimeError("Silero VAD model failed to load earlier — LocalVAD disabled")
     if _ort_session is None:
-        so = ort.SessionOptions()
-        so.intra_op_num_threads = 1
-        so.inter_op_num_threads = 1
-        _ort_session = ort.InferenceSession(str(_V6_MODEL_PATH), sess_options=so)
+        try:
+            so = ort.SessionOptions()
+            so.intra_op_num_threads = 1
+            so.inter_op_num_threads = 1
+            _ort_session = ort.InferenceSession(str(_V6_MODEL_PATH), sess_options=so)
+        except Exception:
+            _ort_session_load_failed = True
+            raise
     return _ort_session
+
+
+def is_local_vad_available() -> bool:
+    """Session B 연결 전에 Local VAD 런타임을 동기적으로 검증한다.
+
+    False면 호출자는 Server VAD로 내려가야 한다. 세션을 LOCAL 모드로 연결한 뒤
+    모델 실패를 발견하면 수신자 오디오가 영구 무음 처리되므로 preflight가 필요하다.
+    """
+    try:
+        _get_ort_session()
+    except Exception as exc:
+        logger.error("[LocalVAD] unavailable — falling back to Server VAD: %s", exc)
+        return False
+    return True
 
 
 class _SileroV6Model:
