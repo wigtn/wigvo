@@ -335,6 +335,9 @@ class VoiceToVoicePipeline(BasePipeline):
 
     async def handle_user_audio_commit(self) -> None:
         # 인사말 게이트: 수신자 응답 전에는 커밋할 오디오도 없다 (빈 버퍼 커밋 방지)
+        # 세그먼트 peak RMS를 먼저 읽고 즉시 리셋 (어떤 조기 return 경로에서도 누적 방지)
+        peak = self._user_peak_rms
+        self._user_peak_rms = 0.0
         if not self.call.first_message_sent:
             return
         if self.recovery_a.is_recovering or self.recovery_a.is_degraded:
@@ -342,8 +345,6 @@ class VoiceToVoicePipeline(BasePipeline):
         # 에너지 게이트: 이 발화 세그먼트의 peak RMS가 실발화 임계 미만이면(무음/소음)
         # OpenAI 커밋을 스킵하고 입력 버퍼를 비운다 — ClientVAD가 흘린 저에너지 오디오로
         # Whisper가 "구독과 좋아요" 류 무음 할루시를 생성하는 것을 차단한다.
-        peak = self._user_peak_rms
-        self._user_peak_rms = 0.0
         min_peak = settings.session_a_commit_min_peak_rms
         if min_peak > 0 and peak < min_peak:
             logger.info("[SessionA] Commit skipped — low energy (peak_rms=%.0f < %.0f)", peak, min_peak)
