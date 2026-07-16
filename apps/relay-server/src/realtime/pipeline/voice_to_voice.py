@@ -164,6 +164,8 @@ class VoiceToVoicePipeline(BasePipeline):
 
         # User audio RMS logging (주기적 샘플링)
         self._user_audio_chunk_count = 0
+        # Session A 커밋 에너지 게이트: 마지막 커밋 이후 관측한 최대 RMS
+        self._user_peak_rms: float = 0.0
         # 인사말 게이트로 드랍된 pre-greeting 오디오 청크 수 (첫 드랍 시 1회 로깅)
         self._pre_greeting_drops = 0
 
@@ -312,10 +314,12 @@ class VoiceToVoicePipeline(BasePipeline):
         audio_bytes = base64.b64decode(audio_b64)
         seq = self.ring_buffer_a.write(audio_bytes)
 
-        # 사용자 오디오 RMS 로깅 (~1초마다, pcm16 100ms chunk 기준 10회)
+        # 사용자 오디오 RMS: 커밋 에너지 게이트용 peak 추적 + ~1초마다 로깅
+        rms = _pcm16_rms(audio_bytes)
+        if rms > self._user_peak_rms:
+            self._user_peak_rms = rms
         self._user_audio_chunk_count += 1
         if self._user_audio_chunk_count % 10 == 0:
-            rms = _pcm16_rms(audio_bytes)
             logger.info("[SessionA] User audio RMS=%.0f", rms)
 
         if self.recovery_a.is_recovering:
@@ -334,6 +338,16 @@ class VoiceToVoicePipeline(BasePipeline):
         if not self.call.first_message_sent:
             return
         if self.recovery_a.is_recovering or self.recovery_a.is_degraded:
+            return
+        # 에너지 게이트: 이 발화 세그먼트의 peak RMS가 실발화 임계 미만이면(무음/소음)
+        # OpenAI 커밋을 스킵하고 입력 버퍼를 비운다 — ClientVAD가 흘린 저에너지 오디오로
+        # Whisper가 "구독과 좋아요" 류 무음 할루시를 생성하는 것을 차단한다.
+        peak = self._user_peak_rms
+        self._user_peak_rms = 0.0
+        min_peak = settings.session_a_commit_min_peak_rms
+        if min_peak > 0 and peak < min_peak:
+            logger.info("[SessionA] Commit skipped — low energy (peak_rms=%.0f < %.0f)", peak, min_peak)
+            await self.session_a.clear_user_audio()
             return
         # 선제적 Echo Gate 활성화: commit → TTS 생성(1-2s) 사이 에코 누출 방지
         # 첫 발화 시 수신자 전화기 AEC 미적응으로 에코가 Session B로 누출하는 문제 차단

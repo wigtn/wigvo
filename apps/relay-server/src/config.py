@@ -223,6 +223,11 @@ class Settings(BaseSettings):
     local_vad_min_speech_frames: int = 5    # 5 × 32ms = 160ms (96ms는 노이즈 버스트 오감지, 160ms로 발화 onset 안정 확보)
     local_vad_min_silence_frames: int = 25  # 25 × 32ms = 800ms (인트라-문장 쉼 200-500ms 무시, 진짜 발화 종료 1-3s만 감지)
 
+    # Session A(웹/기관 응대) 커밋 에너지 게이트 — ClientVAD가 흘린 무음/소음 커밋을 서버에서 차단.
+    # 커밋 세그먼트의 peak RMS(pcm16)가 이 값 미만이면 OpenAI 커밋 스킵 + 버퍼 clear → Whisper 무음 할루시 방지.
+    # 로그 근거: 무음/소음 14~126, 실발화 385~2587. 0으로 두면 비활성.
+    session_a_commit_min_peak_rms: float = 250.0
+
     # 클라이언트 측 오디오 에너지 게이트 (무음/소음 필터링)
     # 에너지 게이트: 임계값 이하 오디오를 silence로 교체하여 VAD에 전달
     # PSTN 배경 소음(50-200 RMS)을 silence로 교체 → VAD가 speech_stopped 자연 감지

@@ -31,11 +31,9 @@ def pcm16_rms(audio: bytes) -> float:
     """
     if len(audio) < 2:
         return 0.0
-    import struct
     n = len(audio) // 2
-    samples = struct.unpack(f"<{n}h", audio[:n * 2])
-    total = sum(s * s for s in samples)
-    return (total / n) ** 0.5
+    samples = np.frombuffer(audio[: n * 2], dtype="<i2").astype(np.float64)
+    return float(np.sqrt(np.mean(samples * samples)))
 
 
 def ulaw_rms(audio: bytes) -> float:

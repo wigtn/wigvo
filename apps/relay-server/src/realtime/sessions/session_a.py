@@ -173,6 +173,10 @@ class SessionAHandler:
         self.mark_generating()
         await self.session.commit_audio()
 
+    async def clear_user_audio(self) -> None:
+        """커밋하지 않고 OpenAI 입력 버퍼를 비운다 (저에너지 세그먼트 드랍용)."""
+        await self.session.clear_input_buffer()
+
     async def send_user_text(self, text: str) -> None:
         """User 텍스트를 Session A에 전달 (Agent Mode / Push-to-Talk).
 

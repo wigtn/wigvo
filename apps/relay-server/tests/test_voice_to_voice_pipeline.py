@@ -266,6 +266,7 @@ class TestVoiceToVoiceUserAudio:
         router.recovery_a.is_degraded = False
         router.context_manager = MagicMock()
         router.context_manager.inject_context = AsyncMock()
+        router._user_peak_rms = 1000.0  # 실발화 감지 상태 → 에너지 게이트 통과
 
         await router.handle_user_audio_commit()
 
@@ -285,6 +286,7 @@ class TestVoiceToVoiceUserAudio:
         router.recovery_a.is_degraded = False
         router.context_manager = MagicMock()
         router.context_manager.inject_context = AsyncMock()
+        router._user_peak_rms = 1000.0  # 실발화 감지 상태 → 에너지 게이트 통과
 
         await router.handle_user_audio_commit()
 
@@ -301,6 +303,7 @@ class TestVoiceToVoiceUserAudio:
         router.recovery_a.is_degraded = False
         router.context_manager = MagicMock()
         router.context_manager.inject_context = AsyncMock()
+        router._user_peak_rms = 1000.0  # 실발화 감지 상태 → 에너지 게이트 통과
 
         await router.handle_user_audio_commit()
 
@@ -319,12 +322,34 @@ class TestVoiceToVoiceUserAudio:
         router.context_manager.inject_context = AsyncMock()
 
         assert router.echo_gate.in_echo_window is False
+        router._user_peak_rms = 1000.0  # 실발화 감지 상태 → 에너지 게이트 통과
 
         await router.handle_user_audio_commit()
 
         assert router.echo_gate.in_echo_window is True
         assert router.echo_gate._pre_activate_timeout is not None
         await router.echo_gate.stop()
+
+    @pytest.mark.asyncio
+    async def test_audio_commit_skipped_on_low_energy(self):
+        """저에너지(무음/소음) 세그먼트는 커밋을 스킵하고 입력 버퍼를 비운다."""
+        router = _make_router()
+        router.call.first_message_sent = True
+        router.session_a.commit_user_audio = AsyncMock()
+        router.session_a.clear_user_audio = AsyncMock()
+        router.recovery_a = MagicMock()
+        router.recovery_a.is_recovering = False
+        router.recovery_a.is_degraded = False
+        router.context_manager = MagicMock()
+        router.context_manager.inject_context = AsyncMock()
+        router._user_peak_rms = 10.0  # 실발화 임계(250) 미만
+
+        await router.handle_user_audio_commit()
+
+        router.session_a.commit_user_audio.assert_not_called()
+        router.session_a.clear_user_audio.assert_called_once()
+        router.context_manager.inject_context.assert_not_called()
+        assert router._user_peak_rms == 0.0  # 커밋 후 리셋
 
     @pytest.mark.asyncio
     async def test_audio_commit_skipped_during_recovery(self):
