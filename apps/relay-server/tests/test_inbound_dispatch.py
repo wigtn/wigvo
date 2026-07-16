@@ -398,6 +398,48 @@ async def test_agent_disconnect_has_reconnect_grace(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_pickup_without_initial_agent_websocket_is_cleaned_up(monkeypatch):
+    from src.call_manager import call_manager
+
+    cleanup = AsyncMock()
+    monkeypatch.setattr(
+        service_module.settings, "inbound_agent_connect_timeout_s", 0.01
+    )
+    monkeypatch.setattr(call_manager, "get_app_ws", lambda _call_id: None)
+    monkeypatch.setattr(service_module, "cleanup_inbound_session", cleanup)
+
+    service = InboundDispatchService()
+    service.schedule_initial_connect_cleanup(CALL_ID)
+    await asyncio.sleep(0.03)
+
+    cleanup.assert_awaited_once_with(str(CALL_ID), "agent_connect_timeout")
+
+
+@pytest.mark.asyncio
+async def test_initial_agent_websocket_cancels_pending_cleanup(monkeypatch):
+    cleanup = AsyncMock()
+    monkeypatch.setattr(
+        service_module.settings, "inbound_agent_connect_timeout_s", 0.01
+    )
+    monkeypatch.setattr(service_module, "cleanup_inbound_session", cleanup)
+
+    service = InboundDispatchService()
+    service.schedule_initial_connect_cleanup(CALL_ID)
+
+    assert service.confirm_agent_connected(CALL_ID) is True
+    await asyncio.sleep(0.03)
+
+    cleanup.assert_not_awaited()
+
+
+def test_connection_is_rejected_once_cleanup_has_started():
+    service = InboundDispatchService()
+    service._connection_cleanup_started.add(CALL_ID)
+
+    assert service.confirm_agent_connected(CALL_ID) is False
+
+
+@pytest.mark.asyncio
 async def test_reconnect_cancels_pending_cleanup(monkeypatch):
     cleanup = AsyncMock()
     monkeypatch.setattr(service_module.settings, "inbound_reconnect_grace_s", 0.01)

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Loader2, PhoneIncoming, RefreshCw } from 'lucide-react';
@@ -16,8 +16,12 @@ export default function InboundQueuePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const refreshingRef = useRef(false);
+  const claimingRef = useRef(false);
 
   const loadCalls = useCallback(async (quiet = false) => {
+    if (!quiet && refreshingRef.current) return;
+    if (!quiet) refreshingRef.current = true;
     if (!quiet) setRefreshing(true);
     try {
       const response = await fetch('/api/inbound', { cache: 'no-store' });
@@ -30,6 +34,7 @@ export default function InboundQueuePage() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      if (!quiet) refreshingRef.current = false;
     }
   }, [t]);
 
@@ -40,6 +45,8 @@ export default function InboundQueuePage() {
   }, [loadCalls]);
 
   const pickup = useCallback(async (callId: string) => {
+    if (claimingRef.current) return;
+    claimingRef.current = true;
     setClaimingId(callId);
     setError(null);
     try {
@@ -56,6 +63,7 @@ export default function InboundQueuePage() {
       await loadCalls(true);
     } finally {
       setClaimingId(null);
+      claimingRef.current = false;
     }
   }, [loadCalls, router, t]);
 

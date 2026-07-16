@@ -7,7 +7,7 @@ import { db, schema } from '@/lib/db/client';
 import { callRowFromDb } from '@/lib/db/mappers';
 import { requireUser } from '@/lib/auth/require-user';
 import { authErrorResponse } from '@/lib/auth/route-helpers';
-import { getConversationById, updateConversationStatus } from '@/lib/db/chat';
+import { getConversationById } from '@/lib/db/chat';
 import { CreateCallRequest, CollectedData } from '@/shared/types';
 import { communicationModeToCallMode } from '@/shared/call-types';
 import type { CommunicationMode } from '@/shared/call-types';
@@ -66,31 +66,52 @@ export async function POST(request: NextRequest) {
     const selectedMode: CommunicationMode = communicationMode || 'voice_to_voice';
     const callMode = communicationModeToCallMode(selectedMode);
 
-    const [inserted] = await db
-      .insert(schema.calls)
-      .values({
-        userId: user.id,
-        tenantId: user.tenantId,
-        conversationId,
-        requestType: collectedData.scenario_type || 'RESERVATION',
-        targetName: collectedData.target_name ?? null,
-        targetPhone: collectedData.target_phone,
-        parsedDate: collectedData.primary_datetime?.split(' ')[0] || null,
-        parsedTime: collectedData.primary_datetime?.split(' ')[1] || null,
-        parsedService: collectedData.service ?? null,
-        sourceLanguage: collectedData.source_language || 'en',
-        targetLanguage: collectedData.target_language || 'ko',
-        status: 'PENDING',
-        callMode,
-        communicationMode: selectedMode,
-      })
-      .returning();
+    // Claim READY -> CALLING and create the call in one transaction. The status
+    // predicate is the server-side idempotency guard: two tabs/double-clicks can
+    // race, but only one request can claim the conversation.
+    const inserted = await db.transaction(async (tx) => {
+      const [claimed] = await tx
+        .update(schema.conversations)
+        .set({ status: 'CALLING', updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.conversations.id, conversationId),
+            eq(schema.conversations.userId, user.id),
+            eq(schema.conversations.tenantId, user.tenantId),
+            eq(schema.conversations.status, 'READY'),
+          ),
+        )
+        .returning({ id: schema.conversations.id });
+
+      if (!claimed) return null;
+
+      const [call] = await tx
+        .insert(schema.calls)
+        .values({
+          userId: user.id,
+          tenantId: user.tenantId,
+          conversationId,
+          requestType: collectedData.scenario_type || 'RESERVATION',
+          targetName: collectedData.target_name ?? null,
+          targetPhone: collectedData.target_phone,
+          parsedDate: collectedData.primary_datetime?.split(' ')[0] || null,
+          parsedTime: collectedData.primary_datetime?.split(' ')[1] || null,
+          parsedService: collectedData.service ?? null,
+          sourceLanguage: collectedData.source_language || 'en',
+          targetLanguage: collectedData.target_language || 'ko',
+          status: 'PENDING',
+          callMode,
+          communicationMode: selectedMode,
+        })
+        .returning();
+
+      if (!call) throw new Error('Call insert returned no row');
+      return call;
+    });
 
     if (!inserted) {
-      return NextResponse.json({ error: 'Failed to create call' }, { status: 500 });
+      return NextResponse.json({ error: 'Call already in progress' }, { status: 409 });
     }
-
-    await updateConversationStatus(conversationId, 'CALLING');
 
     return NextResponse.json(toCallResponse(callRowFromDb(inserted)), { status: 201 });
   } catch (error) {

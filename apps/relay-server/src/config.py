@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     max_waiting_calls: int = 20
     claim_ttl_s: int = 30
     session_starting_timeout_s: float = 30.0
+    inbound_agent_connect_timeout_s: float = 15.0
     inbound_wait_timeout_s: int = 120
     inbound_reconnect_grace_s: float = 15.0
     dispatch_sweep_interval_s: float = 5.0
@@ -81,6 +82,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "session_starting_timeout_s",
+        "inbound_agent_connect_timeout_s",
         "inbound_reconnect_grace_s",
         "dispatch_sweep_interval_s",
     )

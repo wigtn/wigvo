@@ -83,6 +83,8 @@ export function useChat(): UseChatReturn {
   // ── Refs (StrictMode 이중 초기화 방지) ─────────────────────
   const initializedRef = useRef(false);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scenarioSelectingRef = useRef(false);
+  const sendingRef = useRef(false);
 
   // ── Helper: 에러 설정 (5초 후 자동 디스미스) ───────────────
   const setErrorWithAutoDismiss = useCallback((msg: string) => {
@@ -258,6 +260,8 @@ export function useChat(): UseChatReturn {
     srcLang: string,
     tgtLang: string
   ) => {
+    if (scenarioSelectingRef.current) return;
+    scenarioSelectingRef.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -271,12 +275,15 @@ export function useChat(): UseChatReturn {
       setErrorWithAutoDismiss(t('startError'));
     } finally {
       setIsLoading(false);
+      scenarioSelectingRef.current = false;
     }
   }, [startConversation, handle401, setErrorWithAutoDismiss, t]);
 
   // ── sendMessage (Optimistic update + rollback) ─────────────
   const sendMessage = useCallback(
     async (content: string) => {
+      if (sendingRef.current) return;
+
       // 유효성 검사
       const validation = validateMessage(content);
       if (!validation.valid) {
@@ -288,6 +295,8 @@ export function useChat(): UseChatReturn {
         setErrorWithAutoDismiss(t('conversationNotStarted'));
         return;
       }
+
+      sendingRef.current = true;
 
       setError(null);
 
@@ -336,6 +345,7 @@ export function useChat(): UseChatReturn {
         setErrorWithAutoDismiss(t('sendError'));
       } finally {
         setIsLoading(false);
+        sendingRef.current = false;
       }
     },
     [conversationId, communicationMode, handle401, setErrorWithAutoDismiss, t]

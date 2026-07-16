@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CallMode, CommunicationMode } from '@/shared/call-types';
 import { useRelayCall } from '@/hooks/useRelayCall';
@@ -16,6 +16,7 @@ interface RealtimeCallViewProps {
   targetName?: string | null;
   onCallEnd?: () => void;
   wsProtocols?: string[];
+  refreshWsProtocols?: () => Promise<string[]>;
 }
 
 const modeBadgeIcon: Record<CommunicationMode, typeof Mic> = {
@@ -38,11 +39,14 @@ export default function RealtimeCallView({
   targetName,
   onCallEnd,
   wsProtocols,
+  refreshWsProtocols,
 }: RealtimeCallViewProps) {
   const t = useTranslations('call');
-  const relay = useRelayCall(communicationMode, wsProtocols);
+  const relay = useRelayCall(communicationMode, wsProtocols, refreshWsProtocols);
   const startCall = relay.startCall;
   const [textInput, setTextInput] = useState('');
+  const endedRef = useRef(false);
+  const lastTextActionRef = useRef<{ value: string; at: number } | null>(null);
 
   const BadgeIcon = modeBadgeIcon[communicationMode];
   const badgeLabel = t(`modeBadge.${COMM_MODE_KEYS[communicationMode]}`);
@@ -55,10 +59,13 @@ export default function RealtimeCallView({
   ];
 
   useEffect(() => {
+    endedRef.current = false;
     startCall(callId, relayWsUrl, callMode);
   }, [callId, relayWsUrl, callMode, startCall]);
 
   const handleEndCall = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
     relay.endCall();
     onCallEnd?.();
   }, [relay, onCallEnd]);
@@ -66,6 +73,10 @@ export default function RealtimeCallView({
   const handleSendText = useCallback((text?: string) => {
     const msg = text ?? textInput.trim();
     if (!msg) return;
+    const now = Date.now();
+    const last = lastTextActionRef.current;
+    if (last?.value === msg && now - last.at < 500) return;
+    lastTextActionRef.current = { value: msg, at: now };
     relay.sendText(msg);
     setTextInput('');
   }, [textInput, relay]);

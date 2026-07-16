@@ -48,6 +48,7 @@ interface UseRelayCallReturn {
 export function useRelayCall(
   communicationMode: CommunicationMode = 'voice_to_voice',
   wsProtocols?: string[],
+  refreshWsProtocols?: () => Promise<string[]>,
 ): UseRelayCallReturn {
   const [callStatus, setCallStatus] = useState<CallStatus>('idle');
   const [translationState, setTranslationState] = useState<TranslationState>('idle');
@@ -276,6 +277,7 @@ export function useRelayCall(
     onMessage: handleMessage,
     autoConnect: true,
     protocols: wsProtocols,
+    refreshProtocols: refreshWsProtocols,
   });
   useEffect(() => {
     wsRef.current = ws;

@@ -13,6 +13,7 @@ interface UseRelayWebSocketOptions {
   onMessage: (msg: RelayWsMessage) => void;
   autoConnect: boolean;
   protocols?: string[];
+  refreshProtocols?: () => Promise<string[]>;
 }
 
 interface UseRelayWebSocketReturn {
@@ -35,6 +36,7 @@ export function useRelayWebSocket({
   onMessage,
   autoConnect,
   protocols,
+  refreshProtocols,
 }: UseRelayWebSocketOptions): UseRelayWebSocketReturn {
   const [status, setStatus] = useState<WsStatus>('disconnected');
 
@@ -43,10 +45,12 @@ export function useRelayWebSocket({
 
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stableConnectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intentionalCloseRef = useRef(false);
   const connectGenerationRef = useRef(0);
-  const connectRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const connectRef = useRef<(isReconnect?: boolean) => Promise<void>>(() => Promise.resolve());
   const protocolsRef = useRef(protocols);
+  const refreshProtocolsRef = useRef(refreshProtocols);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
@@ -56,11 +60,19 @@ export function useRelayWebSocket({
     protocolsRef.current = protocols;
   }, [protocols]);
 
+  useEffect(() => {
+    refreshProtocolsRef.current = refreshProtocols;
+  }, [refreshProtocols]);
+
   const cleanup = useCallback(() => {
     connectGenerationRef.current += 1;
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
+    }
+    if (stableConnectionTimerRef.current) {
+      clearTimeout(stableConnectionTimerRef.current);
+      stableConnectionTimerRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.onopen = null;
@@ -74,7 +86,19 @@ export function useRelayWebSocket({
     }
   }, []);
 
-  const connect = useCallback(async () => {
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectCountRef.current < MAX_RECONNECT_ATTEMPTS) {
+      reconnectCountRef.current += 1;
+      setStatus('connecting');
+      reconnectTimerRef.current = setTimeout(() => {
+        void connectRef.current(true);
+      }, RECONNECT_DELAY_MS);
+    } else {
+      setStatus('error');
+    }
+  }, []);
+
+  const connect = useCallback(async (isReconnect = false) => {
     if (!url) return;
 
     cleanup();
@@ -87,21 +111,42 @@ export function useRelayWebSocket({
     if (url.startsWith(MOCK_WS_URL_PREFIX)) {
       ws = new MockWebSocket(url) as unknown as WebSocket;
     } else {
-      const supabase = createClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let offeredProtocols: string[] | undefined;
+      try {
+        if (isReconnect && refreshProtocolsRef.current) {
+          // Pickup tokens are intentionally short-lived. Every reconnect gets a
+          // fresh token instead of retrying the token from the first page load.
+          offeredProtocols = await refreshProtocolsRef.current();
+        } else if (protocolsRef.current) {
+          offeredProtocols = protocolsRef.current;
+        } else {
+          const supabase = createClient();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          offeredProtocols = session?.access_token
+            ? [JWT_WS_PROTOCOL, session.access_token]
+            : undefined;
+        }
+      } catch (credentialError) {
+        if (generation !== connectGenerationRef.current) return;
+        console.error('[RelayWS] Failed to refresh WebSocket credentials:', credentialError);
+        scheduleReconnect();
+        return;
+      }
       if (generation !== connectGenerationRef.current) return;
-      const offeredProtocols = protocolsRef.current ?? (session?.access_token
-        ? [JWT_WS_PROTOCOL, session.access_token]
-        : undefined);
       ws = new WebSocket(url, offeredProtocols);
     }
     wsRef.current = ws;
 
     ws.onopen = () => {
       setStatus('connected');
-      reconnectCountRef.current = 0;
+      // An auth rejection can briefly fire `open` before `close`. Only reset
+      // the retry budget after the connection has stayed alive for a moment.
+      stableConnectionTimerRef.current = setTimeout(() => {
+        reconnectCountRef.current = 0;
+        stableConnectionTimerRef.current = null;
+      }, 1000);
     };
 
     ws.onmessage = (event) => {
@@ -119,23 +164,19 @@ export function useRelayWebSocket({
 
     ws.onclose = () => {
       wsRef.current = null;
+      if (stableConnectionTimerRef.current) {
+        clearTimeout(stableConnectionTimerRef.current);
+        stableConnectionTimerRef.current = null;
+      }
 
       if (intentionalCloseRef.current) {
         setStatus('disconnected');
         return;
       }
 
-      if (reconnectCountRef.current < MAX_RECONNECT_ATTEMPTS) {
-        reconnectCountRef.current += 1;
-        setStatus('connecting');
-        reconnectTimerRef.current = setTimeout(() => {
-          void connectRef.current();
-        }, RECONNECT_DELAY_MS);
-      } else {
-        setStatus('error');
-      }
+      scheduleReconnect();
     };
-  }, [url, cleanup]);
+  }, [url, cleanup, scheduleReconnect]);
 
   useEffect(() => {
     connectRef.current = connect;

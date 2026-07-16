@@ -92,7 +92,16 @@ async def app_websocket(ws: WebSocket, call_id: str):
         await ws.close(code=4409, reason="Agent connection already active")
         return
     if inbound_call_id is not None and is_inbound:
-        dispatch_service.cancel_reconnect_cleanup(inbound_call_id)
+        if not dispatch_service.confirm_agent_connected(inbound_call_id):
+            call_manager.unregister_app_ws(call_id, ws)
+            await ws.send_json(
+                WsMessage(
+                    type=WsMessageType.ERROR,
+                    data={"message": "Inbound session cleanup already started"},
+                ).model_dump()
+            )
+            await ws.close(code=4409, reason="Inbound session is closing")
+            return
 
     # AudioRouter가 아직 없으면 Twilio 연결 대기 중
     if not call_manager.get_router(call_id):

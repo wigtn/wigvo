@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
@@ -21,25 +21,32 @@ export default function InboundCallPage() {
     [pickup],
   );
 
+  const fetchPickup = useCallback(async () => {
+    const response = await fetch(`/api/inbound/${callId}/pickup`, { method: 'POST' });
+    const payload = (await response.json()) as InboundPickupResult & { error?: string };
+    if (!response.ok) throw new Error(payload.error || t('errors.pickup'));
+    return payload;
+  }, [callId, t]);
+
   useEffect(() => {
     let cancelled = false;
-    async function refreshPickupToken() {
-      try {
-        const response = await fetch(`/api/inbound/${callId}/pickup`, { method: 'POST' });
-        const payload = (await response.json()) as InboundPickupResult & { error?: string };
-        if (!response.ok) throw new Error(payload.error || t('errors.pickup'));
-        if (!cancelled) {
-          setPickup(payload);
-        }
-      } catch (pickupError) {
+    void fetchPickup()
+      .then((payload) => {
+        if (!cancelled) setPickup(payload);
+      })
+      .catch((pickupError: unknown) => {
         if (!cancelled) {
           setError(pickupError instanceof Error ? pickupError.message : t('errors.pickup'));
         }
-      }
-    }
-    void refreshPickupToken();
+      });
     return () => { cancelled = true; };
-  }, [callId, t]);
+  }, [fetchPickup, t]);
+
+  const refreshWsProtocols = useCallback(async () => {
+    const refreshed = await fetchPickup();
+    setPickup(refreshed);
+    return [PICKUP_WS_PROTOCOL, refreshed.pickup_token];
+  }, [fetchPickup]);
 
   if (error) {
     return (
@@ -76,6 +83,7 @@ export default function InboundCallPage() {
           communicationMode="voice_to_voice"
           targetName={t('caller')}
           wsProtocols={protocols}
+          refreshWsProtocols={refreshWsProtocols}
           onCallEnd={() => router.push('/inbound')}
         />
       </div>

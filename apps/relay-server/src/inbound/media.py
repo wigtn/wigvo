@@ -44,6 +44,14 @@ _NOTICE_ASSET = (
 _FRAME_BYTES = 160  # 20 ms of 8 kHz g711 µ-law
 _HOLD_PAUSE_S = 1.75
 
+# PoC 인바운드 고정 언어 방향 (WI-6 · 사용자 지정):
+#   받는사람 = 상담원 웹부스(앱 / Session A) = 한국어 = source_language
+#   거는사람 = 외국인(Twilio / Session B)     = 영어   = target_language
+# 아웃바운드(웹 발신)는 기존 동적 언어쌍 그대로. tenant_call_config.languages
+# 연동은 후속 — 지금은 고정한다(라이브 방향 뒤집힘 방어).
+_INBOUND_SOURCE_LANG = "ko"
+_INBOUND_TARGET_LANG = "en"
+
 
 def _load_ulaw(path: Path, label: str) -> bytes:
     """Load a committed µ-law asset as whole 20 ms frames."""
@@ -94,12 +102,20 @@ class PendingMediaHandler:
             call_sid=pending.provider_call_sid,
             tenant_id=pending.tenant_id,
             mode=CallMode.RELAY,
-            source_language=pending.languages[0],
-            target_language=pending.languages[1],
+            source_language=_INBOUND_SOURCE_LANG,
+            target_language=_INBOUND_TARGET_LANG,
             status=CallStatus.PENDING,
             communication_mode=CommunicationMode.VOICE_TO_VOICE,
             started_at=time.time(),
         )
+        # 인바운드는 아웃바운드식 AI 고지(FirstMessageHandler)를 쓰지 않는다.
+        # 대기 중 PendingMediaHandler가 통역 고지(inbound-notice)를 이미 재생했고,
+        # 역할 스왑으로 FIRST_MESSAGE_TEMPLATES("고객을 대신해 전화드렸습니다")는
+        # 인바운드 방향에 맞지 않아 "안내문 2번 + 첫 발화 환각"을 만든다.
+        # first_message_sent를 미리 세워 (a) 강제 그리팅 fallback timer,
+        # (b) 수신자 첫 발화→그리팅 발사, (c) pre-greeting 오디오 게이트를
+        # 모두 무력화한다 → handoff 직후 양방향 오디오가 바로 흐른다.
+        self.call.first_message_sent = True
         self.twilio = TwilioMediaStreamHandler(ws=ws, call=self.call)
         self._frame_lock = asyncio.Lock()
         self._router: AudioRouter | None = None

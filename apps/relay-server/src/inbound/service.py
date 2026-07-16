@@ -52,7 +52,9 @@ class InboundDispatchService:
         self._pickup_locks: dict[UUID, asyncio.Lock] = {}
         self._pickup_lock_users: dict[UUID, int] = {}
         self._known_calls: set[UUID] = set()
+        self._initial_connect_tasks: dict[UUID, asyncio.Task[None]] = {}
         self._reconnect_tasks: dict[UUID, asyncio.Task[None]] = {}
+        self._connection_cleanup_started: set[UUID] = set()
         self._sweeper_task: asyncio.Task[None] | None = None
 
     async def resolve_tenant(self, inbound_number: str) -> tuple[UUID, list[str]]:
@@ -193,6 +195,7 @@ class InboundDispatchService:
             await cleanup_inbound_session(str(call_id), "dispatch_state_changed")
             await self.finish(call_id, "dispatch_state_changed")
             raise DispatchConflict("Inbound call ended during session initialization")
+        self.schedule_initial_connect_cleanup(call_id)
         return connected, result
 
     def _connected_result(self, dispatch: DispatchRecord) -> BootstrapResult:
@@ -234,12 +237,59 @@ class InboundDispatchService:
     def is_known_inbound(self, call_id: UUID) -> bool:
         return call_id in self._known_calls
 
-    def cancel_reconnect_cleanup(self, call_id: UUID) -> None:
+    def cancel_initial_connect_cleanup(self, call_id: UUID) -> bool:
+        if call_id in self._connection_cleanup_started:
+            return False
+        task = self._initial_connect_tasks.pop(call_id, None)
+        if task is not None:
+            task.cancel()
+        return True
+
+    def schedule_initial_connect_cleanup(self, call_id: UUID) -> None:
+        if call_id in self._connection_cleanup_started:
+            return
+        self.cancel_initial_connect_cleanup(call_id)
+        self._initial_connect_tasks[call_id] = asyncio.create_task(
+            self._cleanup_after_initial_connect_timeout(call_id)
+        )
+
+    async def _cleanup_after_initial_connect_timeout(self, call_id: UUID) -> None:
+        try:
+            await asyncio.sleep(settings.inbound_agent_connect_timeout_s)
+            from src.call_manager import call_manager
+
+            # No await between this check and marking cleanup as started. This
+            # makes the deadline decision atomic within the event loop.
+            if call_manager.get_app_ws(str(call_id)) is None:
+                self._connection_cleanup_started.add(call_id)
+                await cleanup_inbound_session(str(call_id), "agent_connect_timeout")
+        except asyncio.CancelledError:
+            return
+        finally:
+            self._connection_cleanup_started.discard(call_id)
+            current = asyncio.current_task()
+            if self._initial_connect_tasks.get(call_id) is current:
+                self._initial_connect_tasks.pop(call_id, None)
+
+    def confirm_agent_connected(self, call_id: UUID) -> bool:
+        """Cancel pending deadlines, unless cleanup already won the race."""
+        if call_id in self._connection_cleanup_started:
+            return False
+        self.cancel_initial_connect_cleanup(call_id)
+        self.cancel_reconnect_cleanup(call_id)
+        return True
+
+    def cancel_reconnect_cleanup(self, call_id: UUID) -> bool:
+        if call_id in self._connection_cleanup_started:
+            return False
         task = self._reconnect_tasks.pop(call_id, None)
         if task is not None:
             task.cancel()
+        return True
 
     def schedule_reconnect_cleanup(self, call_id: UUID) -> None:
+        if call_id in self._connection_cleanup_started:
+            return
         self.cancel_reconnect_cleanup(call_id)
         self._reconnect_tasks[call_id] = asyncio.create_task(
             self._cleanup_after_reconnect_grace(call_id)
@@ -251,15 +301,18 @@ class InboundDispatchService:
             from src.call_manager import call_manager
 
             if call_manager.get_app_ws(str(call_id)) is None:
+                self._connection_cleanup_started.add(call_id)
                 await cleanup_inbound_session(str(call_id), "app_reconnect_timeout")
         except asyncio.CancelledError:
             return
         finally:
+            self._connection_cleanup_started.discard(call_id)
             current = asyncio.current_task()
             if self._reconnect_tasks.get(call_id) is current:
                 self._reconnect_tasks.pop(call_id, None)
 
     async def finish(self, call_id: UUID, reason: str) -> DispatchRecord | None:
+        self.cancel_initial_connect_cleanup(call_id)
         self.cancel_reconnect_cleanup(call_id)
         row = await repository.finish_dispatch(call_id, reason)
         self._forget_call(call_id)
@@ -288,7 +341,11 @@ class InboundDispatchService:
             except asyncio.CancelledError:
                 pass
             self._sweeper_task = None
-        tasks = list(self._reconnect_tasks.values())
+        tasks = [
+            *self._initial_connect_tasks.values(),
+            *self._reconnect_tasks.values(),
+        ]
+        self._initial_connect_tasks.clear()
         self._reconnect_tasks.clear()
         for task in tasks:
             task.cancel()

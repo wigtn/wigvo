@@ -94,15 +94,25 @@ export async function POST(
 
     // 3. Transition both call and conversation to CALLING before issuing
     // the relay request so the UI reflects in-flight state.
-    await db
+    const [claimedCall] = await db
       .update(schema.calls)
       .set({ status: 'CALLING', updatedAt: new Date() })
       .where(
         and(
           eq(schema.calls.id, callId),
+          eq(schema.calls.userId, user.id),
           eq(schema.calls.tenantId, user.tenantId),
+          eq(schema.calls.status, 'PENDING'),
         ),
+      )
+      .returning({ id: schema.calls.id });
+
+    if (!claimedCall) {
+      return NextResponse.json(
+        { error: 'Call is already starting or started' },
+        { status: 409 },
       );
+    }
 
     if (call.conversationId) {
       await db
@@ -165,7 +175,9 @@ export async function POST(
       .where(
         and(
           eq(schema.calls.id, callId),
+          eq(schema.calls.userId, user.id),
           eq(schema.calls.tenantId, user.tenantId),
+          eq(schema.calls.status, 'CALLING'),
         ),
       );
 
@@ -190,7 +202,7 @@ async function markCallFailed(
   message: string,
 ): Promise<void> {
   try {
-    await db
+    const [failedCall] = await db
       .update(schema.calls)
       .set({
         status: 'FAILED',
@@ -203,9 +215,11 @@ async function markCallFailed(
         and(
           eq(schema.calls.id, callId),
           eq(schema.calls.tenantId, tenantId),
+          eq(schema.calls.status, 'CALLING'),
         ),
-      );
-    if (conversationId) {
+      )
+      .returning({ id: schema.calls.id });
+    if (failedCall && conversationId) {
       try {
         await db
           .update(schema.conversations)

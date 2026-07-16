@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { Info } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Info } from 'lucide-react';
 export default function OAuthButtons() {
   const t = useTranslations('oauth');
   const [toast, setToast] = useState(false);
+  const oauthRef = useRef(false);
 
   const showToast = useCallback(() => {
     setToast(true);
@@ -20,13 +21,19 @@ export default function OAuthButtons() {
   }, [toast]);
 
   const handleGoogleLogin = async () => {
+    if (oauthRef.current) return;
+    oauthRef.current = true;
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    } finally {
+      oauthRef.current = false;
+    }
   };
 
   const handleKakaoLogin = () => {

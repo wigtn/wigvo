@@ -427,3 +427,22 @@ async def test_agent_explicit_end_uses_full_inbound_cleanup_seam(monkeypatch):
 
     cleanup.assert_awaited_once_with(str(CALL_ID), "user_hangup")
     assert ws.accept_calls == ["wigvo.pickup"]
+
+
+@pytest.mark.asyncio
+async def test_inbound_pending_forces_fixed_direction_and_suppresses_greeting():
+    """인바운드는 언어 방향(받는사람=ko/거는사람=en) 고정 + 아웃바운드식
+    AI 고지(first message)를 쓰지 않는다. tenant가 반대로 줘도 방향은 고정."""
+    reversed_pending = PendingCall(
+        call_id=CALL_ID,
+        tenant_id=TENANT_ID,
+        languages=("en", "ko"),  # 일부러 뒤집어 전달
+        provider_call_sid="CA-inbound",
+    )
+    handler = PendingMediaHandler(FakeWebSocket(), reversed_pending)
+
+    # 받는사람(상담원/앱/Session A)=한국어=source, 거는사람(외국인/Twilio)=영어=target
+    assert handler.call.source_language == "ko"
+    assert handler.call.target_language == "en"
+    # first_message_sent 선점 → 강제 그리팅·수신자 첫 발화 그리팅·pre-greeting 게이트 무력화
+    assert handler.call.first_message_sent is True
