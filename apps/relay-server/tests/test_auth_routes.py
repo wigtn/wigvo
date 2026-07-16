@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from fastapi.testclient import TestClient
+from twilio.request_validator import RequestValidator
 
 import src.auth as auth
 from src.call_manager import call_manager
@@ -58,8 +59,21 @@ def test_call_end_rejects_cross_tenant_api_key(monkeypatch) -> None:
 
 def test_twilio_webhook_is_not_gated_by_institution_auth(monkeypatch) -> None:
     monkeypatch.setattr(auth.settings, "tenant_auth_enforce", True)
+    monkeypatch.setattr(auth.settings, "twilio_auth_token", "twilio-test-token")
+    monkeypatch.setattr(
+        auth.settings,
+        "public_callback_base_url",
+        "https://relay.example.com",
+    )
+    signature = RequestValidator("twilio-test-token").compute_signature(
+        "https://relay.example.com/twilio/webhook/twilio-test",
+        {},
+    )
     with TestClient(app) as client:
-        response = client.post("/twilio/webhook/twilio-test")
+        response = client.post(
+            "/twilio/webhook/twilio-test",
+            headers={"X-Twilio-Signature": signature},
+        )
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/xml")

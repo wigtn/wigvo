@@ -4,14 +4,19 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Form, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
+from twilio.twiml.voice_response import VoiceResponse
 
 from src.call_manager import call_manager
-from src.config import settings
 from src.logging_config import call_id_var, call_mode_var, tenant_id_var
 from src.realtime.audio_router import AudioRouter
 from src.twilio.media_stream import TwilioMediaStreamHandler
+from src.twilio.signature import (
+    public_websocket_url,
+    validate_twilio_http_request,
+    validate_twilio_websocket,
+)
 from src.types import WsMessage, WsMessageType
 
 router = APIRouter(tags=["twilio"])
@@ -19,54 +24,63 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/webhook/{call_id}")
-async def twilio_webhook(call_id: str):
+async def twilio_webhook(call_id: str, request: Request):
     """Twilio가 전화를 연결하면 호출하는 webhook.
 
     TwiML로 Media Stream을 연결하여 양방향 오디오 스트리밍을 시작한다.
     """
-    ws_url = settings.relay_server_url.replace("http", "ws")
-    stream_url = f"{ws_url}/twilio/media-stream/{call_id}"
-
-    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Connect>
-        <Stream url="{stream_url}">
-            <Parameter name="call_id" value="{call_id}" />
-        </Stream>
-    </Connect>
-</Response>"""
+    await validate_twilio_http_request(request)
+    stream_url = public_websocket_url(f"/twilio/media-stream/{call_id}")
+    voice = VoiceResponse()
+    stream = voice.connect().stream(url=stream_url)
+    stream.parameter(name="call_id", value=call_id)
 
     call_id_var.set(call_id)
     logger.info("TwiML webhook for call_id=%s, stream_url=%s", call_id, stream_url)
-    return Response(content=twiml, media_type="application/xml")
+    return Response(content=str(voice), media_type="application/xml")
+
+
+@router.post("/incoming")
+async def twilio_incoming(request: Request):
+    """WI-6 인바운드 진입점의 서명 경계.
+
+    실제 DID resolve/dispatch는 WI-6에서 연결한다. 그 전에는 검증된 요청도
+    TwiML Reject로 안전하게 종료해 세션·비용을 만들지 않는다.
+    """
+    await validate_twilio_http_request(request)
+    voice = VoiceResponse()
+    voice.reject(reason="busy")
+    return Response(content=str(voice), media_type="application/xml")
 
 
 @router.post("/status-callback/{call_id}")
 async def twilio_status_callback(
     call_id: str,
     request: Request,
-    CallStatus: str = Form(""),
-    CallSid: str = Form(""),
-    CallDuration: str = Form(""),
 ):
     """Twilio 통화 상태 변경 콜백.
 
     수신자가 전화를 끊으면 completed/busy/no-answer 등이 오며,
     이때 cleanup_call()로 자동 정리한다.
     """
+    form = await validate_twilio_http_request(request)
+    call_status = str(form.get("CallStatus", ""))
+    call_sid = str(form.get("CallSid", ""))
+    call_duration = str(form.get("CallDuration", ""))
+
     call_id_var.set(call_id)
     logger.info(
         "Twilio status callback: call_id=%s, status=%s, sid=%s, duration=%s",
         call_id,
-        CallStatus,
-        CallSid,
-        CallDuration,
+        call_status,
+        call_sid,
+        call_duration,
     )
 
     # 통화 종료 상태면 자동 정리
     terminal_statuses = {"completed", "failed", "busy", "no-answer", "canceled"}
-    if CallStatus in terminal_statuses:
-        await call_manager.cleanup_call(call_id, reason=f"twilio_{CallStatus}")
+    if call_status in terminal_statuses:
+        await call_manager.cleanup_call(call_id, reason=f"twilio_{call_status}")
 
     return {"status": "ok"}
 
@@ -81,6 +95,8 @@ async def twilio_media_stream(ws: WebSocket, call_id: str):
     DualSession은 calls.py start_call()에서 이미 생성되어 있으므로
     call_manager에서 가져와 재사용한다.
     """
+    if not await validate_twilio_websocket(ws):
+        return
     await ws.accept()
     logger.info("Twilio Media Stream connected (call=%s)", call_id)
 
