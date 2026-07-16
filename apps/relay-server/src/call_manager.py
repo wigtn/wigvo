@@ -165,10 +165,13 @@ class CallManager:
 
             logger.info("Cleaning up call %s (reason: %s)", call_id, reason)
 
+            from src.config import settings as _settings
+
             # 0a. DB status를 먼저 COMPLETED로 업데이트 (fail-safe)
             # persist_call()이 실패하거나 Cloud Run이 종료되어도 status가 남도록
+            # 부하테스트는 VAD/오디오 hot path 측정이 목적이므로 외부 DB I/O를 제외한다.
             call = self._calls.get(call_id)
-            if call:
+            if call and not _settings.load_test_mode:
                 try:
                     from src.db.pg_client import update_call
 
@@ -185,8 +188,6 @@ class CallManager:
             # 0b. Twilio 통화 종료 (PSTN 전화 끊기)
             # asyncio.to_thread로 비동기화하여 이벤트 루프 블로킹 방지
             # 부하테스트 모드에선 실제 SID가 없으므로 Twilio REST 호출을 건너뛴다.
-            from src.config import settings as _settings
-
             if call and call.call_sid and not _settings.load_test_mode:
                 try:
                     from src.twilio.outbound import get_twilio_client
@@ -291,12 +292,13 @@ class CallManager:
                 call.call_result_data["metrics"] = m.model_dump()
                 call.call_result_data["cost_usd"] = round(call.cost_tokens.cost_usd, 6)
 
-                try:
-                    from src.db.pg_client import persist_call
+                if not _settings.load_test_mode:
+                    try:
+                        from src.db.pg_client import persist_call
 
-                    await persist_call(call)
-                except Exception as e:
-                    logger.warning("Failed to persist call %s: %s", call_id, e)
+                        await persist_call(call)
+                    except Exception as e:
+                        logger.warning("Failed to persist call %s: %s", call_id, e)
 
             # WI-6 B dispatch status is authoritative in Postgres. This is a
             # no-op for outbound calls and keeps every inbound cleanup trigger

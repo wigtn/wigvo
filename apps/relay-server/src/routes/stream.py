@@ -18,6 +18,7 @@ from src.auth import (
     reject_websocket,
 )
 from src.call_manager import call_manager
+from src.config import settings
 from src.logging_config import call_id_var, call_mode_var, tenant_id_var
 from src.inbound.service import dispatch_service
 from src.types import WsMessage, WsMessageType
@@ -59,7 +60,11 @@ async def app_websocket(ws: WebSocket, call_id: str):
 
     try:
         inbound_call_id = UUID(call_id)
-        is_inbound = await dispatch_service.is_inbound(inbound_call_id)
+        is_inbound = (
+            False
+            if settings.load_test_mode
+            else await dispatch_service.is_inbound(inbound_call_id)
+        )
     except ValueError:
         inbound_call_id = None
         is_inbound = False
