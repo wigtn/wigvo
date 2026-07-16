@@ -215,6 +215,39 @@ async def test_stream_start_marks_waiting_and_sends_static_ulaw_chime():
 
 
 @pytest.mark.asyncio
+async def test_stream_start_plays_notice_before_hold_chime():
+    ws = FakeWebSocket()
+    handler = PendingMediaHandler(ws, make_pending())
+    with patch(
+        "src.inbound.service.dispatch_service.mark_waiting",
+        new=AsyncMock(return_value=MagicMock()),
+    ):
+        await handler.handle_message(
+            json.dumps(
+                {
+                    "event": "start",
+                    "streamSid": "MZ-inbound",
+                    "start": {"streamSid": "MZ-inbound"},
+                }
+            )
+        )
+        await asyncio.sleep(0.05)
+
+    sent = b"".join(
+        base64.b64decode(m["media"]["payload"])
+        for m in ws.sent
+        if m["event"] == "media"
+    )
+    # The AI-interpretation disclosure (착신 직후 고지) plays first: the opening
+    # frames are the notice asset, not the hold chime (the two assets differ).
+    assert sent, "no audio was streamed to the caller"
+    assert media_module._notice_audio()[:160] != media_module._hold_audio()[:160]
+    assert sent[:160] == media_module._notice_audio()[:160]
+    assert media_module._notice_audio().startswith(sent)
+    await handler.close()
+
+
+@pytest.mark.asyncio
 async def test_handoff_reuses_same_stream_and_switches_on_frame_boundary():
     ws = FakeWebSocket()
     handler = PendingMediaHandler(ws, make_pending())
