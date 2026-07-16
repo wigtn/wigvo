@@ -3,6 +3,7 @@
 from src.inbound.bootstrap import (
     BootstrapInboundSession,
     BootstrapResult,
+    BootstrapUnavailable,
     CleanupInboundSession,
     register_inbound_media_handlers,
 )
@@ -12,6 +13,7 @@ from src.inbound.service import dispatch_service
 __all__ = [
     "BootstrapInboundSession",
     "BootstrapResult",
+    "BootstrapUnavailable",
     "CleanupInboundSession",
     "DispatchRecord",
     "DispatchState",

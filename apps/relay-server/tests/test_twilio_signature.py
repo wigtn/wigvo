@@ -88,6 +88,34 @@ def test_valid_terminal_status_callback_reaches_single_cleanup_path():
     cleanup.assert_awaited_once_with("call-123", reason="twilio_completed")
 
 
+def test_valid_stream_stop_callback_reaches_inbound_cleanup_path():
+    path = "/twilio/status-callback/call-123"
+    form = {
+        "StreamEvent": "stream-stopped",
+        "CallSid": "CA123",
+        "StreamSid": "MZ123",
+    }
+    with (
+        patch(
+            "src.routes.twilio_webhook.pending_media_registry.contains",
+            new=AsyncMock(return_value=True),
+        ),
+        patch(
+            "src.routes.twilio_webhook.cleanup_inbound_session",
+            new_callable=AsyncMock,
+        ) as cleanup,
+        TestClient(app) as client,
+    ):
+        response = client.post(
+            path,
+            data=form,
+            headers={"X-Twilio-Signature": _signature(path, form)},
+        )
+
+    assert response.status_code == 200
+    cleanup.assert_awaited_once_with("call-123", "twilio_stream_stopped")
+
+
 def test_invalid_status_callback_cannot_mutate_call_state():
     with (
         patch(

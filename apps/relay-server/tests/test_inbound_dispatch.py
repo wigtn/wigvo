@@ -10,12 +10,13 @@ import pytest
 import src.auth as auth
 import src.inbound.repository as repository
 import src.inbound.service as service_module
-from src.inbound.bootstrap import BootstrapResult
+from src.inbound.bootstrap import BootstrapResult, BootstrapUnavailable
 from src.inbound.models import DispatchRecord, DispatchState
 from src.inbound.service import (
     DispatchConflict,
     DispatchForbidden,
     DispatchNotFound,
+    DispatchUnavailable,
     InboundDispatchService,
 )
 
@@ -198,6 +199,75 @@ async def test_two_agents_have_exactly_one_pickup_winner(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_capacity_unavailable_returns_503_and_runs_single_cleanup(monkeypatch):
+    claimed = make_dispatch(DispatchState.CLAIMED, claimed_by=USER_A)
+    starting = make_dispatch(DispatchState.SESSION_STARTING, claimed_by=USER_A)
+    monkeypatch.setattr(service_module, "media_handlers_registered", lambda: True)
+    monkeypatch.setattr(repository, "claim_dispatch", AsyncMock(return_value=claimed))
+    monkeypatch.setattr(
+        repository,
+        "transition_dispatch",
+        AsyncMock(return_value=starting),
+    )
+    monkeypatch.setattr(
+        service_module,
+        "bootstrap_inbound_session",
+        AsyncMock(side_effect=BootstrapUnavailable("Relay is at call capacity")),
+    )
+    cleanup = AsyncMock()
+    finish = AsyncMock()
+    monkeypatch.setattr(service_module, "cleanup_inbound_session", cleanup)
+    monkeypatch.setattr(repository, "finish_dispatch", finish)
+
+    service = InboundDispatchService()
+    with pytest.raises(DispatchUnavailable, match="at call capacity"):
+        await service.pickup(
+            call_id=CALL_ID,
+            tenant_id=TENANT_A,
+            user_id=USER_A,
+        )
+
+    cleanup.assert_awaited_once_with(str(CALL_ID), "capacity_unavailable")
+    finish.assert_awaited_once_with(CALL_ID, "capacity_unavailable")
+
+
+@pytest.mark.asyncio
+async def test_cancelled_pickup_runs_single_cleanup_before_propagating(monkeypatch):
+    claimed = make_dispatch(DispatchState.CLAIMED, claimed_by=USER_A)
+    starting = make_dispatch(DispatchState.SESSION_STARTING, claimed_by=USER_A)
+    entered_bootstrap = asyncio.Event()
+
+    async def bootstrap(*_args):
+        entered_bootstrap.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(service_module, "media_handlers_registered", lambda: True)
+    monkeypatch.setattr(repository, "claim_dispatch", AsyncMock(return_value=claimed))
+    monkeypatch.setattr(
+        repository,
+        "transition_dispatch",
+        AsyncMock(return_value=starting),
+    )
+    monkeypatch.setattr(service_module, "bootstrap_inbound_session", bootstrap)
+    cleanup = AsyncMock()
+    finish = AsyncMock()
+    monkeypatch.setattr(service_module, "cleanup_inbound_session", cleanup)
+    monkeypatch.setattr(repository, "finish_dispatch", finish)
+
+    service = InboundDispatchService()
+    task = asyncio.create_task(
+        service.pickup(call_id=CALL_ID, tenant_id=TENANT_A, user_id=USER_A)
+    )
+    await entered_bootstrap.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    cleanup.assert_awaited_once_with(str(CALL_ID), "session_start_cancelled")
+    finish.assert_awaited_once_with(CALL_ID, "session_start_cancelled")
+
+
+@pytest.mark.asyncio
 async def test_same_agent_pickup_is_idempotent_when_connected(monkeypatch):
     connected = make_dispatch(DispatchState.CONNECTED, claimed_by=USER_A)
     monkeypatch.setattr(service_module, "media_handlers_registered", lambda: True)
@@ -318,22 +388,20 @@ async def test_agent_disconnect_has_reconnect_grace(monkeypatch):
     cleanup = AsyncMock()
     monkeypatch.setattr(service_module.settings, "inbound_reconnect_grace_s", 0.01)
     monkeypatch.setattr(call_manager, "get_app_ws", lambda _call_id: None)
-    monkeypatch.setattr(call_manager, "cleanup_call", cleanup)
+    monkeypatch.setattr(service_module, "cleanup_inbound_session", cleanup)
 
     service = InboundDispatchService()
     service.schedule_reconnect_cleanup(CALL_ID)
     await asyncio.sleep(0.03)
 
-    cleanup.assert_awaited_once_with(str(CALL_ID), reason="app_reconnect_timeout")
+    cleanup.assert_awaited_once_with(str(CALL_ID), "app_reconnect_timeout")
 
 
 @pytest.mark.asyncio
 async def test_reconnect_cancels_pending_cleanup(monkeypatch):
-    from src.call_manager import call_manager
-
     cleanup = AsyncMock()
     monkeypatch.setattr(service_module.settings, "inbound_reconnect_grace_s", 0.01)
-    monkeypatch.setattr(call_manager, "cleanup_call", cleanup)
+    monkeypatch.setattr(service_module, "cleanup_inbound_session", cleanup)
 
     service = InboundDispatchService()
     service.schedule_reconnect_cleanup(CALL_ID)

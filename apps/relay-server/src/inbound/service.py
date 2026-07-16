@@ -8,6 +8,7 @@ from src.config import settings
 from src.inbound import repository
 from src.inbound.bootstrap import (
     BootstrapResult,
+    BootstrapUnavailable,
     bootstrap_inbound_session,
     cleanup_inbound_session,
     media_handlers_registered,
@@ -159,9 +160,15 @@ class InboundDispatchService:
         try:
             async with asyncio.timeout(settings.session_starting_timeout_s):
                 result = await bootstrap_inbound_session(str(call_id), tenant_id)
+        except BootstrapUnavailable as exc:
+            await self._fail_start(call_id, "capacity_unavailable")
+            raise DispatchUnavailable(str(exc)) from exc
         except TimeoutError as exc:
             await self._fail_start(call_id, "session_start_timeout")
             raise DispatchBootstrapFailed("Inbound session initialization timed out") from exc
+        except asyncio.CancelledError:
+            await self._fail_start(call_id, "session_start_cancelled")
+            raise
         except Exception as exc:
             logger.exception("Inbound bootstrap failed (call=%s)", call_id)
             await self._fail_start(call_id, "session_start_failed")
@@ -244,9 +251,7 @@ class InboundDispatchService:
             from src.call_manager import call_manager
 
             if call_manager.get_app_ws(str(call_id)) is None:
-                await call_manager.cleanup_call(
-                    str(call_id), reason="app_reconnect_timeout"
-                )
+                await cleanup_inbound_session(str(call_id), "app_reconnect_timeout")
         except asyncio.CancelledError:
             return
         finally:

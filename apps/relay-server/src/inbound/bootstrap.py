@@ -21,6 +21,10 @@ class BootstrapResult:
     call_mode: str = "relay"
 
 
+class BootstrapUnavailable(RuntimeError):
+    """The media seam is healthy but cannot start this session right now."""
+
+
 class BootstrapInboundSession(Protocol):
     async def __call__(self, call_id: str, tenant_id: UUID) -> BootstrapResult: ...
 
