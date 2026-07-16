@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     twilio_phone_number: str = ""
+    # Twilio가 실제로 호출하는 외부 HTTPS origin. 비어 있으면 기존
+    # relay_server_url을 사용하되, 프록시/내부 URL과 다르면 반드시 명시한다.
+    public_callback_base_url: str = ""
 
     # OpenAI
     openai_api_key: str = ""
