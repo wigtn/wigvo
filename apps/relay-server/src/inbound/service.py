@@ -199,16 +199,18 @@ class InboundDispatchService:
         return connected, result
 
     def _connected_result(self, dispatch: DispatchRecord) -> BootstrapResult:
-        languages = dispatch.languages or ["ko", "en"]
-        source = languages[0] if languages else "ko"
-        target = languages[1] if len(languages) > 1 else "en"
+        # 재접속(이미 CONNECTED) 응답도 첫 접속 부트스트랩과 동일한 고정 언어 방향을 쓴다.
+        # dispatch.languages 순서 의존이면 tenant 설정([en, ko] 등)에 따라 재접속 응답만
+        # 방향이 뒤집혀 웹 UI 표시가 실제 세션과 어긋난다 (#88 고정화의 잔여 경로).
+        from src.inbound.media import _INBOUND_SOURCE_LANG, _INBOUND_TARGET_LANG
+
         ws_base = settings.relay_server_url.replace("https://", "wss://").replace(
             "http://", "ws://"
         )
         return BootstrapResult(
             relay_ws_url=f"{ws_base}/relay/calls/{dispatch.call_id}/stream",
-            source_language=source,
-            target_language=target,
+            source_language=_INBOUND_SOURCE_LANG,
+            target_language=_INBOUND_TARGET_LANG,
         )
 
     async def _fail_start(self, call_id: UUID, reason: str) -> None:
