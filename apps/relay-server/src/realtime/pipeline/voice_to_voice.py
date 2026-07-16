@@ -102,6 +102,12 @@ class VoiceToVoicePipeline(BasePipeline):
             on_user_transcription=self._on_user_transcription,
         )
 
+        # DualSessionManager의 preflight 결과를 따라 handler/pipeline도 같은 VAD 모드를 쓴다.
+        use_local_vad = bool(
+            settings.local_vad_enabled
+            and getattr(dual_session, "local_vad_enabled", True)
+        )
+
         # Session B 핸들러: 수신자 -> User
         self.session_b = SessionBHandler(
             session=dual_session.session_b,
@@ -113,13 +119,13 @@ class VoiceToVoicePipeline(BasePipeline):
             on_recipient_speech_stopped=self._on_recipient_stopped,
             on_transcript_complete=self._on_turn_complete,
             on_caption_done=self._on_session_b_caption_done,
-            use_local_vad=settings.local_vad_enabled,
+            use_local_vad=use_local_vad,
             context_prune_keep=0,
         )
 
         # Local VAD (Silero + RMS Energy Gate)
         self.local_vad: LocalVAD | None = None
-        if settings.local_vad_enabled:
+        if use_local_vad:
             self.local_vad = LocalVAD(
                 rms_threshold=settings.local_vad_rms_threshold,
                 speech_threshold=settings.local_vad_speech_threshold,
