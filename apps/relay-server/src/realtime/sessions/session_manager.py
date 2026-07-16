@@ -16,6 +16,7 @@ import websockets
 from websockets.asyncio.client import ClientConnection
 
 from src.config import settings
+from src.observability.operations import operations
 from src.realtime.local_vad import is_local_vad_available
 from src.types import CallMode, CommunicationMode, SessionConfig, VadMode
 
@@ -115,6 +116,7 @@ class RealtimeSession:
                     )
                     await asyncio.sleep(1)
                 else:
+                    operations.record_openai_error("realtime_connect")
                     raise last_err
         logger.info("[%s] Connected", self.label)
 
@@ -312,6 +314,7 @@ class RealtimeSession:
                     logger.info("[%s] Session created: %s", self.label, self.session_id)
 
                 if event_type == "error":
+                    operations.record_openai_error("realtime_event")
                     logger.error("[%s] Error: %s", self.label, event)
 
                 # 등록된 핸들러 호출

@@ -62,6 +62,10 @@ class CloudRunJsonFormatter(logging.Formatter):
         tenant_id = getattr(record, "tenant_id", "")
         if tenant_id:
             payload["tenant_id"] = tenant_id
+        for field in ("alert_type", "alert_value", "alert_threshold"):
+            value = getattr(record, field, None)
+            if value is not None:
+                payload[field] = value
         if record.exc_info and record.exc_info[1] is not None:
             payload["exception"] = "".join(traceback.format_exception(*record.exc_info))
         return json.dumps(payload, ensure_ascii=False)

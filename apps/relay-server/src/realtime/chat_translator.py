@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from openai import AsyncOpenAI
 
 from src.config import settings
+from src.observability.operations import operations
 
 if TYPE_CHECKING:
     from src.realtime.context_manager import ConversationContextManager
@@ -121,6 +122,7 @@ class ChatTranslator:
             )
 
         except asyncio.TimeoutError:
+            operations.record_openai_error("chat_translation_timeout")
             elapsed_ms = (time.monotonic() - start) * 1000
             logger.warning(
                 "ChatTranslator timeout (%.0fms > %.0fms limit)",
@@ -130,5 +132,6 @@ class ChatTranslator:
             return None
 
         except Exception:
+            operations.record_openai_error("chat_translation")
             logger.exception("ChatTranslator error")
             return None

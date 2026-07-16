@@ -16,6 +16,7 @@ import time
 from openai import AsyncOpenAI
 
 from src.config import settings
+from src.observability.operations import operations
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,7 @@ class FallbackLLM:
             return text
 
         except asyncio.TimeoutError:
+            operations.record_openai_error("guardrail_timeout")
             elapsed_ms = (time.monotonic() - start) * 1000
             logger.warning(
                 "Fallback LLM timeout (%.0fms > %.0fms limit), using original text",
@@ -120,5 +122,6 @@ class FallbackLLM:
             return text
 
         except Exception:
+            operations.record_openai_error("guardrail")
             logger.exception("Fallback LLM error, using original text")
             return text

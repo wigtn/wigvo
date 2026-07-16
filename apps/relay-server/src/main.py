@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from src.call_manager import call_manager
 from src.config import settings
 from src.logging_config import setup_logging
+from src.observability.operations import operations
 from src.middleware.rate_limit import RateLimitMiddleware
 from src.routes.calls import router as calls_router
 from src.routes.health import router as health_router
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     )
     from src.inbound.service import dispatch_service
 
+    operations.start()
     await dispatch_service.start()
     if settings.load_test_mode:
         from src.observability.loop_lag import sampler
@@ -54,6 +56,7 @@ async def lifespan(app: FastAPI):
         await dispatch_service.stop()
         # Graceful shutdown: 모든 활성 통화 정리
         await call_manager.shutdown_all()
+        await operations.stop()
 
 
 app = FastAPI(
