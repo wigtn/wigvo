@@ -161,6 +161,10 @@ class CallManager:
                 and call_id not in self._sessions
                 and call_id not in self._routers
             ):
+                from src.capacity_manager import capacity_manager
+
+                await capacity_manager.release(call_id)
+                await capacity_manager.finish(call_id)
                 return
 
             logger.info("Cleaning up call %s (reason: %s)", call_id, reason)
@@ -254,6 +258,14 @@ class CallManager:
 
             # 5. DB persist + active_calls 제거
             call = self._calls.pop(call_id, None)
+
+            # 실제 세션/라우터를 내리고 active_calls에서 제거한 직후 슬롯을 반환한다.
+            # 이후 요약/DB/dispatch 정리가 실패해도 용량 누수가 생기지 않는다.
+            from src.capacity_manager import capacity_manager
+
+            await capacity_manager.release(call_id)
+            await capacity_manager.finish(call_id)
+
             if call:
                 call.status = CallStatus.ENDED
 

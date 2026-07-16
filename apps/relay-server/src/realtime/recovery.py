@@ -24,6 +24,7 @@ from typing import Any, Callable, Coroutine
 import openai
 
 from src.config import settings
+from src.observability.operations import operations
 from src.realtime.ring_buffer import AudioRingBuffer
 from src.realtime.sessions.session_manager import RealtimeSession
 from src.types import (
@@ -523,6 +524,7 @@ class SessionRecoveryManager:
 
             return text
         except Exception as e:
+            operations.record_openai_error("whisper_transcription")
             logger.error("[%s] Whisper transcription error: %s", self.session.label, e)
             return None
 

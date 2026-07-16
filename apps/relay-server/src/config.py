@@ -147,6 +147,34 @@ class Settings(BaseSettings):
     # 부하 테스트 시 MAX_CONCURRENT_CALLS도 함께 올려야 상한 이상 측정 가능.
     load_test_mode: bool = False
 
+    # WI-5 operational alert thresholds. Alerts are emitted as structured
+    # ERROR records for the Cloud Logging -> Monitoring notification channel.
+    cpu_alert_threshold_percent: float = 85.0
+    cpu_alert_consecutive_samples: int = 3
+    openai_error_alert_threshold: int = 5
+    openai_error_window_s: float = 300.0
+    operations_sample_interval_s: float = 10.0
+    operations_alert_cooldown_s: float = 300.0
+
+    @field_validator(
+        "cpu_alert_threshold_percent",
+        "openai_error_window_s",
+        "operations_sample_interval_s",
+        "operations_alert_cooldown_s",
+    )
+    @classmethod
+    def validate_positive_operational_float(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("operational thresholds must be positive")
+        return value
+
+    @field_validator("cpu_alert_consecutive_samples", "openai_error_alert_threshold")
+    @classmethod
+    def validate_positive_operational_int(cls, value: int) -> int:
+        if value <= 0:
+            raise ValueError("operational thresholds must be positive")
+        return value
+
     # First message timeouts (C-3)
     recipient_answer_timeout_s: int = 45
 
