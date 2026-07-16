@@ -11,7 +11,7 @@
 
 사용:
   # 1) 서버를 부하모드로 (별도 터미널 또는 VM)
-  RELAY_LOAD_TEST_MODE=1 MAX_CONCURRENT_CALLS=100 \
+  LOAD_TEST_MODE=1 MAX_CONCURRENT_CALLS=100 \
     uv run uvicorn src.main:app --host 0.0.0.0 --port 8080
 
   # 2) 하니스 실행
@@ -23,6 +23,7 @@ import argparse
 import asyncio
 import base64
 import json
+import os
 import time
 import uuid
 
@@ -45,15 +46,22 @@ def _prebuild_media_msgs(duration_s: float, speech_ratio: float) -> list[str]:
     return msgs
 
 
-async def _start_call(client: httpx.AsyncClient, base_url: str, idx: int) -> str | None:
+async def _start_call(
+    client: httpx.AsyncClient,
+    base_url: str,
+    idx: int,
+    tenant_id: str,
+) -> str | None:
     """POST /relay/calls/start. 성공 시 call_id, 용량초과(503)면 None."""
-    call_id = f"lt-{uuid.uuid4().hex[:12]}"
+    # persist/cleanup 경로도 실제로 통과하도록 운영과 같은 UUID call_id를 쓴다.
+    call_id = str(uuid.uuid4())
     body = {
         "call_id": call_id,
         "phone_number": "+821000000000",
         "source_language": "ko",
         "target_language": "en",
         "communication_mode": "voice_to_voice",
+        "tenant_id": tenant_id,
     }
     try:
         r = await client.post(f"{base_url}/relay/calls/start", json=body, timeout=30)
@@ -67,7 +75,8 @@ async def _start_call(client: httpx.AsyncClient, base_url: str, idx: int) -> str
 
 
 async def _run_call(base_url: str, ws_url: str, media_msgs: list[str],
-                    call_id: str, stop: asyncio.Event, result: dict) -> None:
+                    call_id: str, stop: asyncio.Event, result: dict,
+                    user_jwt: str | None) -> None:
     """한 통화: media WS + app WS 연결, 20ms 간격 오디오 주입, stop까지 유지."""
     twilio_uri = f"{ws_url}/twilio/media-stream/{call_id}"
     app_uri = f"{ws_url}/relay/calls/{call_id}/stream"
@@ -75,7 +84,12 @@ async def _run_call(base_url: str, ws_url: str, media_msgs: list[str],
     try:
         # app(브라우저) WS는 부가 부하 — 실패해도 통화 자체는 진행
         try:
-            app_ws = await websockets.connect(app_uri, open_timeout=10)
+            subprotocols = ["wigvo.jwt", user_jwt] if user_jwt else None
+            app_ws = await websockets.connect(
+                app_uri,
+                open_timeout=10,
+                subprotocols=subprotocols,
+            )
         except Exception:
             app_ws = None
 
@@ -130,9 +144,11 @@ async def _get_stats(client: httpx.AsyncClient, base_url: str) -> dict:
 
 
 async def _run_level(base_url: str, ws_url: str, media_msgs: list[str],
-                     n: int, duration_s: float) -> dict:
+                     n: int, duration_s: float, tenant_id: str,
+                     api_key: str | None, user_jwt: str | None) -> dict:
     """동시성 레벨 n을 duration_s 동안 유지하며 서버 지표를 계측."""
-    async with httpx.AsyncClient() as client:
+    headers = {"x-wigvo-api-key": api_key} if api_key else None
+    async with httpx.AsyncClient(headers=headers) as client:
         await client.post(f"{base_url}/loadtest/reset", timeout=10)
         stop = asyncio.Event()
         result = {"target": n, "started": 0, "rejected": 0, "errors": 0,
@@ -141,7 +157,7 @@ async def _run_level(base_url: str, ws_url: str, media_msgs: list[str],
         # 통화 시작(램프업)
         call_ids: list[str] = []
         for i in range(n):
-            cid = await _start_call(client, base_url, i)
+            cid = await _start_call(client, base_url, i, tenant_id)
             if cid == "__REJECTED__":
                 result["rejected"] += 1
             elif cid:
@@ -150,7 +166,9 @@ async def _run_level(base_url: str, ws_url: str, media_msgs: list[str],
             await asyncio.sleep(0.05)  # 완만한 램프업
 
         # 오디오 주입 태스크 기동
-        tasks = [asyncio.create_task(_run_call(base_url, ws_url, media_msgs, cid, stop, result))
+        tasks = [asyncio.create_task(
+            _run_call(base_url, ws_url, media_msgs, cid, stop, result, user_jwt)
+        )
                  for cid in call_ids]
 
         stats_before = await _get_stats(client, base_url)
@@ -205,17 +223,40 @@ async def _main() -> None:
     ap.add_argument("--sweep", default="5,8,10,15,20", help="쉼표구분 동시성 레벨")
     ap.add_argument("--duration", type=float, default=20.0, help="레벨당 유지 초")
     ap.add_argument("--speech-ratio", type=float, default=0.7, help="발화 비중(1.0=최악)")
+    ap.add_argument(
+        "--tenant-id",
+        default=os.getenv(
+            "WIGVO_LOADTEST_TENANT_ID",
+            "00000000-0000-0000-0000-000000000001",
+        ),
+        help="부하 통화가 속할 tenant UUID",
+    )
+    ap.add_argument(
+        "--api-key",
+        default=os.getenv("RELAY_API_KEY"),
+        help="TENANT_AUTH_ENFORCE=true일 때 사용할 기관 키 (권장: RELAY_API_KEY env)",
+    )
+    ap.add_argument(
+        "--user-jwt",
+        default=os.getenv("WIGVO_USER_JWT"),
+        help="선택: App WebSocket 부가 부하용 사용자 JWT",
+    )
     args = ap.parse_args()
 
     ws_url = args.ws_url or args.base_url.replace("http://", "ws://").replace("https://", "wss://")
     levels = [int(x) for x in args.sweep.split(",") if x.strip()]
 
     # 사전 점검: 서버가 load_test_mode인지 확인
-    async with httpx.AsyncClient() as client:
+    headers = {"x-wigvo-api-key": args.api_key} if args.api_key else None
+    async with httpx.AsyncClient(headers=headers) as client:
         st = await _get_stats(client, args.base_url)
     if not st.get("load_test_mode"):
-        print("⚠️  경고: 서버가 load_test_mode가 아닙니다. RELAY_LOAD_TEST_MODE=1로 재기동하세요.")
+        print("⚠️  경고: 서버가 load_test_mode가 아닙니다. LOAD_TEST_MODE=1로 재기동하세요.")
         print(f"    (/loadtest/stats 응답: {st})")
+        return
+    if not st.get("local_vad_enabled") or not st.get("local_vad_runtime_ready"):
+        print("⚠️  중단: Local VAD runtime이 준비되지 않아 Silero hot path를 측정할 수 없습니다.")
+        print("    uv sync --frozen 후 LOCAL_VAD_ENABLED=true로 서버를 재기동하세요.")
         return
     print(f"서버 확인 OK · max_concurrent_calls={st.get('max_concurrent_calls')} · "
           f"레벨={levels} · 레벨당 {args.duration}s")
@@ -226,7 +267,16 @@ async def _main() -> None:
     rows = []
     for n in levels:
         print(f"\n▶ 레벨 N={n} 측정 중 ({args.duration}s)...")
-        row = await _run_level(args.base_url, ws_url, media_msgs, n, args.duration)
+        row = await _run_level(
+            args.base_url,
+            ws_url,
+            media_msgs,
+            n,
+            args.duration,
+            args.tenant_id,
+            args.api_key,
+            args.user_jwt,
+        )
         rows.append(row)
         lag = row.get("loop_lag_ms", {}) or {}
         print(f"  시작 {row['started']}/{n} · 거절 {row['rejected']} · 에러 {row['errors']} · "
