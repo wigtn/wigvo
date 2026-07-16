@@ -38,6 +38,11 @@ class CapacityManager:
     async def reserve(self, call_id: str) -> bool:
         """active + reserved < cap이면 예약하고 True. 초과면 False(통화 미생성)."""
         async with self._lock:
+            # 같은 call_id로 시작 요청이 겹치면 set 크기는 늘지 않지만 두 요청 모두
+            # 예약 성공으로 진행할 수 있다. 두 번째 요청을 거절해 한 reservation이
+            # 정확히 한 통화 생성 경로만 소유하도록 한다.
+            if call_id in self._reserved:
+                return False
             if self._active_count() + len(self._reserved) >= settings.max_concurrent_calls:
                 return False
             self._reserved.add(call_id)

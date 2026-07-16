@@ -41,6 +41,17 @@ async def test_active_plus_reserved_never_exceeds_cap(monkeypatch):
     assert cm.reserved_count == 1
 
 
+@pytest.mark.asyncio
+async def test_duplicate_call_id_cannot_share_one_reservation(monkeypatch):
+    monkeypatch.setattr(cap_mod, "settings", SimpleNamespace(max_concurrent_calls=3))
+    cm = CapacityManager()
+    monkeypatch.setattr(cm, "_active_count", lambda: 0)
+
+    assert await cm.reserve("same-call") is True
+    assert await cm.reserve("same-call") is False
+    assert cm.reserved_count == 1
+
+
 def test_release_is_idempotent():
     cm = CapacityManager()
     cm.release("never-reserved")  # 예외 없이 무시
