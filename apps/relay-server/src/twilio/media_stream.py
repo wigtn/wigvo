@@ -24,6 +24,7 @@ class TwilioMediaStreamHandler:
         self.call = call
         self.stream_sid: str = ""
         self._closed = False
+        self._ws_closed = False
 
     async def handle_message(self, raw: str) -> TwilioMediaEvent | None:
         """Twilio Media Stream 메시지를 파싱한다."""
@@ -44,12 +45,12 @@ class TwilioMediaStreamHandler:
                     "Twilio media stream started: stream_sid=%s", self.stream_sid
                 )
             case "media":
-                return event  # 오디오 페이로드 — 호출자가 Session B로 전달
+                pass  # 오디오 페이로드 — 호출자가 Session B로 전달
             case "stop":
                 logger.info("Twilio media stream stopped (call=%s)", self.call.call_id)
                 self._closed = True
 
-        return None
+        return event
 
     def extract_audio(self, event: TwilioMediaEvent) -> bytes | None:
         """Twilio media 이벤트에서 g711_ulaw 오디오 바이트를 추출한다."""
@@ -81,6 +82,17 @@ class TwilioMediaStreamHandler:
         msg = {"event": "clear", "streamSid": self.stream_sid}
         try:
             await self.ws.send_json(msg)
+        except Exception:
+            pass
+
+    async def close(self) -> None:
+        """Stop future sends and close the underlying Stream idempotently."""
+        self._closed = True
+        if self._ws_closed:
+            return
+        self._ws_closed = True
+        try:
+            await self.ws.close()
         except Exception:
             pass
 

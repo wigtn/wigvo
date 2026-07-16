@@ -3,16 +3,26 @@
 import asyncio
 import json
 import logging
+from uuid import NAMESPACE_URL, uuid5
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from twilio.twiml.voice_response import VoiceResponse
 
 from src.call_manager import call_manager
+from src.inbound.bootstrap import cleanup_inbound_session
+from src.inbound.media import pending_media_registry
+from src.inbound.service import (
+    DispatchError,
+    DispatchNotFound,
+    DispatchUnavailable,
+    dispatch_service,
+)
 from src.logging_config import call_id_var, call_mode_var, tenant_id_var
 from src.realtime.audio_router import AudioRouter
 from src.twilio.media_stream import TwilioMediaStreamHandler
 from src.twilio.signature import (
+    public_http_url,
     public_websocket_url,
     validate_twilio_http_request,
     validate_twilio_websocket,
@@ -42,14 +52,76 @@ async def twilio_webhook(call_id: str, request: Request):
 
 @router.post("/incoming")
 async def twilio_incoming(request: Request):
-    """WI-6 인바운드 진입점의 서명 경계.
-
-    실제 DID resolve/dispatch는 WI-6에서 연결한다. 그 전에는 검증된 요청도
-    TwiML Reject로 안전하게 종료해 세션·비용을 만들지 않는다.
-    """
-    await validate_twilio_http_request(request)
+    """Resolve DID, create lightweight dispatch, and connect pending media."""
+    form = await validate_twilio_http_request(request)
     voice = VoiceResponse()
-    voice.reject(reason="busy")
+    provider_call_sid = str(form.get("CallSid", "")).strip()
+    inbound_number = str(form.get("To", "")).strip()
+    if not provider_call_sid or not inbound_number:
+        logger.warning("Rejected inbound call with missing CallSid/To")
+        voice.reject(reason="rejected")
+        return Response(content=str(voice), media_type="application/xml")
+
+    try:
+        tenant_id, languages = await dispatch_service.resolve_tenant(inbound_number)
+    except DispatchNotFound:
+        logger.warning("Rejected unmapped inbound DID=%s", inbound_number)
+        voice.reject(reason="rejected")
+        return Response(content=str(voice), media_type="application/xml")
+    except Exception:
+        logger.exception("Inbound DID resolution unavailable")
+        voice.reject(reason="busy")
+        return Response(content=str(voice), media_type="application/xml")
+    if len(languages) < 2 or not languages[0] or not languages[1]:
+        logger.error("Rejected inbound DID with invalid language mapping=%s", inbound_number)
+        voice.reject(reason="rejected")
+        return Response(content=str(voice), media_type="application/xml")
+
+    deterministic_call_id = uuid5(NAMESPACE_URL, f"wigvo:twilio:{provider_call_sid}")
+    dispatch = None
+    try:
+        dispatch = await dispatch_service.create_ringing(
+            call_id=deterministic_call_id,
+            tenant_id=tenant_id,
+            provider_call_sid=provider_call_sid,
+        )
+        await pending_media_registry.prepare(
+            call_id=dispatch.call_id,
+            tenant_id=dispatch.tenant_id,
+            languages=dispatch.languages or languages,
+            provider_call_sid=provider_call_sid,
+        )
+    except DispatchUnavailable:
+        logger.warning("Rejected inbound call because waiting queue is full")
+        voice.reject(reason="busy")
+        return Response(content=str(voice), media_type="application/xml")
+    except (DispatchError, RuntimeError, ValueError):
+        logger.exception("Failed to create inbound dispatch")
+        if dispatch is not None:
+            try:
+                await dispatch_service.finish(dispatch.call_id, "media_prepare_failed")
+            except Exception:
+                logger.exception("Failed to roll back inbound dispatch")
+        voice.reject(reason="rejected")
+        return Response(content=str(voice), media_type="application/xml")
+
+    stream_url = public_websocket_url(f"/twilio/media-stream/{dispatch.call_id}")
+    status_callback_url = public_http_url(
+        f"/twilio/status-callback/{dispatch.call_id}"
+    )
+    stream = voice.connect().stream(
+        url=stream_url,
+        status_callback=status_callback_url,
+        status_callback_method="POST",
+    )
+    stream.parameter(name="call_id", value=str(dispatch.call_id))
+    stream.parameter(name="direction", value="inbound")
+    logger.info(
+        "Inbound dispatch created call=%s tenant=%s did=%s",
+        dispatch.call_id,
+        dispatch.tenant_id,
+        inbound_number,
+    )
     return Response(content=str(voice), media_type="application/xml")
 
 
@@ -58,29 +130,41 @@ async def twilio_status_callback(
     call_id: str,
     request: Request,
 ):
-    """Twilio 통화 상태 변경 콜백.
+    """Twilio 통화/Media Stream 상태 변경 콜백.
 
-    수신자가 전화를 끊으면 completed/busy/no-answer 등이 오며,
-    이때 cleanup_call()로 자동 정리한다.
+    통화 종료 상태나 stream-stopped/stream-error를 받으면 인바운드는
+    media cleanup seam, 아웃바운드는 call_manager로 자동 정리한다.
     """
     form = await validate_twilio_http_request(request)
     call_status = str(form.get("CallStatus", ""))
+    stream_event = str(form.get("StreamEvent", ""))
     call_sid = str(form.get("CallSid", ""))
     call_duration = str(form.get("CallDuration", ""))
 
     call_id_var.set(call_id)
     logger.info(
-        "Twilio status callback: call_id=%s, status=%s, sid=%s, duration=%s",
+        "Twilio status callback: call_id=%s, status=%s, stream_event=%s, "
+        "sid=%s, duration=%s",
         call_id,
         call_status,
+        stream_event,
         call_sid,
         call_duration,
     )
 
     # 통화 종료 상태면 자동 정리
     terminal_statuses = {"completed", "failed", "busy", "no-answer", "canceled"}
-    if call_status in terminal_statuses:
-        await call_manager.cleanup_call(call_id, reason=f"twilio_{call_status}")
+    terminal_stream_events = {"stream-stopped", "stream-error"}
+    if call_status in terminal_statuses or stream_event in terminal_stream_events:
+        reason = (
+            f"twilio_{call_status}"
+            if call_status in terminal_statuses
+            else f"twilio_{stream_event.replace('-', '_')}"
+        )
+        if await pending_media_registry.contains(call_id):
+            await cleanup_inbound_session(call_id, reason)
+        else:
+            await call_manager.cleanup_call(call_id, reason=reason)
 
     return {"status": "ok"}
 
@@ -102,8 +186,20 @@ async def twilio_media_stream(ws: WebSocket, call_id: str):
 
     call = call_manager.get_call(call_id)
     if not call:
-        logger.error("Twilio Media Stream: call %s not found", call_id)
-        await ws.close()
+        try:
+            pending_handler = await pending_media_registry.attach(call_id, ws)
+        except RuntimeError:
+            logger.warning("Duplicate inbound Twilio Stream rejected (call=%s)", call_id)
+            await ws.close(code=4409, reason="Twilio Stream already connected")
+            return
+        if pending_handler is None:
+            logger.error("Twilio Media Stream: call %s not found", call_id)
+            await ws.close()
+            return
+        call_id_var.set(call_id)
+        call_mode_var.set("voice_to_voice")
+        tenant_id_var.set(str(pending_handler.pending.tenant_id))
+        await pending_handler.run()
         return
 
     # 구조화 로깅 컨텍스트 설정 — 이후 모든 하위 태스크에 자동 전파
