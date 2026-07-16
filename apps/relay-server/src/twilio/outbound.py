@@ -7,6 +7,7 @@ from uuid import UUID
 from twilio.rest import Client
 
 from src.config import settings
+from src.twilio.signature import public_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,8 @@ def make_call(
     """
     client = get_twilio_client()
 
-    webhook_url = f"{settings.relay_server_url}/twilio/webhook/{call_id}"
-    status_callback_url = (
-        f"{settings.relay_server_url}/twilio/status-callback/{call_id}"
-    )
+    webhook_url = public_http_url(f"/twilio/webhook/{call_id}")
+    status_callback_url = public_http_url(f"/twilio/status-callback/{call_id}")
 
     logger.info("Making outbound call to %s (call_id=%s)", phone_number, call_id)
 

@@ -41,7 +41,12 @@ USER_AUTH_WEBSOCKET_PATHS = frozenset(
     {"/relay/calls/{call_id}/stream", "/relay/calls/{call_id}/monitor"}
 )
 TWILIO_AUTH_EXEMPT_PATH_PREFIXES = frozenset(
-    {"/twilio/webhook/", "/twilio/status-callback/", "/twilio/media-stream/"}
+    {
+        "/twilio/webhook/",
+        "/twilio/status-callback/",
+        "/twilio/incoming",
+        "/twilio/media-stream/",
+    }
 )
 
 JWT_WS_PROTOCOL = "wigvo.jwt"
